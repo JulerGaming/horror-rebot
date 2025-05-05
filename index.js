@@ -42,7 +42,6 @@ client.on("messageCreate", async (message) => {
       message.delete();
       try {
         await message.member.timeout(600000, "Using inappropriate language.");
-        );
       } catch (error) {
         if (error.code === 50013) {
           console.log(
