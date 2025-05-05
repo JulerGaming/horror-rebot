@@ -1,9 +1,24 @@
 const express = require("express");
 const app = express();
 
-app.listen(3000, () => {
+// Error handling
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
+// Bind to 0.0.0.0 to make it accessible
+app.listen(3000, '0.0.0.0', () => {
   console.log("Project is running!");
 });
+
+// Keep the process alive
+setInterval(() => {
+  console.log("Staying alive - " + new Date().toISOString());
+}, 60000);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
