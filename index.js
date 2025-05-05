@@ -23,12 +23,6 @@ client.once("ready", () => {
   console.log("Bot is ready and status set!");
 });
 
-client.on("messageCreate", (message) => {
-  if (message.content === ".ping") {
-    message.channel.send(`pong! ${client.ws.ping}ms`);
-  }
-});
-
 const fs = require("fs");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
