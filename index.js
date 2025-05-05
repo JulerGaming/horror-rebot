@@ -10,7 +10,7 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType } = require("discord.js");
 const client = new Client({ 
   intents: [
     GatewayIntentBits.Guilds,
@@ -20,7 +20,7 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-  client.user.setActivity('julergt.org - moderating', { type: 'PLAYING' });
+  client.user.setActivity('julergt.org - moderating', { type: ActivityType.Playing });
   console.log('Bot is ready and status set!');
 });
 
