@@ -1,4 +1,3 @@
-
 const express = require("express");
 const app = express();
 
@@ -11,17 +10,17 @@ app.get("/", (req, res) => {
 });
 
 const { Client, GatewayIntentBits, ActivityType } = require("discord.js");
-const client = new Client({ 
+const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
-client.once('ready', () => {
-  client.user.setActivity('julergt.org - moderating', { type: ActivityType.Playing });
-  console.log('Bot is ready and status set!');
+client.once("ready", () => {
+  client.user.setActivity("your messages", { type: ActivityType.Listening });
+  console.log("Bot is ready and status set!");
 });
 
 client.on("messageCreate", (message) => {
