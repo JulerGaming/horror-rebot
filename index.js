@@ -25,7 +25,24 @@ client.once("ready", () => {
 
 client.on("messageCreate", (message) => {
   if (message.content === ".ping") {
-    message.channel.send("pong!");
+    message.channel.send(`pong! ${client.ws.ping}ms`);
+  }
+});
+
+const fs = require("fs");
+const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
+
+client.on("messageCreate", (message) => {
+  if (message.content === ".ping") {
+    message.channel.send(`pong! ${client.ws.ping}ms`);
+  }
+  const words = message.content.split(" ");
+  for (const word of words) {
+    if (badWords.includes(word.toLowerCase())) {
+      message.delete();
+      message.member.timeout(600000, "Using inappropriate language.");
+      break;
+    }
   }
 });
 
