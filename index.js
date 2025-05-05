@@ -38,14 +38,13 @@ client.on("messageCreate", async (message) => {
         await message.member.timeout(600000, "Using inappropriate language.");
       } catch (error) {
         if (error.code === 50013) {
-          console.log(
-            "Missing permissions to timeout user, message was still deleted",
-          );
+          console.log("Missing permissions to timeout user, message was still deleted");
+          message.channel.send(`${message.author}, your message has been deleted.`);
         } else {
           console.error("Error:", error);
+          message.channel.send(`${message.author} has been timed out for 10 minutes for using inappropriate language.`);
         }
       }
-      message.channel.send(`${message.author} has been timed out for 10 minutes for using inappropriate language.`);
       break;
     }
   }
