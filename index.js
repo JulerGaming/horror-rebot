@@ -19,6 +19,11 @@ const client = new Client({
   ]
 });
 
+client.once('ready', () => {
+  client.user.setActivity('julergt.org - moderating', { type: 'PLAYING' });
+  console.log('Bot is ready and status set!');
+});
+
 client.on("messageCreate", (message) => {
   if (message.content === ".ping") {
     message.channel.send("pong!");
