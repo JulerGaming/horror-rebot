@@ -1,3 +1,4 @@
+
 const express = require("express");
 const app = express();
 
@@ -9,10 +10,16 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-const Discord = require("discord.js");
-const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
+const { Client, GatewayIntentBits } = require("discord.js");
+const client = new Client({ 
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
+});
 
-client.on("message", (message) => {
+client.on("messageCreate", (message) => {
   if (message.content === ".ping") {
     message.channel.send("pong!");
   }
