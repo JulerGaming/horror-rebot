@@ -32,7 +32,7 @@ client.on("messageCreate", (message) => {
 const fs = require("fs");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
-client.on("messageCreate", (message) => {
+client.on("messageCreate", async (message) => {
   if (message.content === ".ping") {
     message.channel.send(`pong! ${client.ws.ping}ms`);
   }
