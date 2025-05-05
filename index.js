@@ -40,7 +40,15 @@ client.on("messageCreate", (message) => {
   for (const word of words) {
     if (badWords.includes(word.toLowerCase())) {
       message.delete();
-      message.member.timeout(600000, "Using inappropriate language.");
+      try {
+        await message.member.timeout(600000, "Using inappropriate language.");
+      } catch (error) {
+        if (error.code === 50013) {
+          console.log("Missing permissions to timeout user, message was still deleted");
+        } else {
+          console.error("Error:", error);
+        }
+      }
       break;
     }
   }
