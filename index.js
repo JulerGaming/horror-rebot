@@ -103,6 +103,29 @@ client.on("interactionCreate", async (interaction) => {
   try {
     if(interaction.isCommand()) {
       if(interaction.commandName === "ping") {
+        console.log(`Received interaction request for ping by ${interaction.user.displayName}`);
+        await interaction.reply({ content: "pong! " + client.ws.ping + " ms", ephemeral: true });
+      }
+
+      if(interaction.commandName === "balls") {
+        console.log(`Received interaction request for balls by ${interaction.user.displayName}`);
+        const ballGif = ballGifTenor[Math.floor(Math.random() * ballGifTenor.length)];
+        console.log("Sending " + ballGif + " to " + interaction.user.displayName);
+        await interaction.reply(ballGif);
+      }
+
+      // Handle other commands similarly...
+
+    }
+  } catch (error) {
+    if (error.code === 10062) {
+      console.error('Unknown interaction. The interaction may have expired.', error);
+    } else {
+      console.error('An error occurred while replying to the interaction:', error);
+    }
+  }
+});
+      if(interaction.commandName === "ping") {
         console.log(`Recieved interaction request for ping by ${interaction.user.displayName}`)
         interaction.reply({ content: "pong! " + client.ws.ping + " ms", ephemeral: true });
       }
