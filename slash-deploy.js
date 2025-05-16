@@ -38,6 +38,15 @@ const slashRegister = async () => {
               .setName("channelid")
               .setDescription("id of the voice channel of the bot to join")
               .setRequired(true)
+          ),
+        new SlashCommandBuilder()
+          .setName("playfile")
+          .setDescription("plays an audio file (uploaded to discord and sent to the bot)")
+          .addAttachmentOption((option) =>
+            option
+              .setName("song")
+              .setDescription("the audio file to play")
+              .setRequired(true)
           )
       ]
     });

@@ -169,6 +169,49 @@ client.on("interactionCreate", async (interaction) => {
           interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
         }
       }
+      if (interaction.commandName === "playfile") {
+        const attachment = interaction.options.getAttachment("song");
+        if (attachment.contentType.startsWith("audio/")) {
+          const channelId = interaction.options.getString("channelid");
+          const channel = interaction.guild.channels.cache.get(channelId);
+          if (channel && channel.isVoiceBased()) {
+            console.log(`Attempting to play sound in ${channel.name}`);
+
+            interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
+
+            const resource = createAudioResource(attachment.url, {
+              inputType: StreamType.Arbitrary,
+            });
+            const player = createAudioPlayer();
+
+            const connection = getVoiceConnection(interaction.guild.id);
+
+            if (!connection) {
+              const connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: interaction.guild.id,
+                adapterCreator: interaction.guild.voiceAdapterCreator,
+              });
+            }
+
+            connection.subscribe(player);
+            player.play(resource);
+
+            player.on(AudioPlayerStatus.Idle, () => {
+              console.log("Finished playing sound");
+            });
+
+            player.on("error", error => {
+              console.error("Error while playing audio:", error);
+              interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
+            });
+
+          } else {
+            console.log("Invalid voice channel ID");
+            interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
+          }
+        }
+      }
     }
   } catch (error) {
     console.error("I GOT AN ERROR WHILE USING THIS COMMAND WITH " + interaction.user.displayName + "!!!: " + error);
@@ -176,4 +219,20 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-client.login(process.env.token);
+client.login(process.env.token)
+
+process.on('exit', (code) => {
+  console.log(`About to exit with code: ${code}`);
+  client.guilds.cache.forEach(guild => {
+    if (guild.voiceAdapterCreator) {
+      const voiceConnection = getVoiceConnection(guild.id);
+      if (voiceConnection) {
+        console.log(`Disconnecting from voice channel in guild: ${guild.name}`);
+        voiceConnection.destroy();
+      }
+    }
+  });
+  client.destroy();
+});
+
+const { getVoiceConnection } = require('@discordjs/voice');
