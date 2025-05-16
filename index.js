@@ -55,6 +55,7 @@ const fs = require("fs");
 const { markAsUncloneable } = require("worker_threads");
 const { TIMEOUT } = require("dns");
 const { channel } = require("diagnostics_channel");
+const { joinVoiceChannel } = require('@discordjs/voice');
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 client.on("messageCreate", async (message) => {  
@@ -158,7 +159,7 @@ client.on("interactionCreate", async (interaction) => {
 
         if (channel && channel.isVoiceBased()) {
           console.log(`Joining ${channel.name}`);
-          joinVoiceChannel({
+          const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: interaction.guild.id,
             adapterCreator: interaction.guild.voiceAdapterCreator,
