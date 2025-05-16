@@ -120,14 +120,29 @@ client.on("interactionCreate", async (interaction) => {
         }
       }
       if(interaction.commandName === "randommention") {
-        console.log(`Recieved interaction request for randommention by ${interaction.user.displayName}`)
-        const limit = 3000
-        const members = interaction.guild.members.fetch({force: false, limit: limit});
-        const member = (members).random();
-        console.log("Bot chose " + member.user.displayName)
-        const pokemonAhhMessage = [`<@${member.user.id}>, I choose you!`,`*kisses* <@${member.user.id}>`,`Woah woah <@${member.user.id}> be lookin' sexy!`,`ooh, i love you, <@${member.user.id}>!`]
-        const message = pokemonAhhMessage[Math.floor(Math.random() * pokemonAhhMessage.length)]
-        interaction.reply(message)
+        console.log(`Recieved interaction request for randommention by ${interaction.user.displayName}`);
+        const limit = 3000;
+        const membersCollection = await interaction.guild.members.fetch({force: false, limit: limit});
+        
+        // Convert members collection to an array to be able to use random selection
+        const membersArray = Array.from(membersCollection.values());
+        
+        if (membersArray.length > 0) {
+          const randomIndex = Math.floor(Math.random() * membersArray.length);
+          const randomMember = membersArray[randomIndex];
+          console.log("Bot chose " + randomMember.user.displayName);
+          const pokemonAhhMessage = [
+            `<@${randomMember.user.id}>, I choose you!`,
+            `*kisses* <@${randomMember.user.id}>`,
+            `Woah woah <@${randomMember.user.id}> be lookin' sexy!`,
+            `ooh, i love you, <@${randomMember.user.id}>!`
+          ];
+          const message = pokemonAhhMessage[Math.floor(Math.random() * pokemonAhhMessage.length)];
+          interaction.reply(message);
+        } else {
+          console.log("No members available.");
+          interaction.reply("Could not find any members to mention.");
+        }
       }
     }
   } catch (error) {
