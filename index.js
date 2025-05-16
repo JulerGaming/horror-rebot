@@ -122,11 +122,11 @@ client.on("interactionCreate", async (interaction) => {
       if(interaction.commandName === "randommention") {
         console.log(`Recieved interaction request for randommention by ${interaction.user.displayName}`);
         const limit = 3000;
-        const membersCollection = interaction.guild.members.fetch({force: false, limit: limit});
-        
+        const membersCollection = await interaction.guild.members.fetch({limit: limit});
+
         // Convert members collection to an array to be able to use random selection
         const membersArray = Array.from(membersCollection.values());
-        
+
         if (membersArray.length > 0) {
           const randomIndex = Math.floor(Math.random() * membersArray.length);
           const randomMember = membersArray[randomIndex];
