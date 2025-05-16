@@ -53,6 +53,7 @@ client.once("ready", () => {
 
 const fs = require("fs");
 const { markAsUncloneable } = require("worker_threads");
+const { TIMEOUT } = require("dns");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 client.on("messageCreate", async (message) => {  
@@ -93,7 +94,6 @@ client.on("messageCreate", (message) => {
   }
 });
 
-const maruGuildID = "1333194010201952367";
 const ballGifTenor = ["https://tenor.com/view/maxeff-who-dropped-the-ball-gif-7728732350967487396", "https://tenor.com/view/bouncing-blue-ball-boy-gif-12378937218633738106", "https://tenor.com/view/basketball-activity-joypixels-ball-orange-ball-gif-17197142", "https://tenor.com/view/pepeballs-gif-7861594524755615584"]
 client.on("interactionCreate", async (interaction) => {
   try {
@@ -105,14 +105,34 @@ client.on("interactionCreate", async (interaction) => {
 
       if(interaction.commandName === "balls") {
         console.log(`Recieved interaction request for balls by ${interaction.user.displayName}`)
-        console.log("Sending " + ballGifTenor + " to " + interaction.user.displayName)
         const ballGif = ballGifTenor[Math.floor(Math.random() * ballGifTenor.length)]
+        console.log("Sending " + ballGif + " to " + interaction.user.displayName)
         interaction.reply(ballGif);
+      }
+      if(interaction.commandName === "avatar") {
+        console.log(`Recieved interaction request for avatar by ${interaction.user.displayName}`)
+        if(interaction.options.getUser("user")) {
+          const user = interaction.options.getUser("user")
+          interaction.reply(user.displayAvatarURL({ size: 1024, dynamic: true, format: "png", ephemeral: true }))
+        }
+        else {
+          interaction.reply(interaction.user.displayAvatarURL({ size: 1024, dynamic: true, format: "png", ephemeral: true }))
+        }
+      }
+      if(interaction.commandName === "randommention") {
+        console.log(`Recieved interaction request for randommention by ${interaction.user.displayName}`)
+        const limit = 3000
+        const members = interaction.guild.members.fetch({force: false, limit: limit});
+        const member = (members).random();
+        console.log("Bot chose " + member.user.displayName)
+        const pokemonAhhMessage = [`<@${member.user.id}>, I choose you!`,`*kisses* <@${member.user.id}>`,`Woah woah <@${member.user.id}> be lookin' sexy!`,`ooh, i love you, <@${member.user.id}>!`]
+        const message = pokemonAhhMessage[Math.floor(Math.random() * pokemonAhhMessage.length)]
+        interaction.reply(message)
       }
     }
   } catch (error) {
-    console.error("An error occurred during interaction handling:", error);
-    interaction.reply("An error occurred while processing your request.");
+    console.error("I GOT AN ERROR WHILE USING THIS COMMAND WITH " + interaction.user.displayName + "!!!: " + error);
+    interaction.reply("An error occurred while processing your request. Most likely a code error, please report this issue to juler.gt. Thank you!");
   }
 });
 

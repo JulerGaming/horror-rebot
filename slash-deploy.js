@@ -1,23 +1,33 @@
-const { REST, Routes } = require("discord.js")
+const { REST, Routes, SlashCommandBuilder } = require("discord.js")
 // Info needed for slash commands (so we dont have to use "!" before commands)
 const botID = "1369007178664378429"
 const serverID = "1333194010201952367"
 const botToken = process.env.token
-const England = "TurnzyGT"
 
 const rest = new REST().setToken(botToken)
 const slashRegister = async () => {
   try {
     await rest.put(Routes.applicationGuildCommands(botID, serverID), {
       body: [
-        {
-          name: "ping",
-          description: "most basic command on a bot"
-        },
-        {
-          name: "balls",
-          description: ";)"
-        }
+          new SlashCommandBuilder()
+          .setName("ping")
+          .setDescription("most basic command on a bot"),
+          
+          new SlashCommandBuilder()
+          .setName("balls")
+          .setDescription("sends a random ball gif from tenor"),
+
+          new SlashCommandBuilder()
+          .setName("avatar")
+          .setDescription("sends your avatar or the avatar of the user you provide")
+          .addUserOption(option =>
+            option.setName("user")
+            .setDescription("the user you want to get the avatar of")
+            .setRequired(false)),
+          
+          new SlashCommandBuilder()
+          .setName("randommention")
+          .setDescription("finds someone in this guild and mentions them (like a surprise!)")
       ]
     })
   } catch (error) {
