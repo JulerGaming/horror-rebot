@@ -100,21 +100,20 @@ client.on("interactionCreate", async (interaction) => {
     if(interaction.isCommand()) {
       if(interaction.commandName === "ping") {
         console.log(`Recieved interaction request for ping by ${interaction.user.displayName}`)
-        interaction.reply({ content: "pong! " + client.ws.ping + " ms", ephemeral: true })
+        interaction.reply({ content: "pong! " + client.ws.ping + " ms", ephemeral: true });
       }
-    if(interaction.isCommand()) {
+
       if(interaction.commandName === "balls") {
-      console.log(`Recieved interaction request for balls by ${interaction.user.displayName}`)
-      console.log("Sending " + ballGifTenor + " to " + interaction.user.displayName)
+        console.log(`Recieved interaction request for balls by ${interaction.user.displayName}`)
+        console.log("Sending " + ballGifTenor + " to " + interaction.user.displayName)
         const ballGif = ballGifTenor[Math.floor(Math.random() * ballGifTenor.length)]
         interaction.reply(ballGif);
       }
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error("An error occurred during interaction handling:", error);
     interaction.reply("An error occurred while processing your request.");
-}
-  });
+  }
+});
 
 client.login(process.env.token);
