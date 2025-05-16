@@ -97,6 +97,8 @@ client.on("messageCreate", (message) => {
 });
 
 const ballGifTenor = ["https://tenor.com/view/maxeff-who-dropped-the-ball-gif-7728732350967487396", "https://tenor.com/view/bouncing-blue-ball-boy-gif-12378937218633738106", "https://tenor.com/view/basketball-activity-joypixels-ball-orange-ball-gif-17197142", "https://tenor.com/view/pepeballs-gif-7861594524755615584"]
+const ffmpegPath = require('ffmpeg-static');
+
 client.on("interactionCreate", async (interaction) => {
   try {
     if(interaction.isCommand()) {
@@ -180,9 +182,9 @@ client.on("interactionCreate", async (interaction) => {
 
             const { createAudioResource, StreamType, createAudioPlayer, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
 
-
             const resource = createAudioResource(attachment.url, {
               inputType: StreamType.Arbitrary,
+              ffmpegPath: ffmpegPath, // Use ffmpeg-static path
             });
             const player = createAudioPlayer();
 
