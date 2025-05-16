@@ -104,30 +104,30 @@ client.on("messageCreate", (message) => {
 
 var guildID = "1333194010201952367";
 client.on("interactionCreate", async (interaction) => {
-  if(interaction.isCommand()) {
-    if(interaction.commandName === "maru") {
-      console.log("Recieved interaction request for maru by " + interaction.user.username);
-      const guild = client.guilds.cache.get(guildID);
-      if (!guild) {
-        return interaction.reply("Cannot find the guild.");
-      }
+  try {
+    if(interaction.isCommand()) {
+      if(interaction.commandName === "maru") {
+        console.log("Received interaction request for maru by " + interaction.user.username);
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) {
+          return interaction.reply("Cannot find the guild.");
+        }
 
-      try {
         const randomMember = guild.members.cache.filter(member => !member.user.bot).random();
 
         if (randomMember) {
           interaction.reply(`You got... ${randomMember.user.toString()}! :D`);
         } else {
-          console.error("No members found in the guild.")
+          console.error("No members found in the guild.");
           interaction.reply("No members found in the guild.");
         }
-      }  
-    } catch (error) {
-      console.error("An error occurred during interaction handling:", error);
-      interaction.reply("An error occurred while processing your request.");
+      }
     }
+  } catch (error) {
+    console.error("An error occurred during interaction handling:", error);
+    interaction.reply("An error occurred while processing your request.");
   }
-})
+});
 
 client.login(process.env.token); // we use process.env.token to keep the token hidden (because this repl is public)
 
