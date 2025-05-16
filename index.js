@@ -52,6 +52,7 @@ client.once("ready", () => {
 });
 
 const fs = require("fs");
+const { markAsUncloneable } = require("worker_threads");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 client.on("messageCreate", async (message) => {
@@ -66,6 +67,7 @@ client.on("messageCreate", async (message) => {
         await message.member.timeout(600000, "Using inappropriate language.");
       } catch (error) {
         if (error.code === 50013) {
+          console.log(`Bad word detected: ${word}`)
           console.log(
             "Missing permissions to timeout user, message was still deleted",
           );
@@ -100,4 +102,42 @@ client.on("messageCreate", (message) => {
   }
 });
 
+var guildID = "1333194010201952367";
+client.on("interactionCreate", async (interaction) => {
+  if(interaction.isCommand()) {
+    if(interaction.commandName === "maru") {
+      console.log("Recieved interaction request for maru by " + interaction.user.username);
+      const guild = client.guilds.cache.get(guildID);
+      if (!guild) {
+        return interaction.reply("Cannot find the guild.");
+      }
+
+      try {
+        const randomMember = guild.members.cache.filter(member => !member.user.bot).random();
+
+        if (randomMember) {
+          interaction.reply(`You got... ${randomMember.user.toString()}! :D`);
+        } else {
+          console.error("No members found in the guild.")
+          interaction.reply("No members found in the guild.");
+        }
+      }
+    }
+  }
+})
+
 client.login(process.env.token); // we use process.env.token to keep the token hidden (because this repl is public)
+
+process.on('SIGINT', () => {
+  console.log('Bot is shutting down...');
+  client.user.setActivity(null);
+  client.destroy();
+  process.exit();
+});
+
+process.on('SIGTERM', () => {
+  console.log('Bot is shutting down...');
+  client.user.setActivity(null);
+  client.destroy();
+  process.exit();
+});

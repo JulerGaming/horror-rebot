@@ -11,15 +11,14 @@
   "license": "ISC",
   "dependencies": {
     "@types/node": "^22.13.11",
-    "discord.js": "^14.19.3",
+    "discord.js": "^14.14.1",
     "express": "^5.1.0",
     "keep-alive": "^0.1.0",
     "keep-alive-agent": "^0.0.1",
+    "node": "^18.20.5",
     "pm2": "^6.0.5",
+    "readable-stream": "^4.7.0",
     "web-streams-polyfill": "^4.1.0"
-  },
-  "devDependencies": {
-    "node": "^16.20.2"
   },
   "description": ""
 }

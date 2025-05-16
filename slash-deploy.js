@@ -1,5 +1,4 @@
 const { REST, Routes } = require("discord.js")
-
 // Info needed for slash commands (so we dont have to use "!" before commands)
 const botID = "1369007178664378429"
 const serverID = "1333194010201952367"
@@ -22,4 +21,4 @@ const slashRegister = async () => {
   }
 }
 slashRegister()
-console.log(`${England} is online`)
+console.log(`Successfully registered the slash commands for server ID ${serverID}`)
