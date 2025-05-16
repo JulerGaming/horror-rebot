@@ -120,11 +120,13 @@ client.on("interactionCreate", async (interaction) => {
         }
       }
       if(interaction.commandName === "randommention") {
-        console.log(`Recieved interaction request for randommention by ${interaction.user.displayName}`);
-        const limit = 3000;
-        const membersCollection = interaction.guild.members.fetch({limit: limit})
+        console.log(`Received interaction request for randommention by ${interaction.user.displayName}`);
+        const limit = 3000; // Note: The limit is not used in fetch; used here for reference
+        console.time("FetchMembers");
+        interaction.guild.members.fetch()
         .then(members => {
-          // Convert members collection to an array to be able to use random selection
+          console.timeEnd("FetchMembers");
+          console.log(`Fetched ${members.size} members.`);
           const membersArray = Array.from(members.values());
 
           if (membersArray.length > 0) {
