@@ -171,9 +171,8 @@ client.on("interactionCreate", async (interaction) => {
       }
       if (interaction.commandName === "playfile") {
         const attachment = interaction.options.getAttachment("song");
-        if (attachment.contentType.startsWith("audio/")) {
-          const channelId = interaction.options.getString("channelid");
-          const channel = interaction.guild.channels.cache.get(channelId);
+        if (attachment && attachment.contentType.startsWith("audio/")) {
+          const channel = interaction.member.voice.channel; // Fetch member's current voice channel
           if (channel && channel.isVoiceBased()) {
             console.log(`Attempting to play sound in ${channel.name}`);
 
@@ -184,10 +183,9 @@ client.on("interactionCreate", async (interaction) => {
             });
             const player = createAudioPlayer();
 
-            const connection = getVoiceConnection(interaction.guild.id);
-
+            let connection = getVoiceConnection(interaction.guild.id);
             if (!connection) {
-              const connection = joinVoiceChannel({
+              connection = joinVoiceChannel({
                 channelId: channel.id,
                 guildId: interaction.guild.id,
                 adapterCreator: interaction.guild.voiceAdapterCreator,
@@ -207,9 +205,11 @@ client.on("interactionCreate", async (interaction) => {
             });
 
           } else {
-            console.log("Invalid voice channel ID");
-            interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
+            console.log("Invalid voice channel");
+            interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
           }
+        } else {
+          interaction.reply({ content: "The attached file is not an audio file.", ephemeral: true });
         }
       }
     }
