@@ -102,28 +102,36 @@ client.on("messageCreate", (message) => {
   }
 });
 
-var guildID = "1333194010201952367";
+const maruGuildID = "1333194010201952367";
 client.on("interactionCreate", async (interaction) => {
   try {
     if(interaction.isCommand()) {
       if(interaction.commandName === "maru") {
         console.log("Received interaction request for maru by " + interaction.user.username);
-        const guild = client.guilds.cache.get(guildID);
+        const guild = client.guilds.cache.get(maruGuildID);
         if (!guild) {
           return interaction.reply("Cannot find the guild.");
         }
 
-        const randomMember = guild.members.cache.filter(member => !member.user.bot).random();
+        try {
+          await guild.members.fetch(); // Fetch all members
+          const members = guild.members.cache.filter(member => !member.user.bot && member.user.id !== interaction.user.id);
+          const randomMember = members.random();
 
-        if (randomMember) {
-          interaction.reply(`You got... ${randomMember.user.toString()}! :D`);
-        } else {
-          console.error("No members found in the guild.");
-          interaction.reply("No members found in the guild.");
+          if (randomMember) {
+            interaction.reply(`You got... ${randomMember.user.toString()}! :D`);
+          } else {
+            console.error("No other members found in the guild besides you and bots.");
+            interaction.reply("No other members found in the guild besides you and bots.")
+          }
+        } catch (error) {
+          console.error("Failed to fetch members:", error);
+          interaction.reply("Failed to fetch members. Please try again later.");
+        }
         }
       }
     }
-  } catch (error) {
+  } .catch(error) {
     console.error("An error occurred during interaction handling:", error);
     interaction.reply("An error occurred while processing your request.");
   }
