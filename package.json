@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/node": "^22.13.11",
+    "diagnostics_channel": "^1.1.0",
     "discord.js": "^14.14.1",
     "express": "^5.1.0",
     "keep-alive": "^0.1.0",

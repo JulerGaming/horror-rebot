@@ -54,6 +54,7 @@ client.once("ready", () => {
 const fs = require("fs");
 const { markAsUncloneable } = require("worker_threads");
 const { TIMEOUT } = require("dns");
+const { channel } = require("diagnostics_channel");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 client.on("messageCreate", async (message) => {  
@@ -121,7 +122,7 @@ client.on("interactionCreate", async (interaction) => {
       }
       if(interaction.commandName === "randommention") {
         console.log(`Received interaction request for randommention by ${interaction.user.displayName}`);
-        const limit = 3000; // Note: The limit is not used in fetch; used here for reference
+        const limit = 1000; // Corrected limit for Discord API fetch
         console.time("FetchMembers");
         interaction.guild.members.list({ limit: limit })
         .then(members => {
@@ -150,6 +151,13 @@ client.on("interactionCreate", async (interaction) => {
           console.error("Failed to fetch members:", error);
           interaction.reply("Failed to fetch members. Please try again later. (Maybe the bot can't search the guild?)");
         });
+      }
+      if(interaction.commandName === "join") {
+        const channelToJoin = interaction.options.getString("channelid")
+        console.log(`Received interaction request for join by ${interaction.user.displayName}`);
+        console.log(`Joining ${channelToJoin.channel.name}`)
+        interaction.reply({ content: `Joining ${channelToJoin.channel.name}`, ephemeral: true })
+        channelToJoin.voiceChannel.join()
       }
     }
   } catch (error) {
