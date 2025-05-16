@@ -1,0 +1,6 @@
+dll
+bepinex
+BepInEx
+Bep In Ex
+modder
+.dll

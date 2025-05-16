@@ -1,11 +1,10 @@
-
 {
   "name": "nodejs",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ."
+    "start": "node start_pm2.js"
   },
   "keywords": [],
   "author": "",
@@ -13,7 +12,11 @@
   "dependencies": {
     "@types/node": "^22.13.11",
     "discord.js": "^14.19.3",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "keep-alive": "^0.1.0",
+    "keep-alive-agent": "^0.0.1",
+    "pm2": "^6.0.5",
+    "web-streams-polyfill": "^4.1.0"
   },
   "devDependencies": {
     "node": "^16.20.2"
