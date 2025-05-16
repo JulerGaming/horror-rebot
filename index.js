@@ -123,7 +123,7 @@ client.on("interactionCreate", async (interaction) => {
         console.log(`Received interaction request for randommention by ${interaction.user.displayName}`);
         const limit = 3000; // Note: The limit is not used in fetch; used here for reference
         console.time("FetchMembers");
-        interaction.guild.members.fetch()
+        interaction.guild.members.list({ limit: limit })
         .then(members => {
           console.timeEnd("FetchMembers");
           console.log(`Fetched ${members.size} members.`);
