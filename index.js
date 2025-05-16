@@ -55,10 +55,7 @@ const fs = require("fs");
 const { markAsUncloneable } = require("worker_threads");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
-client.on("messageCreate", async (message) => {
-  if (message.content === ".ping") {
-    message.channel.send(`pong! ${client.ws.ping}ms`);
-  }
+client.on("messageCreate", async (message) => {  
   const words = message.content.split(" ");
   for (const word of words) {
     if (badWords.includes(word.toLowerCase())) {
@@ -85,12 +82,6 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-client.on("messageCreate", (message) => {
-  if (message.content === ".balls") {
-    message.channel.send(":skull:");
-  }
-});
-
 const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8").split("\n")
 
 client.on("messageCreate", (message) => {
@@ -103,52 +94,27 @@ client.on("messageCreate", (message) => {
 });
 
 const maruGuildID = "1333194010201952367";
+const ballGifTenor = ["https://tenor.com/view/maxeff-who-dropped-the-ball-gif-7728732350967487396", "https://tenor.com/view/bouncing-blue-ball-boy-gif-12378937218633738106", "https://tenor.com/view/basketball-activity-joypixels-ball-orange-ball-gif-17197142", "https://tenor.com/view/pepeballs-gif-7861594524755615584"]
 client.on("interactionCreate", async (interaction) => {
   try {
     if(interaction.isCommand()) {
-      if(interaction.commandName === "maru") {
-        console.log("Received interaction request for maru by " + interaction.user.username);
-        const guild = client.guilds.cache.get(maruGuildID);
-        if (!guild) {
-          return interaction.reply("Cannot find the guild.");
-        }
-
-        try {
-          await guild.members.fetch(); // Fetch all members
-          const members = guild.members.cache.filter(member => !member.user.bot && member.user.id !== interaction.user.id);
-          const randomMember = members.random();
-
-          if (randomMember) {
-            interaction.reply(`You got... ${randomMember.user.toString()}! :D`);
-          } else {
-            console.error("No other members found in the guild besides you and bots.");
-            interaction.reply("No other members found in the guild besides you and bots.")
-          }
-        } catch (error) {
-          console.error("Failed to fetch members:", error);
-          interaction.reply("Failed to fetch members. Please try again later.");
-        }
-        }
+      if(interaction.commandName === "ping") {
+        console.log(`Recieved interaction request for ping by ${interaction.user.displayName}`)
+        interaction.reply({ content: "pong! " + client.ws.ping + " ms", ephemeral: true })
+      }
+    if(interaction.isCommand()) {
+      if(interaction.commandName === "balls") {
+      console.log(`Recieved interaction request for balls by ${interaction.user.displayName}`)
+      console.log("Sending " + ballGifTenor + " to " + interaction.user.displayName)
+        const ballGif = ballGifTenor[Math.floor(Math.random() * ballGifTenor.length)]
+        interaction.reply(ballGif);
       }
     }
-  } .catch(error) {
+  }
+  catch (error) {
     console.error("An error occurred during interaction handling:", error);
     interaction.reply("An error occurred while processing your request.");
-  }
-});
+}
+  });
 
-client.login(process.env.token); // we use process.env.token to keep the token hidden (because this repl is public)
-
-process.on('SIGINT', () => {
-  console.log('Bot is shutting down...');
-  client.user.setActivity(null);
-  client.destroy();
-  process.exit();
-});
-
-process.on('SIGTERM', () => {
-  console.log('Bot is shutting down...');
-  client.user.setActivity(null);
-  client.destroy();
-  process.exit();
-});
+client.login(process.env.token);

@@ -11,8 +11,12 @@ const slashRegister = async () => {
     await rest.put(Routes.applicationGuildCommands(botID, serverID), {
       body: [
         {
-          name: "maru",
-          description: "mention a random user"
+          name: "ping",
+          description: "most basic command on a bot"
+        },
+        {
+          name: "balls",
+          description: ";)"
         }
       ]
     })
