@@ -122,27 +122,32 @@ client.on("interactionCreate", async (interaction) => {
       if(interaction.commandName === "randommention") {
         console.log(`Recieved interaction request for randommention by ${interaction.user.displayName}`);
         const limit = 3000;
-        const membersCollection = await interaction.guild.members.fetch({limit: limit});
+        const membersCollection = interaction.guild.members.fetch({limit: limit})
+        .then(members => {
+          // Convert members collection to an array to be able to use random selection
+          const membersArray = Array.from(members.values());
 
-        // Convert members collection to an array to be able to use random selection
-        const membersArray = Array.from(membersCollection.values());
-
-        if (membersArray.length > 0) {
-          const randomIndex = Math.floor(Math.random() * membersArray.length);
-          const randomMember = membersArray[randomIndex];
-          console.log("Bot chose " + randomMember.user.displayName);
-          const pokemonAhhMessage = [
-            `<@${randomMember.user.id}>, I choose you!`,
-            `*kisses* <@${randomMember.user.id}>`,
-            `Woah woah <@${randomMember.user.id}> be lookin' sexy!`,
-            `ooh, i love you, <@${randomMember.user.id}>!`
-          ];
-          const message = pokemonAhhMessage[Math.floor(Math.random() * pokemonAhhMessage.length)];
-          interaction.reply(message);
-        } else {
-          console.log("No members available.");
-          interaction.reply("Could not find any members to mention.");
-        }
+          if (membersArray.length > 0) {
+            const randomIndex = Math.floor(Math.random() * membersArray.length);
+            const randomMember = membersArray[randomIndex];
+            console.log("Bot chose " + randomMember.user.displayName);
+            const pokemonAhhMessage = [
+              `<@${randomMember.user.id}>, I choose you!`,
+              `*kisses* <@${randomMember.user.id}>`,
+              `Woah woah <@${randomMember.user.id}> be lookin' sexy!`,
+              `ooh, i love you, <@${randomMember.user.id}>!`
+            ];
+            const message = pokemonAhhMessage[Math.floor(Math.random() * pokemonAhhMessage.length)];
+            interaction.reply(message);
+          } else {
+            console.log("No members available.");
+            interaction.reply("Could not find any members to mention.");
+          }
+        })
+        .catch(error => {
+          console.error("Failed to fetch members:", error);
+          interaction.reply("Failed to fetch members. Please try again later. (Maybe the bot can't search the guild?)");
+        });
       }
     }
   } catch (error) {
