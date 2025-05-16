@@ -121,7 +121,10 @@ client.on("interactionCreate", async (interaction) => {
           console.error("No members found in the guild.")
           interaction.reply("No members found in the guild.");
         }
-      }
+      }  
+    } catch (error) {
+      console.error("An error occurred during interaction handling:", error);
+      interaction.reply("An error occurred while processing your request.");
     }
   }
 })
