@@ -152,12 +152,21 @@ client.on("interactionCreate", async (interaction) => {
           interaction.reply("Failed to fetch members. Please try again later. (Maybe the bot can't search the guild?)");
         });
       }
-      if(interaction.commandName === "join") {
-        const channelToJoin = interaction.options.getString("channelid")
-        console.log(`Received interaction request for join by ${interaction.user.displayName}`);
-        console.log(`Joining ${channelToJoin.channel.name}`)
-        interaction.reply({ content: `Joining ${channelToJoin.channel.name}`, ephemeral: true })
-        channelToJoin.voiceChannel.join()
+      if (interaction.commandName === "join") {
+        const channelId = interaction.options.getString("channelid");
+        const channel = interaction.guild.channels.cache.get(channelId);
+
+        if (channel && channel.isVoiceBased()) {
+          console.log(`Joining ${channel.name}`);
+          joinVoiceChannel({
+            channelId: channel.id,
+            guildId: interaction.guild.id,
+            adapterCreator: interaction.guild.voiceAdapterCreator,
+          });
+          interaction.reply({ content: `Joining ${channel.name}`, ephemeral: true });
+        } else {
+          interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
+        }
       }
     }
   } catch (error) {
