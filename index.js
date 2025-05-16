@@ -178,6 +178,9 @@ client.on("interactionCreate", async (interaction) => {
 
             interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
 
+            const { createAudioResource, StreamType, createAudioPlayer, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
+
+
             const resource = createAudioResource(attachment.url, {
               inputType: StreamType.Arbitrary,
             });
