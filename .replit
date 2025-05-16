@@ -1,5 +1,5 @@
 entrypoint = "index.js"
-modules = ["nodejs-23"]
+modules = ["nodejs-23", "nix", "typescript-language-server"]
 hidden = [".config", "package-lock.json"]
 
 [gitHubImport]
