@@ -241,9 +241,24 @@ if (interaction.commandName === "playfile") {
     // Create resource with proper stream type and volume
     const resource = createAudioResource(tempFilePath, {
       inputType: StreamType.Arbitrary,
-      inlineVolume: true
+      inlineVolume: true,
+      silencePaddingFrames: 5
     });
+    
+    if (!resource) {
+      throw new Error("Failed to create audio resource");
+    }
+    
+    if (!resource.playStream) {
+      throw new Error("Resource stream is invalid");
+    }
+    
     resource.volume?.setVolume(1);
+    
+    // Add stream error handling
+    resource.playStream.on('error', error => {
+      console.error('Stream error:', error);
+    });
 
     // Setup connection handling
     connection.on('stateChange', (oldState, newState) => {
@@ -287,19 +302,22 @@ if (interaction.commandName === "playfile") {
     connection.subscribe(player);
 
     // Play the resource
+    console.log('Starting playback...');
     player.play(resource);
 
     // Handle completion
-    player.once(AudioPlayerStatus.Idle, () => {
-      console.log('Playback finished');
-      // Only cleanup if we're actually done playing, not just transitioning
-      if (player.state.status === AudioPlayerStatus.Idle) {
+    player.on('stateChange', (oldState, newState) => {
+      console.log(`Player state: ${oldState.status} -> ${newState.status}`);
+      
+      if (oldState.status === AudioPlayerStatus.Playing && 
+          newState.status === AudioPlayerStatus.Idle) {
+        console.log('Playback naturally completed');
         setTimeout(() => {
           if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
             console.log('Cleaning up after playback');
             cleanup();
           }
-        }, 3000); // Wait 3 seconds before cleanup
+        }, 5000);
       }
     });
 
