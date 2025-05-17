@@ -252,6 +252,7 @@ if (interaction.commandName === "playfile") {
         console.log("Playback started, subscribing to player...");
         connection.subscribe(player);
         console.log("Subscription successful");
+        interaction.followUp({ content: "Can you hear the music??? If not, report this issue to juler.gt", ephemeral: true })
 
         player.on(AudioPlayerStatus.Idle, () => {
           console.log('Playback finished.');
