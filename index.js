@@ -171,7 +171,7 @@ client.on("interactionCreate", async (interaction) => {
           interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
         }
       }
-      
+
 if (interaction.commandName === "playfile") {
   const attachment = interaction.options.getAttachment("song");
   if (attachment && attachment.contentType.startsWith("audio/")) {
@@ -183,9 +183,9 @@ if (interaction.commandName === "playfile") {
 
       const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
 
-      const connection = getVoiceConnection(interaction.guild.id);
+      let connection = getVoiceConnection(interaction.guild.id);
       if (!connection) {
-        joinVoiceChannel({
+        connection = joinVoiceChannel({
           channelId: channel.id,
           guildId: interaction.guild.id,
           adapterCreator: interaction.guild.voiceAdapterCreator,
