@@ -231,9 +231,16 @@ if (interaction.commandName === "playfile") {
         const player = createAudioPlayer();
         console.log("Audio player created");
 
-        const resource = createAudioResource(attachment.url, {
-          inlineVolume: true,
-        });
+        let resource;
+        try {
+          resource = createAudioResource(attachment.url, {
+            inlineVolume: true,
+          });
+        } catch (error) {
+          console.error("Error creating audio resource:", error);
+          interaction.followUp({ content: "Failed to create audio resource. Check the file URL and try again.", ephemeral: true });
+          return;
+        }
 
         console.log("Audio resource created, setting volume...");
         const volume = interaction.options.getNumber("volume") || 0.5; // Default volume to 50%
