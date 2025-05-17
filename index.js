@@ -189,6 +189,7 @@ client.on("interactionCreate", async (interaction) => {
 
 if (interaction.commandName === "playfile") {
   const attachmentUrl = interaction.options.getAttachment("song").url;
+  const { StreamType } = require('@discordjs/voice');
   console.log(`Received interaction request for playfile by ${interaction.user.displayName}`);
   console.log("Attachment URL: ", attachmentUrl);
   if (attachmentUrl) {
