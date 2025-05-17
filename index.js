@@ -196,12 +196,12 @@ if (interaction.commandName === "playfile") {
   try {
     const attachment = interaction.options.getAttachment("song");
     if (!attachment) {
-      return interaction.reply({ content: "Please provide an audio file.", ephemeral: true });
+      return interaction.reply({ content: "Please provide an audio file.", flags: ['Ephemeral'] });
     }
 
     const channel = interaction.member.voice.channel;
     if (!channel) {
-      return interaction.reply({ content: "You must be in a voice channel!", ephemeral: true });
+      return interaction.reply({ content: "You must be in a voice channel!", flags: ['Ephemeral'] });
     }
 
     await interaction.deferReply({ ephemeral: true });
