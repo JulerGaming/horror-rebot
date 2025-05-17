@@ -193,7 +193,8 @@ client.on("interactionCreate", async (interaction) => {
       }
 
 if (interaction.commandName === "playfile") {
-  const attachmentUrl = interaction.options.getAttachment("song").url;
+  const attachment = interaction.options.getAttachment("song");
+  const attachmentUrl = attachment.url;
   console.log(`Received interaction request for playfile by ${interaction.user.displayName}`);
   console.log("Attachment URL:", attachmentUrl);
 
@@ -203,6 +204,7 @@ if (interaction.commandName === "playfile") {
       console.log(`Attempting to play sound in ${channel.name}`);
       interaction.reply({ content: `Attempting to play sound in ${channel.name}`, flags: ['Ephemeral'] });
 
+      const tempFilePath = `temp/${Date.now()}-${attachment.name}`;
       const player = createAudioPlayer();
 
       let connection = getVoiceConnection(interaction.guild.id);
@@ -229,20 +231,19 @@ if (interaction.commandName === "playfile") {
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
         
-        const resource = await new Promise((resolve, reject) => {
+        const resource = await new Promise(async (resolve, reject) => {
           const timeoutId = setTimeout(() => {
             reject(new Error('Resource creation timed out'));
           }, 15000);
 
           try {
-            const res = createAudioResource(attachmentUrl, {
+            const response = await fetch(attachmentUrl);
+            const buffer = await response.arrayBuffer();
+            await fs.promises.writeFile(tempFilePath, Buffer.from(buffer));
+            
+            const res = createAudioResource(tempFilePath, {
               inputType: StreamType.Arbitrary,
               inlineVolume: true,
-              silencePaddingFrames: 5,
-              bufferLength: 3,
-              seekConfig: {
-                seekBehavior: 'ignore'
-              }
             });
             clearTimeout(timeoutId);
             resolve(res);
@@ -278,8 +279,14 @@ if (interaction.commandName === "playfile") {
           throw error;
         }
 
-        player.on(AudioPlayerStatus.Idle, () => {
+        player.on(AudioPlayerStatus.Idle, async () => {
           console.log('Playback finished.');
+          try {
+            await fs.promises.unlink(tempFilePath);
+            console.log(`Cleaned up temp file: ${tempFilePath}`);
+          } catch (err) {
+            console.error('Error cleaning up temp file:', err);
+          }
           connection.destroy();
         });
 
