@@ -175,7 +175,7 @@ client.on("interactionCreate", async (interaction) => {
 if (interaction.commandName === "playfile") {
   const attachment = interaction.options.getAttachment("song");
   if (attachment && attachment.contentType.startsWith("audio/")) {
-    const channel = interaction.member.voice.channel; // Fetch member's current voice channel
+    const channel = interaction.member.voice.channel;
     if (channel && channel.isVoiceBased()) {
       console.log(`Attempting to play sound in ${channel.name}`);
 
@@ -185,31 +185,35 @@ if (interaction.commandName === "playfile") {
 
       let connection = getVoiceConnection(interaction.guild.id);
       if (!connection) {
+        console.log(`No existing connection, joining voice channel: ${channel.name}`);
         connection = joinVoiceChannel({
           channelId: channel.id,
           guildId: interaction.guild.id,
           adapterCreator: interaction.guild.voiceAdapterCreator,
         });
+      } else {
+        console.log(`Using existing connection for guild: ${interaction.guild.id}`);
       }
 
       const player = createAudioPlayer();
       const resource = createAudioResource(attachment.url);
 
+      console.log("Audio resource created, starting playback...");
       player.play(resource);
       connection.subscribe(player);
 
       player.on(AudioPlayerStatus.Idle, () => {
-        console.log('Finished playing sound');
+        console.log('Playback finished, destroying connection.');
         connection.destroy();
       });
 
       player.on("error", error => {
-        console.error("Error while playing audio:", error);
+        console.error("Error occurred during audio playback:", error);
         interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
       });
 
       connection.on(VoiceConnectionStatus.Disconnected, () => {
-        console.log('Disconnected from the voice channel');
+        console.log('Disconnected from the voice channel, destroying connection.');
         connection.destroy();
       });
 
@@ -218,6 +222,7 @@ if (interaction.commandName === "playfile") {
       interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
     }
   } else {
+    console.log("Invalid audio file");
     interaction.reply({ content: "The attached file is not an audio file.", ephemeral: true });
   }
 }
