@@ -229,12 +229,27 @@ if (interaction.commandName === "playfile") {
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
         
-        const resource = createAudioResource(attachmentUrl, {
-          inputType: StreamType.Arbitrary,
-          inlineVolume: true,
-          silencePaddingFrames: 0,
-          inputBuffer: Buffer.alloc(16384),
-          bufferLength: 10,
+        const resource = await new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Resource creation timed out'));
+          }, 15000);
+
+          try {
+            const res = createAudioResource(attachmentUrl, {
+              inputType: StreamType.Arbitrary,
+              inlineVolume: true,
+              silencePaddingFrames: 5,
+              bufferLength: 3,
+              seekConfig: {
+                seekBehavior: 'ignore'
+              }
+            });
+            clearTimeout(timeoutId);
+            resolve(res);
+          } catch (err) {
+            clearTimeout(timeoutId);
+            reject(err);
+          }
         });
 
         if (!resource) {
@@ -248,6 +263,7 @@ if (interaction.commandName === "playfile") {
         player.on('error', error => {
           console.error('Error:', error.message);
           interaction.followUp({ content: "An error occurred while playing audio", ephemeral: true });
+          connection.destroy();
         });
 
         connection.subscribe(player);
