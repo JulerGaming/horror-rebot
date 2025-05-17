@@ -194,7 +194,7 @@ client.on("interactionCreate", async (interaction) => {
 
 if (interaction.commandName === "playfile") {
   try {
-    const songUrl = interaction.options.getString("url");
+    const songUrl = interaction.options.getAttachment("song").url;
     if (!songUrl) {
       return interaction.reply({ content: "Please provide an audio URL.", flags: ['Ephemeral'] });
     }
