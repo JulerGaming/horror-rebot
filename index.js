@@ -211,23 +211,23 @@ if (interaction.commandName === "playfile") {
 
     await interaction.deferReply({ ephemeral: true });
 
-    // Create temp directory if it doesn't exist
-    await fs.promises.mkdir('temp', { recursive: true });
-    const tempFilePath = `temp/${Date.now()}-audio.mp3`;
-
-    // Download file
-    const response = await fetch(attachment.url);
-    if (!response.ok) {
-      throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+    // Verify we can play this type of file
+    if (!attachment.contentType?.startsWith('audio/')) {
+      return interaction.reply({ content: "Please provide a valid audio file.", flags: ['Ephemeral'] });
     }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    console.log(`Downloaded file size: ${buffer.length} bytes`);
-    
-    await fs.promises.writeFile(tempFilePath, buffer);
-    const stats = await fs.promises.stat(tempFilePath);
-    console.log(`Written file size: ${stats.size} bytes`);
+
+    // Create resource directly from URL
+    const resource = createAudioResource(attachment.url, {
+      inputType: StreamType.Arbitrary,
+      inlineVolume: true
+    });
+
+    if (!resource) {
+      throw new Error("Failed to create audio resource");
+    }
+
+    // Set volume
+    resource.volume?.setVolume(1);
 
     // Create connection
     const connection = joinVoiceChannel({
@@ -298,9 +298,6 @@ if (interaction.commandName === "playfile") {
     const cleanup = async () => {
       try {
         connection.destroy();
-        if (fs.existsSync(tempFilePath)) {
-          await fs.promises.unlink(tempFilePath);
-        }
       } catch (err) {
         console.error('Cleanup error:', err);
       }
