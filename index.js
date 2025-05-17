@@ -254,7 +254,7 @@ if (interaction.commandName === "playfile") {
     }
   } catch (error) {
     console.error("I GOT AN ERROR WHILE USING THIS COMMAND WITH " + interaction.user.displayName + "!!!: " + error);
-    interaction.reply("An error occurred while processing your request. Most likely a code error, please report this issue to juler.gt. Thank you!");
+    interaction.reply("This command caught an error. Please try again later.");
   }
 });
 
