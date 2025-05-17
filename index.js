@@ -32,7 +32,12 @@ const {
   Client,
   GatewayIntentBits,
   ActivityType,
-  messageLink,
+  joinVoiceChannel,
+  getVoiceConnection,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  VoiceConnectionStatus,
 } = require("discord.js");
 const client = new Client({
   intents: [
@@ -55,7 +60,6 @@ const fs = require("fs");
 const { markAsUncloneable } = require("worker_threads");
 const { TIMEOUT } = require("dns");
 const { channel } = require("diagnostics_channel");
-const { joinVoiceChannel } = require('@discordjs/voice');
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 client.on("messageCreate", async (message) => {  
@@ -182,7 +186,7 @@ if (interaction.commandName === "playfile") {
       // Respond early to acknowledge the interaction
       interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
 
-      const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
+      const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection, entersState } = require('@discordjs/voice');
 
       let connection = getVoiceConnection(interaction.guild.id);
       if (!connection) {
@@ -192,39 +196,68 @@ if (interaction.commandName === "playfile") {
           guildId: interaction.guild.id,
           adapterCreator: interaction.guild.voiceAdapterCreator,
         });
+
+        connection.on(VoiceConnectionStatus.Ready, () => {
+            console.log('Voice connection is ready!');
+        });
+
+        connection.on(VoiceConnectionStatus.Disconnected, async () => {
+          try {
+            await Promise.race([
+              entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+              entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+            ]);
+            // Seems to be reconnecting to a new endpoint, update the adapter creator.
+          } catch (error) {
+            console.log('Disconnected from the voice channel, destroying connection.');
+            connection.destroy();
+            // Seems to be a real disconnect which SHOULDN'T be recovered from.
+          }
+        });
       } else {
         console.log(`Using existing connection for guild: ${interaction.guild.id}`);
       }
 
-      const player = createAudioPlayer();
-      const resource = createAudioResource(attachment.url, {
-        inlineVolume: true,
-      });
+      try {
+                // Make sure the connection is ready before proceeding
+                await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
 
-      const volume = interaction.options.getNumber("volume") || 1.0; // Default volume to 100%
-      resource.volume.setVolume(volume);
-      console.log("Set volume!");
+        console.log("Creating audio player...");
+        const player = createAudioPlayer();
+        console.log("Audio player created");
 
-      console.log("Audio resource created, starting playback with volume: " + volume);
-      player.play(resource);
-      console.log("Playback started, subscribing to player...");
-      connection.subscribe(player);
-      console.log("Subscription successful");
+        
+        const resource = createAudioResource(attachment.url, {
+          inlineVolume: true,
+        });
 
-      player.on(AudioPlayerStatus.Idle, () => {
-        console.log('Playback finished, destroying connection.');
-        connection.destroy();
-      });
+        console.log("Audio resource created, setting volume...")
+        const volume = interaction.options.getNumber("volume") || 0.5; // Default volume to 50%
+        resource.volume.setVolume(volume);
+        console.log("Set volume!");
 
-      player.on("error", error => {
-        console.error("Error occurred during audio playback:", error);
-        interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
-      });
+        console.log("Starting playback with volume: " + volume);
+        player.play(resource);
+        console.log("Playback started, subscribing to player...");
+        connection.subscribe(player);
+        console.log("Subscription successful");
 
-      connection.on(VoiceConnectionStatus.Disconnected, () => {
-        console.log('Disconnected from the voice channel, destroying connection.');
-        connection.destroy();
-      });
+        player.on(AudioPlayerStatus.Idle, () => {
+          console.log('Playback finished.');
+          // Do not destroy the connection here. Let it be handled by the disconnect event.
+        });
+
+        player.on("error", error => {
+          console.error("Error occurred during audio playback:", error);
+          interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
+        });
+      } catch (error) {
+        console.error("Error creating audio resource:", error);
+        interaction.followUp({ content: "Failed to create audio resource. Check the file and try again.", ephemeral: true });
+        if (connection) {
+          connection.destroy();
+        }
+      }
 
     } else {
       console.log("You must be in a voice channel to use this command.");
@@ -235,6 +268,7 @@ if (interaction.commandName === "playfile") {
     interaction.reply({ content: "Invalid or no audio file provided.", ephemeral: true });
   }
 }
+      
     }
   } catch (error) {
     console.error("I GOT AN ERROR WHILE USING THIS COMMAND WITH " + interaction.user.displayName + "!!!: " + error);
@@ -257,5 +291,3 @@ process.on('exit', (code) => {
   });
   client.destroy();
 });
-
-const { getVoiceConnection } = require('@discordjs/voice');
