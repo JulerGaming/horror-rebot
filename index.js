@@ -212,12 +212,8 @@ if (interaction.commandName === "playfile") {
     await interaction.deferReply({ ephemeral: true });
 
     const resource = createAudioResource(attachment.url, {
-      inputType: StreamType.Arbitrary,
-      inlineVolume: true,
-      silencePaddingFrames: 5,
-      metadata: {
-        title: attachment.name
-      }
+      inputType: StreamType.Raw,
+      inlineVolume: true
     });
 
     if (!resource) {
@@ -300,15 +296,17 @@ if (interaction.commandName === "playfile") {
     // Play the resource
     console.log('Starting playback...');
     
-    resource.playStream.on('readable', () => {
-      console.log('Stream is readable');
-    });
-
-    resource.playStream.on('end', () => {
-      console.log('Stream ended');
-    });
+    resource.playStream
+      .on('error', error => {
+        console.error('Stream error:', error);
+        interaction.followUp({ content: "Error playing audio stream", ephemeral: true });
+      })
+      .on('end', () => {
+        console.log('Stream ended naturally');
+      });
 
     player.play(resource);
+    await entersState(player, AudioPlayerStatus.Playing, 5_000);
     console.log('Audio URL being played:', attachment.url);
     console.log('Audio content type:', attachment.contentType);
     console.log('Resource volume:', resource.volume?.volume);
