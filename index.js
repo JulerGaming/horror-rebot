@@ -228,16 +228,23 @@ if (interaction.commandName === "playfile") {
 
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
-        const resource = createAudioResource(attachmentUrl, { 
-          inputType: StreamType.Arbitrary,
-          inlineVolume: true 
-        });
         
+        const resource = createAudioResource(attachmentUrl, {
+          inputType: StreamType.Arbitrary,
+          inlineVolume: true,
+          silencePaddingFrames: 5,
+        });
+
         if (!resource) {
           throw new Error("Failed to create audio resource");
         }
 
+        player.on(AudioPlayerStatus.Buffering, () => {
+          console.log('Audio buffering...');
+        });
+
         player.play(resource);
+        await entersState(player, AudioPlayerStatus.Playing, 5_000);
         connection.subscribe(player);
 
         player.on(AudioPlayerStatus.Idle, () => {
