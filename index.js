@@ -193,143 +193,95 @@ client.on("interactionCreate", async (interaction) => {
       }
 
 if (interaction.commandName === "playfile") {
-  const attachment = interaction.options.getAttachment("song");
-  const attachmentUrl = attachment.url;
-  console.log(`Received interaction request for playfile by ${interaction.user.displayName}`);
-  console.log("Attachment URL:", attachmentUrl);
-
-  if (attachmentUrl) {
-    const channel = interaction.member.voice.channel;
-    if (channel && channel.isVoiceBased()) {
-      console.log(`Attempting to play sound in ${channel.name}`);
-      interaction.reply({ content: `Attempting to play sound in ${channel.name}`, flags: ['Ephemeral'] });
-
-      const tempFilePath = `temp/${Date.now()}-${attachment.name}`;
-      const player = createAudioPlayer();
-
-      let connection = getVoiceConnection(interaction.guild.id);
-      if (!connection) {
-        connection = joinVoiceChannel({
-          channelId: channel.id,
-          guildId: interaction.guild.id,
-          adapterCreator: interaction.guild.voiceAdapterCreator,
-        });
-
-        connection.on(VoiceConnectionStatus.Disconnected, async () => {
-          try {
-            await Promise.race([
-              entersState(connection, VoiceConnectionStatus.Signalling, 15_000),
-              entersState(connection, VoiceConnectionStatus.Connecting, 15_000),
-            ]);
-          } catch (error) {
-            console.log('Disconnected from the voice channel, destroying connection.');
-            connection.destroy();
-          }
-        });
-      }
-
-      try {
-        await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
-        
-        const resource = await new Promise(async (resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            reject(new Error('Resource creation timed out'));
-          }, 15000);
-
-          try {
-            // Ensure temp directory exists
-            await fs.promises.mkdir('temp', { recursive: true });
-            
-            const response = await fetch(attachmentUrl);
-            if (!response.ok) {
-              throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
-            }
-            const { spawn } = require('child_process');
-            const ffmpeg = require('ffmpeg-static');
-            
-            const buffer = await response.arrayBuffer();
-            await fs.promises.writeFile(tempFilePath, Buffer.from(buffer));
-            
-            // Verify file was written
-            const stats = await fs.promises.stat(tempFilePath);
-            if (stats.size === 0) {
-              throw new Error('Downloaded file is empty');
-            }
-            console.log(`Successfully downloaded file to ${tempFilePath} (${stats.size} bytes)`);
-            
-            const res = createAudioResource(tempFilePath, {
-              inputType: StreamType.Raw,
-              inlineVolume: true
-            });
-
-            if (!res || !res.readable) {
-              throw new Error('Failed to create audio resource');
-            }
-
-            // Wait for resource to be ready
-            if (!res.readable) {
-              throw new Error("Resource not readable");
-            }
-            clearTimeout(timeoutId);
-            resolve(res);
-          } catch (err) {
-            clearTimeout(timeoutId);
-            reject(err);
-          }
-        });
-
-        if (!resource) {
-          throw new Error("Failed to create audio resource");
-        }
-
-        player.on(AudioPlayerStatus.Buffering, () => {
-          console.log('Audio buffering...');
-        });
-
-        player.on('error', error => {
-          console.error('Error:', error.message);
-          interaction.followUp({ content: "An error occurred while playing audio", ephemeral: true });
-          connection.destroy();
-        });
-
-        connection.subscribe(player);
-        player.play(resource);
-        
-        try {
-          await entersState(player, AudioPlayerStatus.Playing, 30_000);
-          interaction.followUp({ content: "Started playing audio", ephemeral: true });
-        } catch (error) {
-          console.error('Failed to enter Playing state:', error);
-          connection.destroy();
-          throw error;
-        }
-
-        player.on(AudioPlayerStatus.Idle, async () => {
-          console.log('Playback finished.');
-          try {
-            await fs.promises.unlink(tempFilePath);
-            console.log(`Cleaned up temp file: ${tempFilePath}`);
-          } catch (err) {
-            console.error('Error cleaning up temp file:', err);
-          }
-          connection.destroy();
-        });
-
-        player.on("error", error => {
-          console.error("Error occurred during audio playback:", error);
-        });
-
-        interaction.followUp({ content: "Playing audio...", flags: ['Ephemeral'] });
-      } catch (error) {
-        console.error("Error creating audio resource:", error);
-        interaction.followUp({ content: "Failed to play the audio. Please try again.", flags: ['Ephemeral'] });
-        connection.destroy();
-      }
-    } else {
-      interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
+  try {
+    const attachment = interaction.options.getAttachment("song");
+    if (!attachment) {
+      return interaction.reply({ content: "Please provide an audio file.", ephemeral: true });
     }
-  } else {
-    interaction.reply({ content: "Invalid or no audio file provided.", ephemeral: true });
+
+    const channel = interaction.member.voice.channel;
+    if (!channel) {
+      return interaction.reply({ content: "You must be in a voice channel!", ephemeral: true });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    // Create temp directory if it doesn't exist
+    await fs.promises.mkdir('temp', { recursive: true });
+    const tempFilePath = `temp/${Date.now()}-${attachment.name}`;
+
+    // Download file
+    const response = await fetch(attachment.url);
+    if (!response.ok) {
+      throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    await fs.promises.writeFile(tempFilePath, Buffer.from(arrayBuffer));
+
+    // Create connection
+    const connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: channel.guild.id,
+      adapterCreator: channel.guild.voiceAdapterCreator,
+    });
+
+    // Create player
+    const player = createAudioPlayer({
+      behaviors: {
+        noSubscriber: "stop",
+      },
+    });
+
+    // Create resource
+    const resource = createAudioResource(tempFilePath, {
+      inputType: StreamType.Arbitrary,
+    });
+
+    // Setup connection handling
+    connection.on('stateChange', (oldState, newState) => {
+      console.log(`Connection transitioned from ${oldState.status} to ${newState.status}`);
+    });
+
+    // Setup player handling
+    player.on('stateChange', (oldState, newState) => {
+      console.log(`Player transitioned from ${oldState.status} to ${newState.status}`);
+    });
+
+    player.on('error', error => {
+      console.error('Error:', error);
+      interaction.followUp({ content: "An error occurred while playing!", ephemeral: true });
+      cleanup();
+    });
+
+    // Cleanup function
+    const cleanup = async () => {
+      try {
+        connection.destroy();
+        if (fs.existsSync(tempFilePath)) {
+          await fs.promises.unlink(tempFilePath);
+        }
+      } catch (err) {
+        console.error('Cleanup error:', err);
+      }
+    };
+
+    // Subscribe connection to player
+    connection.subscribe(player);
+
+    // Play the resource
+    player.play(resource);
+
+    // Handle completion
+    player.on(AudioPlayerStatus.Idle, cleanup);
+
+    await interaction.followUp({ content: "Now playing your audio file!", ephemeral: true });
+  } catch (error) {
+    console.error('Playfile error:', error);
+    await interaction.followUp({ 
+      content: "Failed to play audio. Error: " + error.message,
+      ephemeral: true 
+    });
   }
 }
 
