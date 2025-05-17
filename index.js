@@ -196,11 +196,19 @@ if (interaction.commandName === "playfile") {
       }
 
       const player = createAudioPlayer();
-      const resource = createAudioResource(attachment.url);
+      const resource = createAudioResource(attachment.url, {
+        inlineVolume: true,
+      });
 
-      console.log("Audio resource created, starting playback...");
+      const volume = interaction.options.getNumber("volume") || 1.0; // Default volume to 100%
+      resource.volume.setVolume(volume);
+      console.log("Set volume!");
+
+      console.log("Audio resource created, starting playback with volume: " + volume);
       player.play(resource);
+      console.log("Playback started, subscribing to player...");
       connection.subscribe(player);
+      console.log("Subscription successful");
 
       player.on(AudioPlayerStatus.Idle, () => {
         console.log('Playback finished, destroying connection.');
@@ -223,7 +231,6 @@ if (interaction.commandName === "playfile") {
     }
   } else {
     console.log("Invalid audio file");
-    interaction.reply({ content: "The attached file is not an audio file.", ephemeral: true });
   }
 }
     }
