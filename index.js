@@ -194,9 +194,14 @@ client.on("interactionCreate", async (interaction) => {
 
 if (interaction.commandName === "playfile") {
   try {
-    const songUrl = interaction.options.getAttachment("song").url;
-    if (!songUrl) {
-      return interaction.reply({ content: "Please provide an audio URL.", flags: ['Ephemeral'] });
+    const attachment = interaction.options.getAttachment("song");
+    if (!attachment) {
+      return interaction.reply({ content: "Please provide an audio file.", flags: ['Ephemeral'] });
+    }
+    
+    // Verify it's an audio file
+    if (!attachment.contentType?.startsWith('audio/')) {
+      return interaction.reply({ content: "Please provide a valid audio file.", flags: ['Ephemeral'] });
     }
 
     const channel = interaction.member.voice.channel;
@@ -242,8 +247,11 @@ if (interaction.commandName === "playfile") {
     const resource = createAudioResource(tempFilePath, {
       inputType: StreamType.Arbitrary,
       inlineVolume: true,
-      silencePaddingFrames: 5
+      silencePaddingFrames: 50
     });
+
+    // Set a higher volume to ensure audibility
+    resource.volume?.setVolume(2);
     
     if (!resource) {
       throw new Error("Failed to create audio resource");
