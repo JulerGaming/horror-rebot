@@ -273,7 +273,15 @@ if (interaction.commandName === "playfile") {
     player.play(resource);
 
     // Handle completion
-    player.on(AudioPlayerStatus.Idle, cleanup);
+    player.once(AudioPlayerStatus.Idle, () => {
+      console.log('Playback finished');
+      setTimeout(cleanup, 1000); // Wait 1 second before cleanup
+    });
+
+    player.once('error', error => {
+      console.error('Error:', error);
+      cleanup();
+    });
 
     await interaction.followUp({ content: "Now playing your audio file!", ephemeral: true });
   } catch (error) {
