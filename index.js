@@ -244,8 +244,36 @@ if (interaction.commandName === "playfile") {
             if (!response.ok) {
               throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
             }
+            const { spawn } = require('child_process');
+            const ffmpeg = require('ffmpeg-static');
+            
             const buffer = await response.arrayBuffer();
             await fs.promises.writeFile(tempFilePath, Buffer.from(buffer));
+            
+            // Convert to opus format
+            const outputPath = tempFilePath + '.opus';
+            await new Promise((resolve, reject) => {
+              const process = spawn(ffmpeg, [
+                '-i', tempFilePath,
+                '-c:a', 'libopus',
+                '-b:a', '96k',
+                outputPath
+              ]);
+              
+              process.on('close', (code) => {
+                if (code === 0) {
+                  fs.promises.unlink(tempFilePath)
+                    .then(() => {
+                      fs.promises.rename(outputPath, tempFilePath)
+                        .then(resolve)
+                        .catch(reject);
+                    })
+                    .catch(reject);
+                } else {
+                  reject(new Error(`FFmpeg exited with code ${code}`));
+                }
+              });
+            });
             
             // Verify file was written
             const stats = await fs.promises.stat(tempFilePath);
@@ -255,9 +283,9 @@ if (interaction.commandName === "playfile") {
             console.log(`Successfully downloaded file to ${tempFilePath} (${stats.size} bytes)`);
             
             const res = createAudioResource(tempFilePath, {
-              inputType: StreamType.Arbitrary,
+              inputType: StreamType.Opus,
               inlineVolume: true,
-              silencePaddingFrames: 3,
+              silencePaddingFrames: 5,
             });
 
             // Wait for resource to be ready
