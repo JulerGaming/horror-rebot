@@ -228,7 +228,15 @@ if (interaction.commandName === "playfile") {
 
       try {
         // Make sure the connection is ready before proceeding
-        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+        console.log("Waiting for connection readiness...");
+        try {
+          await entersState(connection, VoiceConnectionStatus.Ready, 60_000); // Extend timeout to ensure connection readiness
+        } catch (error) {
+          console.error("Voice connection took too long to become ready:", error);
+          interaction.followUp({ content: "Failed to connect in time. Please try again later.", ephemeral: true });
+          connection.destroy();
+          return;
+        }
 
         console.log("Creating audio player...");
         const player = createAudioPlayer();
