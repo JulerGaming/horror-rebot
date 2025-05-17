@@ -216,7 +216,7 @@ if (interaction.commandName === "playfile") {
     const tempFilePath = `temp/${Date.now()}-audio.mp3`;
 
     // Download file
-    const response = await fetch(songUrl);
+    const response = await fetch(attachment.url);
     if (!response.ok) {
       throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
     }
