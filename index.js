@@ -235,11 +235,12 @@ if (interaction.commandName === "playfile") {
         console.log("Audio player created");
 
         let resource;
-        try {
-          resource = createAudioResource(attachment.url, {
-            inputType: StreamType.Arbitrary,
-            inlineVolume: true,
-          });
+      const attachmentUrl = interaction.options.getAttachment("song").url;
+      try {
+        resource = createAudioResource(attachmentUrl, {
+          inputType: StreamType.Arbitrary,
+          inlineVolume: true,
+        });
         } catch (error) {
           console.error("Error creating audio resource:", error);
           interaction.followUp({ content: "Failed to create audio resource. Check the file URL and try again.", ephemeral: true });
