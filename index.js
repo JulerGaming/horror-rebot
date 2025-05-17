@@ -234,6 +234,7 @@ if (interaction.commandName === "playfile") {
         let resource;
         try {
           resource = createAudioResource(attachment.url, {
+            inputType: StreamType.Arbitrary,
             inlineVolume: true,
           });
         } catch (error) {
