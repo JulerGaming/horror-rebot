@@ -170,6 +170,17 @@ client.on("interactionCreate", async (interaction) => {
             guildId: interaction.guild.id,
             adapterCreator: interaction.guild.voiceAdapterCreator,
           });
+          connection.on(VoiceConnectionStatus.Disconnected, async () => {
+            try {
+              await Promise.race([
+                entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+              ]);
+            } catch (error) {
+              console.log('Disconnected from the voice channel, destroying connection.');
+              connection.destroy();
+            }
+          });
           interaction.reply({ content: `Joining ${channel.name}`, ephemeral: true });
         } else {
           interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
@@ -260,7 +271,7 @@ if (interaction.commandName === "playfile") {
     interaction.reply({ content: "Invalid or no audio file provided.", ephemeral: true });
   }
 }
-      
+
     }
   } catch (error) {
     console.error("I GOT AN ERROR WHILE USING THIS COMMAND WITH " + interaction.user.displayName + "!!!: " + error);
