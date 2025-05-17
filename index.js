@@ -198,11 +198,6 @@ if (interaction.commandName === "playfile") {
     if (!attachment) {
       return interaction.reply({ content: "Please provide an audio file.", flags: ['Ephemeral'] });
     }
-    
-    // Verify it's an audio file
-    if (!attachment.contentType?.startsWith('audio/')) {
-      return interaction.reply({ content: "Please provide a valid audio file.", flags: ['Ephemeral'] });
-    }
 
     const channel = interaction.member.voice.channel;
     if (!channel) {
@@ -211,14 +206,8 @@ if (interaction.commandName === "playfile") {
 
     await interaction.deferReply({ ephemeral: true });
 
-    // Verify we can play this type of file
-    if (!attachment.contentType?.startsWith('audio/')) {
-      return interaction.reply({ content: "Please provide a valid audio file.", flags: ['Ephemeral'] });
-    }
-
-    // Create resource directly from URL
     const resource = createAudioResource(attachment.url, {
-      inputType: StreamType.Arbitrary,
+      inputType: StreamType.Opus,
       inlineVolume: true
     });
 
