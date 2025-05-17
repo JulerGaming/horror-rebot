@@ -232,7 +232,9 @@ if (interaction.commandName === "playfile") {
         const resource = createAudioResource(attachmentUrl, {
           inputType: StreamType.Arbitrary,
           inlineVolume: true,
-          silencePaddingFrames: 5,
+          silencePaddingFrames: 0,
+          inputBuffer: Buffer.alloc(16384),
+          bufferLength: 10,
         });
 
         if (!resource) {
@@ -243,9 +245,22 @@ if (interaction.commandName === "playfile") {
           console.log('Audio buffering...');
         });
 
-        player.play(resource);
-        await entersState(player, AudioPlayerStatus.Playing, 5_000);
+        player.on('error', error => {
+          console.error('Error:', error.message);
+          interaction.followUp({ content: "An error occurred while playing audio", ephemeral: true });
+        });
+
         connection.subscribe(player);
+        player.play(resource);
+        
+        try {
+          await entersState(player, AudioPlayerStatus.Playing, 30_000);
+          interaction.followUp({ content: "Started playing audio", ephemeral: true });
+        } catch (error) {
+          console.error('Failed to enter Playing state:', error);
+          connection.destroy();
+          throw error;
+        }
 
         player.on(AudioPlayerStatus.Idle, () => {
           console.log('Playback finished.');
