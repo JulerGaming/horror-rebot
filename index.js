@@ -212,9 +212,8 @@ if (interaction.commandName === "playfile") {
     await interaction.deferReply({ ephemeral: true });
 
     const resource = createAudioResource(attachment.url, {
-      inputType: StreamType.Arbitrary,
-      inlineVolume: true,
-      silencePaddingFrames: 3
+      inputType: StreamType.Raw,
+      inlineVolume: true
     });
 
     if (!resource) {
@@ -297,6 +296,8 @@ if (interaction.commandName === "playfile") {
     // Play the resource
     console.log('Starting playback...');
     player.play(resource);
+    console.log('Audio URL being played:', attachment.url);
+    console.log('Audio content type:', attachment.contentType);
 
     // Handle completion
     player.on('stateChange', (oldState, newState) => {
