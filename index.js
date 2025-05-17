@@ -174,11 +174,12 @@ client.on("interactionCreate", async (interaction) => {
 
 if (interaction.commandName === "playfile") {
   const attachment = interaction.options.getAttachment("song");
-  if (attachment && attachment.contentType.startsWith("audio/")) {
+  if (attachment && attachment.contentType && attachment.contentType.startsWith("audio/")) {
     const channel = interaction.member.voice.channel;
     if (channel && channel.isVoiceBased()) {
       console.log(`Attempting to play sound in ${channel.name}`);
 
+      // Respond early to acknowledge the interaction
       interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
 
       const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
@@ -226,11 +227,12 @@ if (interaction.commandName === "playfile") {
       });
 
     } else {
-      console.log("Invalid voice channel");
+      console.log("You must be in a voice channel to use this command.");
       interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
     }
   } else {
-    console.log("Invalid audio file");
+    console.log("Invalid audio file or no file provided");
+    interaction.reply({ content: "Invalid or no audio file provided.", ephemeral: true });
   }
 }
     }
