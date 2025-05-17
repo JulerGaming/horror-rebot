@@ -1,0 +1,31 @@
+Project is running!
+Bot is ready and status set!
+Received interaction request for playfile by Juler
+Attachment URL: https://cdn.discordapp.com/ephemeral-attachments/1373077841389948990/1373252003500789830/Who_Likes_To_Party.mp3?ex=6829bc17&is=68286a97&hm=f4993f97a8c7d323314589f05e951eb679792e760c04fd032b888f0471970b6b&
+Attempting to play sound in 💬︱General
+Error creating audio resource: ReferenceError: entersState is not defined
+    at Client.<anonymous> (/home/runner/workspace/index.js:228:9)
+    at Client.emit (node:events:517:28)
+    at InteractionCreateAction.handle (/home/runner/workspace/node_modules/discord.js/src/client/actions/InteractionCreate.js:97:12)
+    at module.exports [as INTERACTION_CREATE] (/home/runner/workspace/node_modules/discord.js/src/client/websocket/handlers/INTERACTION_CREATE.js:4:36)
+    at WebSocketManager.handlePacket (/home/runner/workspace/node_modules/discord.js/src/client/websocket/WebSocketManager.js:351:31)
+    at WebSocketManager.<anonymous> (/home/runner/workspace/node_modules/discord.js/src/client/websocket/WebSocketManager.js:235:12)
+    at WebSocketManager.emit (/home/runner/workspace/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:287:31)
+    at WebSocketShard.<anonymous> (/home/runner/workspace/node_modules/discord.js/node_modules/@discordjs/ws/dist/index.js:1190:51)
+    at WebSocketShard.emit (/home/runner/workspace/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:287:31)
+    at WebSocketShard.onMessage (/home/runner/workspace/node_modules/discord.js/node_modules/@discordjs/ws/dist/index.js:1007:14)
+(node:4999) Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Unhandled Rejection: Error [InteractionNotReplied]: The reply to this interaction has not been sent or deferred.
+    at ChatInputCommandInteraction.followUp (/home/runner/workspace/node_modules/discord.js/src/structures/interfaces/InteractionResponses.js:276:48)
+    at Client.<anonymous> (/home/runner/workspace/index.js:246:21)
+    at Client.emit (node:events:517:28)
+    at InteractionCreateAction.handle (/home/runner/workspace/node_modules/discord.js/src/client/actions/InteractionCreate.js:97:12)
+    at module.exports [as INTERACTION_CREATE] (/home/runner/workspace/node_modules/discord.js/src/client/websocket/handlers/INTERACTION_CREATE.js:4:36)
+    at WebSocketManager.handlePacket (/home/runner/workspace/node_modules/discord.js/src/client/websocket/WebSocketManager.js:351:31)
+    at WebSocketManager.<anonymous> (/home/runner/workspace/node_modules/discord.js/src/client/websocket/WebSocketManager.js:235:12)
+    at WebSocketManager.emit (/home/runner/workspace/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:287:31)
+    at WebSocketShard.<anonymous> (/home/runner/workspace/node_modules/discord.js/node_modules/@discordjs/ws/dist/index.js:1190:51)
+    at WebSocketShard.emit (/home/runner/workspace/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:287:31) {
+  code: 'InteractionNotReplied'
+}
