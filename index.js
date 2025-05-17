@@ -217,7 +217,12 @@ if (interaction.commandName === "playfile") {
     }
     
     const arrayBuffer = await response.arrayBuffer();
-    await fs.promises.writeFile(tempFilePath, Buffer.from(arrayBuffer));
+    const buffer = Buffer.from(arrayBuffer);
+    console.log(`Downloaded file size: ${buffer.length} bytes`);
+    
+    await fs.promises.writeFile(tempFilePath, buffer);
+    const stats = await fs.promises.stat(tempFilePath);
+    console.log(`Written file size: ${stats.size} bytes`);
 
     // Create connection
     const connection = joinVoiceChannel({
