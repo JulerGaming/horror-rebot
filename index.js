@@ -214,8 +214,8 @@ if (interaction.commandName === "playfile") {
         connection.on(VoiceConnectionStatus.Disconnected, async () => {
           try {
             await Promise.race([
-              entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-              entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+              entersState(connection, VoiceConnectionStatus.Signalling, 10_000), // Increased timeout
+              entersState(connection, VoiceConnectionStatus.Connecting, 10_000), // Increased timeout
             ]);
           } catch (error) {
             console.log('Disconnected from the voice channel, destroying connection.');
