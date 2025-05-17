@@ -189,22 +189,19 @@ client.on("interactionCreate", async (interaction) => {
 
 if (interaction.commandName === "playfile") {
   const attachmentUrl = interaction.options.getAttachment("song").url;
-  const { StreamType } = require('@discordjs/voice');
   console.log(`Received interaction request for playfile by ${interaction.user.displayName}`);
-  console.log("Attachment URL: ", attachmentUrl);
+  console.log("Attachment URL:", attachmentUrl);
+
   if (attachmentUrl) {
     const channel = interaction.member.voice.channel;
     if (channel && channel.isVoiceBased()) {
       console.log(`Attempting to play sound in ${channel.name}`);
-
-      // Respond early to acknowledge the interaction
       interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
 
-      const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection, entersState } = require('@discordjs/voice');
+      const player = createAudioPlayer();
 
       let connection = getVoiceConnection(interaction.guild.id);
       if (!connection) {
-        console.log(`No existing connection, joining voice channel: ${channel.name}`);
         connection = joinVoiceChannel({
           channelId: channel.id,
           guildId: interaction.guild.id,
@@ -214,81 +211,42 @@ if (interaction.commandName === "playfile") {
         connection.on(VoiceConnectionStatus.Disconnected, async () => {
           try {
             await Promise.race([
-              entersState(connection, VoiceConnectionStatus.Signalling, 10_000), // Increased timeout
-              entersState(connection, VoiceConnectionStatus.Connecting, 10_000), // Increased timeout
+              entersState(connection, VoiceConnectionStatus.Signalling, 15_000),
+              entersState(connection, VoiceConnectionStatus.Connecting, 15_000),
             ]);
           } catch (error) {
             console.log('Disconnected from the voice channel, destroying connection.');
             connection.destroy();
           }
         });
-      } else {
-        console.log(`Using existing connection for guild: ${interaction.guild.id}`);
       }
 
       try {
-        // Make sure the connection is ready before proceeding
-        console.log("Waiting for connection readiness...");
-        try {
-          await entersState(connection, VoiceConnectionStatus.Ready, 90_000); // Further extend timeout to 90 seconds
-        } catch (error) {
-          console.error("Voice connection took too long to become ready:", error);
-          interaction.followUp({ content: "Failed to connect in time. Please try again later.", ephemeral: true });
-          connection.destroy();
-          return;
-        }
+        await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
+        let resource = createAudioResource(attachmentUrl, { inputType: StreamType.Arbitrary });
 
-        console.log("Creating audio player...");
-        const player = createAudioPlayer();
-        console.log("Audio player created");
-
-        let resource;
-      const attachmentUrl = interaction.options.getAttachment("song").url;
-      try {
-        resource = createAudioResource(attachmentUrl, {
-          inputType: StreamType.Arbitrary,
-          inlineVolume: true,
-        });
-        } catch (error) {
-          console.error("Error creating audio resource:", error);
-          interaction.followUp({ content: "Failed to create audio resource. Check the file URL and try again.", ephemeral: true });
-          return;
-        }
-
-        console.log("Audio resource created, setting volume...");
-        const volume = interaction.options.getNumber("volume") || 0.5; // Default volume to 50%
-        resource.volume.setVolume(volume);
-        console.log("Set volume!");
-
-        console.log("Starting playback with volume: " + volume);
         player.play(resource);
-        console.log("Playback started, subscribing to player...");
         connection.subscribe(player);
-        console.log("Subscription successful");
-        interaction.followUp({ content: "Can you hear the music??? If not, report this issue to juler.gt", ephemeral: true })
 
         player.on(AudioPlayerStatus.Idle, () => {
           console.log('Playback finished.');
+          connection.destroy();
         });
 
         player.on("error", error => {
           console.error("Error occurred during audio playback:", error);
-          interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
         });
+
+        interaction.followUp({ content: "Playing audio...", ephemeral: true });
       } catch (error) {
         console.error("Error creating audio resource:", error);
-        interaction.followUp({ content: "Failed to create audio resource. Check the file and try again.", ephemeral: true });
-        if (connection) {
-          connection.destroy();
-        }
+        interaction.followUp({ content: "Failed to play the audio. Please try again.", ephemeral: true });
+        connection.destroy();
       }
-
     } else {
-      console.log("You must be in a voice channel to use this command.");
       interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
     }
   } else {
-    console.log("Invalid audio file or no file provided");
     interaction.reply({ content: "Invalid or no audio file provided.", ephemeral: true });
   }
 }
