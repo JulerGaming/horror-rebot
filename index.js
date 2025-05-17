@@ -243,14 +243,7 @@ if (interaction.commandName === "playfile") {
       },
     });
 
-    // Create resource with proper stream type and volume
-    const resource = createAudioResource(tempFilePath, {
-      inputType: StreamType.Arbitrary,
-      inlineVolume: true,
-      silencePaddingFrames: 50
-    });
-
-    // Set a higher volume to ensure audibility
+    // Set volume for playback
     resource.volume?.setVolume(2);
     
     if (!resource) {
