@@ -41,7 +41,8 @@ const {
   AudioPlayerStatus,
   VoiceConnectionStatus,
   getVoiceConnection,
-  entersState
+  entersState,
+  StreamType
 } = require("@discordjs/voice");
 const client = new Client({
   intents: [
@@ -227,7 +228,14 @@ if (interaction.commandName === "playfile") {
 
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
-        let resource = createAudioResource(attachmentUrl, { inputType: StreamType.Arbitrary });
+        const resource = createAudioResource(attachmentUrl, { 
+          inputType: StreamType.Arbitrary,
+          inlineVolume: true 
+        });
+        
+        if (!resource) {
+          throw new Error("Failed to create audio resource");
+        }
 
         player.play(resource);
         connection.subscribe(player);
