@@ -238,19 +238,31 @@ if (interaction.commandName === "playfile") {
       },
     });
 
-    // Create resource
+    // Create resource with proper stream type and volume
     const resource = createAudioResource(tempFilePath, {
       inputType: StreamType.Arbitrary,
+      inlineVolume: true
     });
+    resource.volume?.setVolume(1);
 
     // Setup connection handling
     connection.on('stateChange', (oldState, newState) => {
       console.log(`Connection transitioned from ${oldState.status} to ${newState.status}`);
+      if (newState.status === VoiceConnectionStatus.Disconnected) {
+        try {
+          connection.rejoin();
+        } catch (error) {
+          cleanup();
+        }
+      }
     });
 
     // Setup player handling
     player.on('stateChange', (oldState, newState) => {
       console.log(`Player transitioned from ${oldState.status} to ${newState.status}`);
+      if (newState.status === AudioPlayerStatus.Playing) {
+        console.log('Started playing audio');
+      }
     });
 
     player.on('error', error => {
