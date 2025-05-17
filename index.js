@@ -198,6 +198,11 @@ if (interaction.commandName === "playfile") {
     if (!attachment) {
       return interaction.reply({ content: "Please provide an audio file.", flags: ['Ephemeral'] });
     }
+    
+    // Check if it's an audio file
+    if (!attachment.contentType?.startsWith('audio/')) {
+      return interaction.reply({ content: "Please provide a valid audio file (MP3, WAV, etc).", flags: ['Ephemeral'] });
+    }
 
     const channel = interaction.member.voice.channel;
     if (!channel) {
@@ -207,8 +212,9 @@ if (interaction.commandName === "playfile") {
     await interaction.deferReply({ ephemeral: true });
 
     const resource = createAudioResource(attachment.url, {
-      inputType: StreamType.Opus,
-      inlineVolume: true
+      inputType: StreamType.Arbitrary,
+      inlineVolume: true,
+      silencePaddingFrames: 3
     });
 
     if (!resource) {
