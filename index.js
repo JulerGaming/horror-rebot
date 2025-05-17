@@ -230,7 +230,7 @@ if (interaction.commandName === "playfile") {
         // Make sure the connection is ready before proceeding
         console.log("Waiting for connection readiness...");
         try {
-          await entersState(connection, VoiceConnectionStatus.Ready, 60_000); // Extend timeout to ensure connection readiness
+          await entersState(connection, VoiceConnectionStatus.Ready, 90_000); // Further extend timeout to 90 seconds
         } catch (error) {
           console.error("Voice connection took too long to become ready:", error);
           interaction.followUp({ content: "Failed to connect in time. Please try again later.", ephemeral: true });
