@@ -171,53 +171,56 @@ client.on("interactionCreate", async (interaction) => {
           interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
         }
       }
-      if (interaction.commandName === "playfile") {
-        const ffmpegPath = require('ffmpeg-static');
-        const attachment = interaction.options.getAttachment("song");
-        if (attachment && attachment.contentType.startsWith("audio/")) {
-          const channel = interaction.member.voice.channel; // Fetch member's current voice channel
-          if (channel && channel.isVoiceBased()) {
-            console.log(`Attempting to play sound in ${channel.name}`);
+      
+if (interaction.commandName === "playfile") {
+  const attachment = interaction.options.getAttachment("song");
+  if (attachment && attachment.contentType.startsWith("audio/")) {
+    const channel = interaction.member.voice.channel; // Fetch member's current voice channel
+    if (channel && channel.isVoiceBased()) {
+      console.log(`Attempting to play sound in ${channel.name}`);
 
-            interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
+      interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
 
-            const { createAudioResource, StreamType, createAudioPlayer, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
+      const { createAudioPlayer, createAudioResource, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
 
-            const resource = createAudioResource(attachment.url, {
-              inputType: StreamType.Arbitrary,
-              ffmpegPath: ffmpegPath, // Use ffmpeg-static path
-            });
-            const player = createAudioPlayer();
-
-            let connection = getVoiceConnection(interaction.guild.id);
-            if (!connection) {
-              connection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: interaction.guild.id,
-                adapterCreator: interaction.guild.voiceAdapterCreator,
-              });
-            }
-
-            connection.subscribe(player);
-            player.play(resource);
-
-            player.on(AudioPlayerStatus.Idle, () => {
-              console.log("Finished playing sound");
-            });
-
-            player.on("error", error => {
-              console.error("Error while playing audio:", error);
-              interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
-            });
-
-          } else {
-            console.log("Invalid voice channel");
-            interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
-          }
-        } else {
-          interaction.reply({ content: "The attached file is not an audio file.", ephemeral: true });
-        }
+      const connection = getVoiceConnection(interaction.guild.id);
+      if (!connection) {
+        joinVoiceChannel({
+          channelId: channel.id,
+          guildId: interaction.guild.id,
+          adapterCreator: interaction.guild.voiceAdapterCreator,
+        });
       }
+
+      const player = createAudioPlayer();
+      const resource = createAudioResource(attachment.url);
+
+      player.play(resource);
+      connection.subscribe(player);
+
+      player.on(AudioPlayerStatus.Idle, () => {
+        console.log('Finished playing sound');
+        connection.destroy();
+      });
+
+      player.on("error", error => {
+        console.error("Error while playing audio:", error);
+        interaction.followUp({ content: "An error occurred while playing the audio.", ephemeral: true });
+      });
+
+      connection.on(VoiceConnectionStatus.Disconnected, () => {
+        console.log('Disconnected from the voice channel');
+        connection.destroy();
+      });
+
+    } else {
+      console.log("Invalid voice channel");
+      interaction.reply({ content: "You must be in a voice channel to use this command.", ephemeral: true });
+    }
+  } else {
+    interaction.reply({ content: "The attached file is not an audio file.", ephemeral: true });
+  }
+}
     }
   } catch (error) {
     console.error("I GOT AN ERROR WHILE USING THIS COMMAND WITH " + interaction.user.displayName + "!!!: " + error);
