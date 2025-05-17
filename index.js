@@ -188,10 +188,10 @@ client.on("interactionCreate", async (interaction) => {
       }
 
 if (interaction.commandName === "playfile") {
-  const attachment = interaction.options.getAttachment("song");
-  console.log(`Received interaction request for playfile by ${interaction.user.displayName}`)
-  console.log("Attachment: ", attachment);
-  if (attachment && attachment.contentType && attachment.contentType.startsWith("audio/")) {
+  const attachmentUrl = interaction.options.getAttachment("song").url;
+  console.log(`Received interaction request for playfile by ${interaction.user.displayName}`);
+  console.log("Attachment URL: ", attachmentUrl);
+  if (attachmentUrl) {
     const channel = interaction.member.voice.channel;
     if (channel && channel.isVoiceBased()) {
       console.log(`Attempting to play sound in ${channel.name}`);
