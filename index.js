@@ -257,7 +257,13 @@ if (interaction.commandName === "playfile") {
             const res = createAudioResource(tempFilePath, {
               inputType: StreamType.Arbitrary,
               inlineVolume: true,
+              silencePaddingFrames: 3,
             });
+
+            // Wait for resource to be ready
+            if (!res.readable) {
+              throw new Error("Resource not readable");
+            }
             clearTimeout(timeoutId);
             resolve(res);
           } catch (err) {
