@@ -40,7 +40,8 @@ const {
   createAudioResource,
   AudioPlayerStatus,
   VoiceConnectionStatus,
-  getVoiceConnection
+  getVoiceConnection,
+  entersState
 } = require("@discordjs/voice");
 const client = new Client({
   intents: [
