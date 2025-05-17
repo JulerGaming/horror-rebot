@@ -237,9 +237,22 @@ if (interaction.commandName === "playfile") {
           }, 15000);
 
           try {
+            // Ensure temp directory exists
+            await fs.promises.mkdir('temp', { recursive: true });
+            
             const response = await fetch(attachmentUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+            }
             const buffer = await response.arrayBuffer();
             await fs.promises.writeFile(tempFilePath, Buffer.from(buffer));
+            
+            // Verify file was written
+            const stats = await fs.promises.stat(tempFilePath);
+            if (stats.size === 0) {
+              throw new Error('Downloaded file is empty');
+            }
+            console.log(`Successfully downloaded file to ${tempFilePath} (${stats.size} bytes)`);
             
             const res = createAudioResource(tempFilePath, {
               inputType: StreamType.Arbitrary,
