@@ -194,9 +194,9 @@ client.on("interactionCreate", async (interaction) => {
 
 if (interaction.commandName === "playfile") {
   try {
-    const attachment = interaction.options.getAttachment("song");
-    if (!attachment) {
-      return interaction.reply({ content: "Please provide an audio file.", flags: ['Ephemeral'] });
+    const songUrl = interaction.options.getString("url");
+    if (!songUrl) {
+      return interaction.reply({ content: "Please provide an audio URL.", flags: ['Ephemeral'] });
     }
 
     const channel = interaction.member.voice.channel;
@@ -208,10 +208,10 @@ if (interaction.commandName === "playfile") {
 
     // Create temp directory if it doesn't exist
     await fs.promises.mkdir('temp', { recursive: true });
-    const tempFilePath = `temp/${Date.now()}-${attachment.name}`;
+    const tempFilePath = `temp/${Date.now()}-audio.mp3`;
 
     // Download file
-    const response = await fetch(attachment.url);
+    const response = await fetch(songUrl);
     if (!response.ok) {
       throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
     }

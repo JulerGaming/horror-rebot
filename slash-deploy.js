@@ -41,11 +41,11 @@ const slashRegister = async () => {
           ),
         new SlashCommandBuilder()
           .setName("playfile")
-          .setDescription("plays an audio file (uploaded to discord and sent to the bot)")
-          .addAttachmentOption((option) =>
+          .setDescription("plays an audio file from a URL")
+          .addStringOption((option) =>
             option
-              .setName("song")
-              .setDescription("the audio file to play")
+              .setName("url")
+              .setDescription("the URL of the audio file to play")
               .setRequired(true)
           )
       ]
