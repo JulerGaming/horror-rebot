@@ -318,12 +318,14 @@ if (interaction.commandName === "playfile") {
       if (oldState.status === AudioPlayerStatus.Playing && 
           newState.status === AudioPlayerStatus.Idle) {
         console.log('Playback naturally completed');
+        // Keep connection alive longer to ensure audio finishes
         setTimeout(() => {
           if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
             console.log('Cleaning up after playback');
+            player.stop();
             cleanup();
           }
-        }, 5000);
+        }, 15000);
       }
     });
 
