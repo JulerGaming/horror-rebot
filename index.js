@@ -250,39 +250,6 @@ if (interaction.commandName === "playfile") {
             const buffer = await response.arrayBuffer();
             await fs.promises.writeFile(tempFilePath, Buffer.from(buffer));
             
-            // Convert to opus format with more reliable settings
-            const outputPath = tempFilePath + '.opus';
-            await new Promise((resolve, reject) => {
-              const process = spawn(ffmpeg, [
-                '-i', tempFilePath,
-                '-c:a', 'libopus',
-                '-b:a', '96k',
-                '-ar', '48000',
-                '-ac', '2',
-                '-application', 'audio',
-                '-f', 'opus',
-                outputPath
-              ]);
-
-              process.stderr.on('data', (data) => {
-                console.log(`FFmpeg: ${data}`);
-              });
-              
-              process.on('close', (code) => {
-                if (code === 0) {
-                  fs.promises.unlink(tempFilePath)
-                    .then(() => {
-                      fs.promises.rename(outputPath, tempFilePath)
-                        .then(resolve)
-                        .catch(reject);
-                    })
-                    .catch(reject);
-                } else {
-                  reject(new Error(`FFmpeg exited with code ${code}`));
-                }
-              });
-            });
-            
             // Verify file was written
             const stats = await fs.promises.stat(tempFilePath);
             if (stats.size === 0) {
@@ -291,13 +258,13 @@ if (interaction.commandName === "playfile") {
             console.log(`Successfully downloaded file to ${tempFilePath} (${stats.size} bytes)`);
             
             const res = createAudioResource(tempFilePath, {
-              inputType: StreamType.Arbitrary,
-              inlineVolume: true,
-              silencePaddingFrames: 5,
-              metadata: {
-                title: attachment.name
-              }
+              inputType: StreamType.Raw,
+              inlineVolume: true
             });
+
+            if (!res || !res.readable) {
+              throw new Error('Failed to create audio resource');
+            }
 
             // Wait for resource to be ready
             if (!res.readable) {
