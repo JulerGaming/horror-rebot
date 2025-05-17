@@ -280,12 +280,22 @@ if (interaction.commandName === "playfile") {
     // Handle completion
     player.once(AudioPlayerStatus.Idle, () => {
       console.log('Playback finished');
-      setTimeout(cleanup, 1000); // Wait 1 second before cleanup
+      // Only cleanup if we're actually done playing, not just transitioning
+      if (player.state.status === AudioPlayerStatus.Idle) {
+        setTimeout(() => {
+          if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
+            console.log('Cleaning up after playback');
+            cleanup();
+          }
+        }, 3000); // Wait 3 seconds before cleanup
+      }
     });
 
     player.once('error', error => {
       console.error('Error:', error);
-      cleanup();
+      if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
+        cleanup();
+      }
     });
 
     await interaction.followUp({ content: "Now playing your audio file!", ephemeral: true });
