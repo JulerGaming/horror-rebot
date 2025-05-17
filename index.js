@@ -197,21 +197,15 @@ if (interaction.commandName === "playfile") {
           adapterCreator: interaction.guild.voiceAdapterCreator,
         });
 
-        connection.on(VoiceConnectionStatus.Ready, () => {
-            console.log('Voice connection is ready!');
-        });
-
         connection.on(VoiceConnectionStatus.Disconnected, async () => {
           try {
             await Promise.race([
               entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
               entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
             ]);
-            // Seems to be reconnecting to a new endpoint, update the adapter creator.
           } catch (error) {
             console.log('Disconnected from the voice channel, destroying connection.');
             connection.destroy();
-            // Seems to be a real disconnect which SHOULDN'T be recovered from.
           }
         });
       } else {
@@ -219,19 +213,18 @@ if (interaction.commandName === "playfile") {
       }
 
       try {
-                // Make sure the connection is ready before proceeding
-                await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
+        // Make sure the connection is ready before proceeding
+        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
         console.log("Creating audio player...");
         const player = createAudioPlayer();
         console.log("Audio player created");
 
-        
         const resource = createAudioResource(attachment.url, {
           inlineVolume: true,
         });
 
-        console.log("Audio resource created, setting volume...")
+        console.log("Audio resource created, setting volume...");
         const volume = interaction.options.getNumber("volume") || 0.5; // Default volume to 50%
         resource.volume.setVolume(volume);
         console.log("Set volume!");
@@ -244,7 +237,6 @@ if (interaction.commandName === "playfile") {
 
         player.on(AudioPlayerStatus.Idle, () => {
           console.log('Playback finished.');
-          // Do not destroy the connection here. Let it be handled by the disconnect event.
         });
 
         player.on("error", error => {
