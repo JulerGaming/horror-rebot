@@ -28,17 +28,20 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-const { 
-  Client, 
-  GatewayIntentBits, 
-  ActivityType, 
-  joinVoiceChannel, 
-  createAudioPlayer, 
-  createAudioResource, 
-  AudioPlayerStatus, 
-  VoiceConnectionStatus, 
-  getVoiceConnection 
+const {
+  Client,
+  GatewayIntentBits,
+  ActivityType
 } = require("discord.js");
+
+const {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  VoiceConnectionStatus,
+  getVoiceConnection
+} = require("@discordjs/voice");
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
