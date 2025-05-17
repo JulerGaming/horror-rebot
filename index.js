@@ -112,7 +112,7 @@ client.on("interactionCreate", async (interaction) => {
     if(interaction.isCommand()) {
       if(interaction.commandName === "ping") {
         console.log(`Recieved interaction request for ping by ${interaction.user.displayName}`)
-        interaction.reply({ content: "pong! " + client.ws.ping + " ms", ephemeral: true });
+        interaction.reply({ content: "pong! " + client.ws.ping + " ms", flags: ['Ephemeral'] });
       }
 
       if(interaction.commandName === "balls") {
@@ -185,9 +185,9 @@ client.on("interactionCreate", async (interaction) => {
               connection.destroy();
             }
           });
-          interaction.reply({ content: `Joining ${channel.name}`, ephemeral: true });
+          interaction.reply({ content: `Joining ${channel.name}`, flags: ['Ephemeral'] });
         } else {
-          interaction.reply({ content: "Invalid voice channel ID.", ephemeral: true });
+          interaction.reply({ content: "Invalid voice channel ID.", flags: ['Ephemeral'] });
         }
       }
 
@@ -200,7 +200,7 @@ if (interaction.commandName === "playfile") {
     const channel = interaction.member.voice.channel;
     if (channel && channel.isVoiceBased()) {
       console.log(`Attempting to play sound in ${channel.name}`);
-      interaction.reply({ content: `Attempting to play sound in ${channel.name}`, ephemeral: true });
+      interaction.reply({ content: `Attempting to play sound in ${channel.name}`, flags: ['Ephemeral'] });
 
       const player = createAudioPlayer();
 
@@ -241,10 +241,10 @@ if (interaction.commandName === "playfile") {
           console.error("Error occurred during audio playback:", error);
         });
 
-        interaction.followUp({ content: "Playing audio...", ephemeral: true });
+        interaction.followUp({ content: "Playing audio...", flags: ['Ephemeral'] });
       } catch (error) {
         console.error("Error creating audio resource:", error);
-        interaction.followUp({ content: "Failed to play the audio. Please try again.", ephemeral: true });
+        interaction.followUp({ content: "Failed to play the audio. Please try again.", flags: ['Ephemeral'] });
         connection.destroy();
       }
     } else {
