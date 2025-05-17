@@ -38,7 +38,7 @@ const {
   createAudioResource,
   AudioPlayerStatus,
   VoiceConnectionStatus,
-} = require("discord.js");
+} = require("@discordjs/voice");
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
