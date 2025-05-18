@@ -223,13 +223,19 @@ client.on("interactionCreate", async (interaction) => {
             Math.floor(Math.random() * eightBallResponses.length)
           ];
         console.log(
-          "Recieved interaction request for 8ball by " +
-            interaction.user.displayName,
+          "Recieved interaction request for 8ball by " + interaction.user.displayName,
         );
         console.log("The 8 ball says " + response);
-        interaction.reply(`${interaction.user.displayName} asked: ${question} \nThe 8 ball says: ${response}`);
+        if(question.contains("mario")) {
+          interaction.reply("YOU FUCKING ITALIAN FUCK!")
+        }
+        else {
+          interaction.reply(interaction.user.displayName + " asked " + question + "\nThe 8 ball said: " + response)
+        }
+            
       }
       if(interaction.commandName === "tenor") {
+        console.log("Recieved interaction request for tenor by " + interaction.user.displayName)
         const tenorQuery = interaction.options.getString("query")
         const cmdTenorGifs = `https://tenor.googleapis.com/v2/search?q=${tenorQuery}&key=${process.env.TENOR_KEY}&client_key=${process.env.TENOR_PROJ}&limit=8`
         try {
@@ -239,6 +245,7 @@ client.on("interactionCreate", async (interaction) => {
           if (data.results && data.results.length > 0) {
             const randomIndex = Math.floor(Math.random() * data.results.length);
             const randomGif = data.results[randomIndex].media_formats.gif.url;
+            console.log("Bot chose " + randomGif + " for " + interaction.user.displayName + ", sending...")
             interaction.reply(randomGif);
           } else {
             interaction.reply("No GIFs found for that query.");
