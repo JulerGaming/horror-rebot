@@ -238,7 +238,7 @@ client.on("interactionCreate", async (interaction) => {
 
           if (data.results && data.results.length > 0) {
             const randomIndex = Math.floor(Math.random() * data.results.length);
-            const randomGif = data.results[randomIndex].media[0].gif.url;
+            const randomGif = data.results[randomIndex].media_formats.gif.url;
             interaction.reply(randomGif);
           } else {
             interaction.reply("No GIFs found for that query.");
