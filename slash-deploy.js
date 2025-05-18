@@ -31,21 +31,21 @@ const slashRegister = async () => {
           .setDescription("finds someone in this guild and mentions them (like a surprise!)"),
 
         new SlashCommandBuilder()
-          .setName("join")
-          .setDescription("joins a specific voice channel")
+          .setName("8ball")
+          .setDescription("answers your question")
           .addStringOption((option) =>
             option
-              .setName("channelid")
-              .setDescription("id of the voice channel of the bot to join")
+              .setName("question")
+              .setDescription("the question you want to ask")
               .setRequired(true)
           ),
         new SlashCommandBuilder()
-          .setName("playfile")
-          .setDescription("plays an audio file from a URL")
+          .setName("tenor")
+          .setDescription("sends a random gif from tenor")
           .addStringOption((option) =>
             option
-              .setName("url")
-              .setDescription("the URL of the audio file to play")
+              .setName("query")
+              .setDescription("the query you want to search for")
               .setRequired(true)
           )
       ]
