@@ -226,7 +226,7 @@ client.on("interactionCreate", async (interaction) => {
           "Recieved interaction request for 8ball by " + interaction.user.displayName,
         );
         console.log("The 8 ball says " + response);
-        if(question.contains("mario")) {
+        if(question.includes("mario")) {
           interaction.reply("YOU FUCKING ITALIAN FUCK!")
         }
         else {
