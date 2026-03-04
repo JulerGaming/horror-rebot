@@ -30,6 +30,10 @@ Run the bot:
 ```
 pm2 start ecosystem-config.js
 ```
+Alternative way:
+```
+npm start
+```
 
 Follow the on-screen prompts or use Discord commands to interact with the bot.
 
