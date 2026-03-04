@@ -1,0 +1,317 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            /* respect iPhone notch / safe area */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -webkit-text-size-adjust: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 16px 8px;
+            font-size: 1.8rem;
+            line-height: 1.1;
+        }
+
+        span {
+            display: block;
+            margin: 0 16px;
+            font-size: 1rem;
+        }
+
+        strong.running {
+            color: #0f0;
+            font-weight: 700;
+        }
+
+        /* Small phones (iPhone SE, etc.) */
+        @media (max-width: 420px) {
+            h1 {
+                font-size: 1.4rem;
+            }
+
+            span {
+                font-size: 0.95rem;
+            }
+
+            body {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+        }
+
+        /* Larger phones / small tablets */
+        @media (min-width: 421px) and (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            span {
+                font-size: 1.1rem;
+            }
+        }
+
+        .top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #222;
+            padding: 8px 16px;
+            box-sizing: border-box;
+            text-align: left;
+            font-size: 1rem;
+            font-weight: 600;
+            border-bottom: 1px solid #444;
+            /* left to right order */
+            display: flex;
+            align-items: center;
+        }
+
+        .top img {
+            height: 24px;
+            margin-right: 8px;
+        }
+
+        .top span {
+            margin-left: 1px;
+            font-size: 1rem;
+        }
+
+        .body {
+            margin-top: 48px;
+            margin-bottom: 16px;
+        }
+
+        .log {
+            width: 90%;
+            height: 300px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .top button {
+            all: unset;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .top .redirect-buttons {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        .profile {
+            margin-top: 24px;
+        }
+
+        .profile .activity-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .issues {
+            margin-top: 32px;
+            text-align: left;
+            display: inline-block;
+            max-width: 90%;
+            background-color: #444;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+    <meta charset="utf-8" />
+    <title>Horror Rebot</title>
+    <link rel="icon"
+        href="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=128"
+        sizes="128x128" type="image/webp">
+    <link rel="apple-touch-icon"
+        href="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=256">
+    <link rel="shortcut icon"
+        href="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp">
+    <meta name="theme-color" content="#222">
+</head>
+
+<body>
+    <div class="top">
+        <img src="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=128"
+            alt="Horror Rebot Logo" style="height: 24px; vertical-align: middle; margin-right: 8px;" />
+        <span>Horror Rebot</span>
+        <div class="redirect-buttons">
+            <button onclick="window.location.href='/'">Home</button>
+            <button onclick="window.location.href='/announcements/send/'">Send Announcement</button>
+            <button onclick="window.location.href='/tools/'">Tools</button>
+        </div>
+    </div>
+    <div class="body">
+        <noscript>
+            <div class="issues"
+                style="background-color:#8b0000;color:#fff;padding:16px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.5);margin-bottom:16px;">
+                <h3 style="margin-top:0;">JavaScript Disabled</h3>
+                <ul style="margin:0;padding-left:18px;">
+                    <li>JavaScript is disabled in your browser. Live server count and bot activity require JavaScript to
+                        function. Please enable JavaScript and reload the page.</li>
+                </ul>
+            </div>
+        </noscript>
+        <script>
+            // Helper function to add an issue to the issues list
+            function addIssue(text) {
+                var issuesEl = document.querySelector('.issues ul');
+                if (issuesEl) {
+                    var li = document.createElement('li');
+                    li.textContent = text;
+                    issuesEl.appendChild(li);
+                }
+            }
+
+            // set the server count
+            document.addEventListener('DOMContentLoaded', function () {
+                // Fetch server/member count from Discord's public guild widget.
+                // Replace GUILD_ID with your guild's ID and ensure the widget is enabled in server settings.
+                var guildId = '1333194010201952367';
+                var url = 'https://discord.com/api/guilds/' + guildId + '/widget.json';
+
+                fetch(url, { cache: 'no-store' })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        var count = 'N/A';
+                        if (Array.isArray(data.members) && data.members.length) {
+                            count = data.members.length;
+                        }
+
+                        var spans = document.getElementsByTagName('span');
+                        for (var i = 0; i < spans.length; i++) {
+                            if (spans[i].textContent.startsWith('Server count:')) {
+                                spans[i].innerHTML = 'Server count: <strong class="running">' + count + '</strong> online members';
+                                break;
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error('Could not load server count from Discord API:', err);
+                        addIssue('Could not load server count from Discord API.');
+                    });
+
+                // Attempt to get bot activity via the guild widget (avoids exposing bot token and CORS issues)
+                fetch('https://discord.com/api/guilds/' + guildId + '/widget.json', { cache: 'no-store' })
+                    .then(function (r) {
+                        if (!r.ok) {
+                            throw new Error('HTTP ' + r.status);
+                        }
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        var activityText = 'No activity';
+                        if (Array.isArray(data.members) && data.members.length) {
+                            for (var j = 0; j < data.members.length; j++) {
+                                if (data.members[j].id === '1369007178664378429') {
+                                    // widget may include a "status" field (e.g. "online"), fall back to username if not present
+                                    activityText = data.members[j].status ? data.members[j].status : (data.members[j].username || 'No activity');
+                                    break;
+                                }
+                            }
+                        }
+                        var el = document.getElementById('activity-text');
+                        if (el) el.textContent = activityText;
+                    })
+                    .catch(function (err) {
+                        console.error('Could not load bot activity from widget:', err);
+                        addIssue('Could not load bot activity from Discord widget.');
+                    });
+                // check if theres internet connection, if not, then create an issue
+                if (!navigator.onLine) {
+                    addIssue('No internet connection detected.');
+                }
+                // populate issues from the issues.json file generated by the bot
+                fetch('/issues.json', { cache: 'no-store' })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(function (data) {
+                        if (Array.isArray(data.issues)) {
+                            data.issues.forEach(function (issue) {
+                                addIssue(issue);
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error('Could not load issues from issues.json:', err);
+                        fetch('/issues.txt', { cache: 'no-store' })
+                            .then(function (r) {
+                                if (!r.ok) throw new Error('HTTP ' + r.status);
+                                return r.text();
+                            })
+                            .then(function (text) {
+                                if (text === "") {
+                                    addIssue('You\'re all clear! ;)');
+                                    return;
+                                }
+                                text.split('\n').forEach(function (line) {
+                                    if (line.trim()) {
+                                        addIssue(line.trim());
+                                    }
+                                });
+                            })
+                            .catch(function (err) {
+                                console.error('Could not load issues from issues.txt:', err);
+                                addIssue('Could not load issues from server.');
+                            });
+                    });
+            });
+        </script>
+        <h1>Horror Rebot</h1>
+        <span>Server count: <strong>- N/A -</strong> online members</span>
+        <div class="profile">
+            <!--and here goes a replica of the discord profile view-->
+            <img src="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=256"
+                alt="Horror Rebot Profile Picture" style="height: 128px; width: 128px; border-radius: 16px;" />
+            <h2>Horror Rebot<strong style="color: #696969; font-weight: 400;"> #4605</strong></h2>
+            <div class="activity-status" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                <div
+                    style="width: 12px; height: 12px; background-color: #43b581; border-radius: 50%; border: 2px solid #2c2f33;">
+                </div>
+                <span>Online</span>
+                <span id="activity-text">Loading...</span>
+            </div>
+        </div>
+        <!--Shows warnings and errors-->
+        <div class="issues">
+            <h3>Issues</h3>
+            <ul>
+                <!-- Issues will be populated here by JavaScript -->
+            </ul>
+        </div>
+    </div>
+</body>
+
+</html>

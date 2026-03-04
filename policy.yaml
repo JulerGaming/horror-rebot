@@ -1,0 +1,6 @@
+yaml title="policy.yaml" mode=traffic-policy
+		on_http_request:
+			- actions:
+					- type: forward-internal
+						config:
+							url: https://default.internal
