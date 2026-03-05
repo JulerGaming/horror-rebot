@@ -23,7 +23,11 @@ Horror Rebot is a Discord bot designed to enhance server experiences with a vari
     ```
     npm install
     ```
-
+3. Create .env
+4. Inside .env
+    ```
+    BOT_TOKEN=your-bot-token-here
+    ```
 ## Usage
 
 Run the bot:
