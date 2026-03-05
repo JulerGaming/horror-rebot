@@ -881,7 +881,7 @@ Message: ${cleaned}
         // ====== OPENAI REQUEST ======
         const response = await openai.responses.create({
             prompt: {
-                "id": "pmpt_687573c285208195bb4aa16c6d3ef8800323c78415769ff5",
+                "id": process.env.OPENAI_ASSISTANT_ID,
                 "version": "18"
             },
             input: history,
