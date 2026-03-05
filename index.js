@@ -545,131 +545,125 @@ client.on("clientReady", async () => {
 });
 
 client.on("guildMemberAdd", async (member) => {
-    const GUILD_ID = "1333194010201952367";
-    const guild = client.guilds.cache.get(GUILD_ID);
-    for (const member of guild.members.cache.values()) {
-        if (member.user.bot) continue; // skip bots
-        if (guild.ownerId === member.id) continue; // skip server owner
-        try {
-            const openai = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY,
-            });
-            const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 512 });
+    try {
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+        const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 512 });
 
-            // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
-            const response = await openai.chat.completions.create({
-                model: "gpt-4.1-mini",
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
-                    },
-                    {
-                        role: "user",
-                        content: [
+        // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
+        const response = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
+                },
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: "If this profile picture contains a Gorilla Tag character with unnatural long arms (cheating), respond with 'GTAG_CHAR_LONG_ARMS'. Otherwise, respond with 'NO_MATCH'. It must be an in game screenshot. Not fan art. Neither a fan game. NOR Blender Art. Blender art is realistic gorilla tag profile pictures. In game screenshots have a glowing Gorilla Tag character. OR if it contains innapropiate content, respond with 'INNAPROPIATE_CONTENT'. Only respond with one of those three options and nothing else."
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: avatarUrl
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens: 100
+        });
+        const aiReply = response.choices?.[0]?.message?.content || "";
+        console.log(`Checked avatar for ${member.user.username}, AI response: ${aiReply}`);
+        if (aiReply.includes("GTAG_CHAR_LONG_ARMS")) {
+            try {
+                if (!member.bannable) {
+                    console.warn('cannot ban user with GT character pfp and long arms:', member.user.username);
+                } else {
+                    // create a ban message with AI and send it to the user
+                    const banMessageResponse = await openai.chat.completions.create({
+                        model: "gpt-4.1-mini",
+                        messages: [
                             {
-                                type: "text",
-                                text: "If this profile picture contains a Gorilla Tag character with unnatural long arms (cheating), respond with 'GTAG_CHAR_LONG_ARMS'. Otherwise, respond with 'NO_MATCH'. It must be an in game screenshot. Not fan art. Neither a fan game. NOR Blender Art. Blender art is realistic gorilla tag profile pictures. In game screenshots have a glowing Gorilla Tag character. OR if it contains innapropiate content, respond with 'INNAPROPIATE_CONTENT'. Only respond with one of those three options and nothing else."
+                                role: "system",
+                                content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
                             },
                             {
-                                type: "image_url",
-                                image_url: {
-                                    url: avatarUrl
-                                }
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: "Create a message to inform a user that they have been banned from a Gorilla Tag Discord server because their profile picture contains a Gorilla Tag character with unnatural long arms, which is considered cheating. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.'\nUser info: \nName: " + member.user.displayName
+                                    },
+                                    {
+                                        type: "image_url",
+                                        image_url: {
+                                            url: avatarUrl
+                                        }
+                                    }
+                                ]
                             }
                         ]
-                    }
-                ],
-                max_tokens: 100
-            });
-            const aiReply = response.choices?.[0]?.message?.content || "";
-            console.log(`Checked avatar for ${member.user.username}, AI response: ${aiReply}`);
-            if (aiReply.includes("GTAG_CHAR_LONG_ARMS")) {
-                try {
-                    if (!member.bannable) {
-                        console.warn('cannot ban user with GT character pfp and long arms:', member.user.username);
-                    } else {
-                        // create a ban message with AI and send it to the user
-                        const banMessageResponse = await openai.chat.completions.create({
-                            model: "gpt-4.1-mini",
-                            messages: [
-                                {
-                                    role: "system",
-                                    content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
-                                },
-                                {
-                                    role: "user",
-                                    content: [
-                                        {
-                                            type: "text",
-                                            text: "Create a message to inform a user that they have been banned from a Gorilla Tag Discord server because their profile picture contains a Gorilla Tag character with unnatural long arms, which is considered cheating. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.'\nUser info: \nName: " + member.user.displayName
-                                        },
-                                        {
-                                            type: "image_url",
-                                            image_url: {
-                                                url: avatarUrl
-                                            }
-                                        }
-                                    ]
-                                }
-                            ]
-                        })
-                        const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
-                        console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
-                        await member.send(otherAiReply).catch(() => { });
-                        await member.ban({ reason: "Gorilla Tag character with long arms in profile picture" });
-                        modlog(`Banned ${member.user.username} for having a Gorilla Tag character with long arms in their profile picture.`);
-                    }
-                } catch (err) {
-                    console.error("Error banning user with GT character pfp:", err);
+                    })
+                    const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
+                    console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
+                    await member.send(otherAiReply).catch(() => { });
+                    await member.ban({ reason: "Gorilla Tag character with long arms in profile picture" });
+                    modlog(`Banned ${member.user.username} for having a Gorilla Tag character with long arms in their profile picture.`);
                 }
+            } catch (err) {
+                console.error("Error banning user with GT character pfp:", err);
             }
-            if (aiReply.includes("INNAPROPIATE_CONTENT")) {
-                try {
-                    if (!member.bannable) {
-                        console.warn('cannot ban user with innapropiate content in pfp:', member.user.username);
-                    } else {
-                        // create a ban message with AI and send it to the user
-                        const banMessageResponse = await openai.chat.completions.create({
-                            model: "gpt-4.1-mini",
-                            messages: [
-                                {
-                                    role: "system",
-                                    content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
-                                },
-                                {
-                                    role: "user",
-                                    content: [
-                                        {
-                                            type: "text",
-                                            text: "Create a message to inform a user that they have been banned from a Gorilla Tag Discord server because their profile picture contains a Gorilla Tag character with unnatural long arms, which is considered cheating. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.'\nUser info: \nName: " + member.user.displayName
-                                        },
-                                        {
-                                            type: "image_url",
-                                            image_url: {
-                                                url: avatarUrl
-                                            }
-                                        }
-                                    ]
-                                }
-                            ]
-                        })
-                        const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
-                        console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
-                        await member.send(otherAiReply).catch(() => { });
-                        await member.ban({ reason: "Innapropiate content in profile picture" });
-                        modlog(`Banned ${member.user.username} for having innapropiate content in their profile picture.`);
-                    }
-                } catch (err) {
-                    console.error("Error banning user with innapropiate content in pfp:", err);
-                }
-            }
-            if (aiReply.includes("NO_MATCH")) {
-                modlog(`Checked ${member.user.username}'s profile picture - no issues found.`);
-            }
-        } catch (err) {
-            console.error(`Error processing profile picture for ${member.user.username}:`, err);
         }
+        if (aiReply.includes("INNAPROPIATE_CONTENT")) {
+            try {
+                if (!member.bannable) {
+                    console.warn('cannot ban user with innapropiate content in pfp:', member.user.username);
+                } else {
+                    // create a ban message with AI and send it to the user
+                    const banMessageResponse = await openai.chat.completions.create({
+                        model: "gpt-4.1-mini",
+                        messages: [
+                            {
+                                role: "system",
+                                content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
+                            },
+                            {
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: "Create a message to inform a user that they have been banned from a Gorilla Tag Discord server because their profile picture contains a Gorilla Tag character with unnatural long arms, which is considered cheating. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.'\nUser info: \nName: " + member.user.displayName
+                                    },
+                                    {
+                                        type: "image_url",
+                                        image_url: {
+                                            url: avatarUrl
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
+                    const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
+                    console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
+                    await member.send(otherAiReply).catch(() => { });
+                    await member.ban({ reason: "Innapropiate content in profile picture" });
+                    modlog(`Banned ${member.user.username} for having innapropiate content in their profile picture.`);
+                }
+            } catch (err) {
+                console.error("Error banning user with innapropiate content in pfp:", err);
+            }
+        }
+        if (aiReply.includes("NO_MATCH")) {
+            modlog(`Checked ${member.user.username}'s profile picture - no issues found.`);
+        }
+    } catch (err) {
+        console.error(`Error processing profile picture for ${member.user.username}:`, err);
     }
 });
 
@@ -1153,9 +1147,9 @@ client.on("messageCreate", async (message) => {
     if (message.author.bot) return; // Ignore bot messages
 
     // image filter
-    if (message.attachments.size > 0) {
+    if (message.attachments.size > 0 || message.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|bmp|webp)$/i) || message.content.match(/https?:\/\/[^\s]+/i)) {
         for (const attachment of message.attachments.values()) {
-            if (attachment.contentType && attachment.contentType.startsWith("image/")) {
+            if (attachment.contentType.startsWith("image/") || attachment.url.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
                 try {
                     if (!message.guild) return; // only check images in guilds, not DMs
 
@@ -1200,7 +1194,7 @@ client.on("messageCreate", async (message) => {
                         setInterval(() => {
                             const fiveDaysMs = 5 * 24 * 60 * 60 * 1000;
                             const now = Date.now();
-                            
+
                             for (const [key, value] of offenderCounts.entries()) {
                                 if (value.timestamp && now - value.timestamp > fiveDaysMs) {
                                     offenderCounts.delete(key);
@@ -2119,6 +2113,9 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "pfpcheck") {
                 console.log("Recieved interaction request for pfpcheck by " + interaction.user.displayName);
+                if (interaction.user.id !== "804839205309382676") {
+                    return interaction.reply({ content: "You do not have permission to use this command.", ephemeral: true });
+                }
                 await interaction.deferReply({ ephemeral: true });
                 const GUILD_ID = "1333194010201952367";
                 const guild = client.guilds.cache.get(GUILD_ID);
