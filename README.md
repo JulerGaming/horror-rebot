@@ -16,18 +16,18 @@ Horror Rebot is a Discord bot designed to enhance server experiences with a vari
 ## Installation
 
 1. Clone the repository:
-    ```
-    git clone https://github.com/JulerGaming/horror-rebot.git
-    ```
+```
+git clone https://github.com/JulerGaming/horror-rebot.git
+```
 2. Install dependencies:
-    ```
-    npm install
-    ```
+```
+npm install
+```
 3. Create .env
 4. Inside .env
-    ```
-    BOT_TOKEN=your-bot-token-here
-    ```
+```
+BOT_TOKEN=your-bot-token-here
+```
 ## Usage
 
 Run the bot:
