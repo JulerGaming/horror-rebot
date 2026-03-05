@@ -43,6 +43,26 @@ app.post('/tools/restart', (req, res) => {
     restart(0);
 });
 
+app.post('/tools/chatgpt', (req, res) => {
+    const configPath = path.join(__dirname, 'config.json');
+    try {
+        const configData = fs.readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(configData);
+        config.chatgptintegration.enabled = !config.chatgptintegration.enabled;
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+        console.log(`ChatGPT integration toggled to ${config.chatgptintegration.enabled}`);
+        res.send(`ChatGPT integration is now ${config.chatgptintegration.enabled ? "enabled" : "disabled"}.`);
+        configl.chatgptintegration.enabled = config.chatgptintegration.enabled; // update the in-memory config as well
+    } catch (err) {
+        console.error("Error toggling ChatGPT integration:", err);
+        res.status(500).send("Error toggling ChatGPT integration.");
+    }
+});
+
+app.get("/chatgpt-status", (req, res) => {
+    res.json({ enabled: configl.chatgptintegration.enabled });
+});
+
 app.use((req, res) => {
     res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
@@ -90,8 +110,7 @@ const client = new Client({
     ],
     partials: [
         Partials.Message,
-        Partials.Channel,
-        Partials.Reaction
+        Partials.Channel
     ]
 });
 
@@ -272,6 +291,7 @@ async function speakcommodore(text) {
 
 const confJson = fs.readFileSync("./config.json", "utf-8");
 const configl = JSON.parse(confJson);
+console.log("Config loaded:", configl);
 const modLogChannel = configl.basics.modLogChannelID; // theres already a variable called config which is just dotenv
 function modlog(message) {
     // make a POST request to the webhook URL with the message
@@ -721,9 +741,12 @@ client.on("messageCreate", async (message) => {
         message.mentions?.has?.(client.user) ||
         message.content.startsWith(`<@!${client.user.id}>`) ||
         message.content.startsWith(`<@${client.user.id}>`) ||
-        message.channel.type === ChannelType.DM
+        message.channel.type === ChannelType.DM &&
+        configl.chatgptintegration.enabled
     ) {
         console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
+
+        if (!configl.chatgptintegration.enabled) return message.reply("Sorry, Horror ReAI is currently disabled.");
 
         if (message.content.startsWith("!")) return; // commands start with ! so ignore those
 
@@ -923,6 +946,7 @@ Message: ${cleaned}
         try {
             const memberVoiceChannel = member?.voice?.channel;
             if (memberVoiceChannel) {
+                return; // voice is disabled until further notice
                 const connection = joinVoiceChannel({
                     channelId: memberVoiceChannel.id,
                     guildId: memberVoiceChannel.guild.id,
@@ -951,6 +975,7 @@ Message: ${cleaned}
                 });
             } else {
                 if (!message.guild) return;
+                return; // voice is disabled until further notice
                 const connection = getVoiceConnection(message.guild.id);
                 if (connection) {
                     connection.destroy();
@@ -1398,6 +1423,13 @@ const EmbedBuilder = require("discord.js").EmbedBuilder;
 client.on("interactionCreate", async (interaction) => {
     try {
         if (interaction.isCommand()) {
+            if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
+                const embed = new EmbedBuilder()
+                    .setTitle("Voice Commands No Longer Work")
+                    .setDescription("Due to recent changes in Discord's API and policies, the voice-related commands no longer work. We apologize for any inconvenience this may cause. If you have any questions or concerns, please contact the server staff.")
+                    .setColor(0xFF0000);
+                return interaction.reply({ embeds: [embed] });
+            }
             if (interaction.commandName === "ping") {
                 console.log(
                     `Recieved interaction request for ping by ${interaction.user.displayName}`,
@@ -1826,6 +1858,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
             }
             if (interaction.commandName === "joinvoice") {
+                await interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 if (!voiceChannel) {
                     return interaction.reply({ content: "You need to be in a voice channel.", ephemeral: true });
@@ -1901,6 +1934,7 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "openurlstream") {
                 console.log(`Recieved interaction request for openurlstream by ${interaction.user.displayName}`);
+                await interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 if (!voiceChannel) {
                     return interaction.reply({ content: "You need to be in a voice channel.", ephemeral: true });

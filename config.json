@@ -1,9 +1,9 @@
 {
-    "basics": {
-        "prefix": ".",
-        "modlogchannelid": "1366827840003113056"
-    },
-    "chatgptintegration": {
-        "enabled": true
-    }
+  "basics": {
+    "prefix": ".",
+    "modlogchannelid": "1366827840003113056"
+  },
+  "chatgptintegration": {
+    "enabled": true
+  }
 }

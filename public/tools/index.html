@@ -123,7 +123,7 @@
             gap: 12px;
         }
 
-        
+
         button {
             margin-top: 16px;
             padding: 8px 16px;
@@ -133,6 +133,32 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 1rem;
+        }
+
+        .list button {
+            width: 100%;
+        }
+
+        .list {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .list label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+        }
+
+        .list input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
         }
     </style>
     <script>
@@ -156,6 +182,37 @@
                 alert('Error: ' + error);
             });
         }
+
+        function toggleChatGPT() {
+            const enabled = document.getElementById('chatgpt-toggle').checked;
+            fetch('/tools/chatgpt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enabled })
+            }).then(response => {
+                if (response.ok) {
+                    alert('ChatGPT integration ' + (enabled ? 'enabled' : 'disabled') + '.');
+                } else {
+                    alert('Failed to update ChatGPT integration.');
+                }
+            }).catch(error => {
+                alert('Error: ' + error);
+            });
+        }
+
+        // Fetch the current ChatGPT integration status on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/chatgpt-status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('chatgpt-toggle').checked = data.enabled;
+                })
+                .catch(error => {
+                    console.error('Error fetching ChatGPT status:', error);
+                });
+        });
     </script>
     <meta charset="utf-8" />
     <title>Horror Rebot</title>
@@ -183,7 +240,13 @@
     <div class="body">
         <h1>Tools</h1>
         <span>Allows you to configure the bot.</span>
-        <button onclick="rs()">Restart</button>
+        <div class="list">
+            <button onclick="rs()">Restart</button>
+            <label>
+                <input type="checkbox" id="chatgpt-toggle" onchange="toggleChatGPT()" />
+                Enable ChatGPT Integration
+            </label>
+        </div>
     </div>
 
 </html>
