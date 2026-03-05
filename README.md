@@ -1,10 +1,10 @@
-# Horror-Rebot
+# Horror Rebot
 
 A multifunctional Discord bot created by JulerGT for the Horror Remake server, offering fun commands, utility functions, and voice channel interactions.
 
 ## Description
 
-Horror-Rebot is a Discord bot designed to enhance server experiences with a variety of features. It provides entertaining commands, practical utilities, and voice channel capabilities for seamless server management and member engagement.
+Horror Rebot is a Discord bot designed to enhance server experiences with a variety of features. It provides entertaining commands, practical utilities, and voice channel capabilities for seamless server management and member engagement.
 
 ## Features
 
@@ -16,14 +16,18 @@ Horror-Rebot is a Discord bot designed to enhance server experiences with a vari
 ## Installation
 
 1. Clone the repository:
-    ```
-    git clone https://github.com/JulerGaming/horror-rebot.git
-    ```
+```
+git clone https://github.com/JulerGaming/horror-rebot.git
+```
 2. Install dependencies:
-    ```
-    npm install
-    ```
-
+```
+npm install
+```
+3. Create .env
+4. Inside .env
+```
+BOT_TOKEN=your-bot-token-here
+```
 ## Usage
 
 Run the bot:
