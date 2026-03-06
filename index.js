@@ -2364,13 +2364,12 @@ client.on("interactionCreate", async (interaction) => {
                     .setFooter({ text: `Submitted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: "png" }) })
                     .setTimestamp()
                     .setColor(0x858585);
-                modlogEmbed(embed);
+                modlogEmbed(embed); // the embed is only for the modlog
                 try {
                     const post = await submissionChannel.threads.create({
                         name: title,
                         message: {
-                            content: `${usersvideo}\n${description}\nSubmitted by: <@${interaction.user.id}>` ? `${usersvideo}\n${description}\nSubmitted by: <@${interaction.user.id}>` : `Error`,
-                            files: attachment ? [attachment] : [],
+                            content: `${usersvideo}\n${description}\nSubmitted by: <@${interaction.user.id}>`,
                         },
                     });
                     await interaction.followUp({ content: "Your video has been submitted successfully!", ephemeral: true });
