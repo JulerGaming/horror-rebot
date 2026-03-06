@@ -1366,6 +1366,7 @@ const { config } = require("dotenv");
 const { number, unknown } = require("@elevenlabs/elevenlabs-js/core/schemas/index.js");
 const { OK } = require("sqlite3");
 const { ConversationTokenPurpose } = require("@elevenlabs/elevenlabs-js/api/index.js");
+const { encode } = require("punycode");
 
 const errorFile = fs.readFileSync("./error.png");
 
@@ -2331,7 +2332,7 @@ client.on("interactionCreate", async (interaction) => {
 
                     const randomId = Math.floor(Math.random() * 100000000);
                     const fileExtension = attachment?.name?.split('.')?.pop() || 'mp4';
-                    const s3Key = `horrortube/${interaction.user.username}/${randomId}.${fileExtension}`;
+                    const s3Key = `horrortube/${interaction.user.username}/${randomId}/${title}.${fileExtension}`;
 
                     await s3.upload({
                         Bucket: 'drive.julergt.org',
@@ -2340,7 +2341,8 @@ client.on("interactionCreate", async (interaction) => {
                         ContentType: attachment?.contentType || 'video/mp4',
                     }).promise();
 
-                    videoUrl = `https://drive.julergt.org/${s3Key}`;
+                    let s3keyToUri = encodeURIComponent(s3Key).replace(/%2F/g, '/'); // Ensure slashes are not encoded
+                    videoUrl = `https://drive.julergt.org/${s3keyToUri}`;
                     console.log(`Video uploaded: ${videoUrl}`);
                 } catch (err) {
                     console.error("Upload failed:", err);
@@ -2371,7 +2373,7 @@ client.on("interactionCreate", async (interaction) => {
 
                     await channel.threads.create({
                         name: title,
-                        message: { content: `${videoUrl}\n${description}\nSubmitted by: <@${interaction.user.id}>` },
+                        message: { content: `[${title}](${videoUrl})\n${description}\nSubmitted by: <@${interaction.user.id}>` },
                     });
 
                     await interaction.followUp({ content: "Video submitted successfully!", ephemeral: true });
