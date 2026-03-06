@@ -2372,7 +2372,7 @@ client.on("interactionCreate", async (interaction) => {
                     }
 
                     await channel.threads.create({
-                        name: formattedTitle,
+                        name: title,
                         message: { content: `${videoUrl}\n${description}\nSubmitted by: <@${interaction.user.id}>` },
                     });
 
