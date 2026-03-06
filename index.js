@@ -2305,17 +2305,20 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "submit") {
                 console.log("Recieved interaction request for submit by " + interaction.user.displayName);
-                await interaction.deferReply({ ephemeral: true });
+                const title = interaction.options.getString("title");
+                const description = interaction.options.getString("description") || "No description provided.";
                 const attachment = interaction.options.getAttachment("video");
-                let url = interaction.options.getString("url");
-                const AWS = require('aws-sdk');
-                let s3Url = null;
-                let usersvideo = null;
-                const randomId = Math.floor(Math.random() * 100000000);
-                const fileExtension = attachment?.name?.split('.')?.pop() || 'mp4';
-                const s3Key = `horrortube/${interaction.user.username}/${randomId}.${fileExtension}`;
+                const url = interaction.options.getString("url");
+                await interaction.reply({ content: "Processing your submission...", ephemeral: true });
 
-                if (attachment || url) {
+                if (!attachment && !url) {
+                    return interaction.followUp({ content: "You must provide either a video attachment or a URL!", ephemeral: true });
+                }
+
+                const AWS = require('aws-sdk');
+                let videoUrl;
+
+                try {
                     const s3 = new AWS.S3({
                         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
                         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -2326,86 +2329,55 @@ client.on("interactionCreate", async (interaction) => {
                     const response = await fetch(fetchUrl);
                     const buffer = await response.buffer();
 
-                    try {
-                        const params = {
-                            Bucket: 'drive.julergt.org',
-                            Key: s3Key,
-                            Body: buffer,
-                            ContentType: attachment?.contentType || 'video/mp4',
-                        };
+                    const randomId = Math.floor(Math.random() * 100000000);
+                    const fileExtension = attachment?.name?.split('.')?.pop() || 'mp4';
+                    const s3Key = `horrortube/${interaction.user.username}/${randomId}.${fileExtension}`;
 
-                        await s3.upload(params).promise();
-                        s3Url = `s3://drive.julergt.org/${s3Key}`;
-                        usersvideo = `https://drive.julergt.org/${s3Key}`;
-                        console.log(`Video uploaded to S3: ${s3Url}`);
-                    } catch (err) {
-                        console.error("Error uploading to S3:", err);
-                        return interaction.followUp({ content: "Failed to upload video to S3. Please try again later.", ephemeral: true });
-                    }
+                    await s3.upload({
+                        Bucket: 'drive.julergt.org',
+                        Key: s3Key,
+                        Body: buffer,
+                        ContentType: attachment?.contentType || 'video/mp4',
+                    }).promise();
+
+                    videoUrl = `https://drive.julergt.org/${s3Key}`;
+                    console.log(`Video uploaded: ${videoUrl}`);
+                } catch (err) {
+                    console.error("Upload failed:", err);
+                    return interaction.followUp({ content: "Failed to upload video. Please try again.", ephemeral: true });
                 }
-                const title = interaction.options.getString("title");
-                const description = interaction.options.getString("description") || "No description provided.";
-                if (!attachment && !interaction.options.getString("url")) {
-                    return interaction.followUp({ content: "You must provide either a video attachment or a URL!", ephemeral: true });
-                }
-                // create a submission channel in the server if it doesn't exist and set permissions so only the user and admins can see it
-                const GUILD_ID = configl.basics.guildID;
-                const SUBMISSION_CHANNEL_ID = configl.basics.submissionChannelID;
-                // the channel is a media (forum) channel so we need to create a new post in the channel with the video attached, and the title and description in the content
-                const guild = client.guilds.cache.get(GUILD_ID);
-                const submissionChannel = guild.channels.cache.get(SUBMISSION_CHANNEL_ID);
-                if (!submissionChannel) {
-                    return interaction.followUp({ content: "Submission channel not found. Please contact an administrator.", ephemeral: true });
-                }
+
                 const embed = new EmbedBuilder()
-                    .setTitle("New video alert!")
-                    .setDescription("A new video has been submitted to Horror Tube. Please review the submission and take action if needed.\n\nTitle: " + title + "\nDescription: " + description + "\nURL: " + usersvideo ? usersvideo : "No video URL provided.")
-                    .setThumbnail(usersvideo ? usersvideo : null)
-                    .setFooter({ text: `Submitted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: "png" }) })
+                    .setTitle("New Video Submission")
+                    .setDescription(`**${title}**\n${description}`)
+                    .setThumbnail(videoUrl)
+                    .setFooter({ text: `Submitted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
                     .setTimestamp()
                     .setColor(0x858585);
-                modlogEmbed(embed); // the embed is only for the modlog
+
+                await modlogEmbed(embed);
+
                 try {
-                    const post = await submissionChannel.threads.create({
-                        name: title,
-                        message: {
-                            content: `${usersvideo}\n${description}\nSubmitted by: <@${interaction.user.id}>`,
-                        },
-                    });
-                    if (usersvideo && usersvideo.toLowerCase().slice(0, 15).includes("mediafire.com")) {
-                        interaction.followUp({ content: "MediaFire links are not allowed for video submissions.", ephemeral: true });
-                        await post.delete();
-                        const embed = new EmbedBuilder()
-                            .setTitle("Submission removed")
-                            .setDescription(`A video submission by ${interaction.user.tag} was removed because it contained a MediaFire link, which is not allowed. Title: ${title}`)
-                            .setFooter({ text: `Submitted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: "png" }) })
-                            .setTimestamp()
-                            .setColor(0xFF0000);
-                        await modlogEmbed(embed); // the embed is only for the modlog
-                        // delete the video from s3 if it was uploaded
-                        if (s3Url) {
-                            const s3 = new AWS.S3({
-                                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                                region: process.env.AWS_REGION,
-                            });
-                            const params = {
-                                Bucket: 'drive.julergt.org',
-                                Key: s3Key,
-                            };
-                            try {
-                                await s3.deleteObject(params).promise();
-                                console.log(`Deleted video from S3 due to MediaFire link: ${s3Url}`);
-                            } catch (err) {
-                                console.error("Error deleting from S3:", err);
-                            }
-                        }
-                    } else {
-                        await interaction.followUp({ content: "Your video has been submitted successfully!", ephemeral: true });
+                    const guild = client.guilds.cache.get(configl.basics.guildID);
+                    const channel = guild?.channels.cache.get(configl.basics.submissionChannelID);
+
+                    if (!channel) {
+                        return interaction.followUp({ content: "Submission channel not found.", ephemeral: true });
                     }
+
+                    if (videoUrl == "null" || videoUrl == null) {
+                        throw new Error("Video URL is null after upload.");
+                    }
+
+                    await channel.threads.create({
+                        name: title,
+                        message: { content: `${videoUrl}\n${description}\nSubmitted by: <@${interaction.user.id}>` },
+                    });
+
+                    await interaction.followUp({ content: "Video submitted successfully!", ephemeral: true });
                 } catch (err) {
-                    console.error("Error creating submission post:", err);
-                    await interaction.followUp({ content: "There was an error submitting your video. Please try again later.", ephemeral: true });
+                    console.error("Submission error:", err);
+                    await interaction.followUp({ content: "Error submitting video. Please try again.", ephemeral: true });
                 }
             }
         }
