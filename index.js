@@ -2306,6 +2306,41 @@ client.on("interactionCreate", async (interaction) => {
                     return interaction.followUp({ content: "Submission channel not found. Please contact an administrator.", ephemeral: true });
                 }
                 try {
+                    // ai moderation check for the video using openai's moderation endpoint, if it fails, do not post it and inform the user
+                    const openai = new OpenAI({
+                        apiKey: process.env.OPENAI_API_KEY,
+                    });
+                    let moderationResponse;
+                    if (attachment) {
+                        moderationResponse = await openai.moderations.create({
+                            input: [
+                                {
+                                    type: "text",
+                                    text: title + "\n" + description
+                                },
+                                {
+                                    type: "file",
+                                    file: {
+                                        url: attachment.url,
+                                        filename: attachment.name,
+                                    }
+                                }
+                            ]
+                        });
+                    } else {
+                        moderationResponse = await openai.moderations.create({
+                            input: title + "\n" + description + "\n" + url
+                        });
+                    }
+                    const flagged = moderationResponse.results.some(result => result.flagged);
+                    if (flagged) {
+                        return interaction.followUp({ content: "Your submission was flagged by our moderation system and cannot be posted. Please review the content guidelines and try again.", ephemeral: true });
+                    }
+                } catch (err) {
+                    console.error("Error during moderation check:", err);
+                    return interaction.followUp({ content: "There was an error processing your submission. Please try again later.", ephemeral: true });
+                }
+                try {
                     const post = await submissionChannel.threads.create({
                         name: title,
                         message: {
