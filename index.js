@@ -2360,7 +2360,7 @@ client.on("interactionCreate", async (interaction) => {
                 const embed = new EmbedBuilder()
                     .setTitle("New video alert!")
                     .setDescription("A new video has been submitted to Horror Tube. Please review the submission and take action if needed.\n\nTitle: " + title + "\nDescription: " + description + "\nURL: " + url)
-                    .setThumbnail(url ? url : (attachment ? attachment.url : null))
+                    .setThumbnail(usersvideo ? usersvideo : null)
                     .setFooter({ text: `Submitted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: "png" }) })
                     .setTimestamp()
                     .setColor(0x858585);
