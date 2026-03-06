@@ -2372,8 +2372,8 @@ client.on("interactionCreate", async (interaction) => {
                     }
 
                     await channel.threads.create({
-                        name: title,
-                        message: { content: `[${title}](${videoUrl})\n${description}\nSubmitted by: <@${interaction.user.id}>` },
+                        name: formattedTitle,
+                        message: { content: `${videoUrl}\n${description}\nSubmitted by: <@${interaction.user.id}>` },
                     });
 
                     await interaction.followUp({ content: "Video submitted successfully!", ephemeral: true });
