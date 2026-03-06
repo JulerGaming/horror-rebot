@@ -2286,6 +2286,39 @@ client.on("interactionCreate", async (interaction) => {
                 modlog("Completed profile picture check for all members.");
                 interaction.followUp({ content: "Completed profile picture check for all members.", ephemeral: true });
             }
+            if (interaction.commandName === "submit") {
+                console.log("Recieved interaction request for submit by " + interaction.user.displayName);
+                await interaction.deferReply({ ephemeral: true });
+                const attachment = interaction.options.getAttachment("video");
+                const url = interaction.options.getString("url");
+                const title = interaction.options.getString("title");
+                const description = interaction.options.getString("description") || "No description provided.";
+                if (!attachment && !interaction.options.getString("url")) {
+                    return interaction.followUp({ content: "You must provide either a video attachment or a URL!", ephemeral: true });
+                }
+                // create a submission channel in the server if it doesn't exist and set permissions so only the user and admins can see it
+                const GUILD_ID = configl.basics.guildID;
+                const SUBMISSION_CHANNEL_ID = configl.basics.submissionChannelID;
+                // the channel is a media (forum) channel so we need to create a new post in the channel with the video attached, and the title and description in the content
+                const guild = client.guilds.cache.get(GUILD_ID);
+                const submissionChannel = guild.channels.cache.get(SUBMISSION_CHANNEL_ID);
+                if (!submissionChannel) {
+                    return interaction.followUp({ content: "Submission channel not found. Please contact an administrator.", ephemeral: true });
+                }
+                try {
+                    const post = await submissionChannel.threads.create({
+                        name: title,
+                        message: {
+                            content: `${url}\n${description}\nSubmitted by: <@${interaction.user.id}>` ? `${url}\n${description}\nSubmitted by: <@${interaction.user.id}>` : `${description}\nSubmitted by: <@${interaction.user.id}>`,
+                            files: attachment ? [attachment] : [],
+                        },
+                    });
+                    await interaction.followUp({ content: "Your video has been submitted successfully!", ephemeral: true });
+                } catch (err) {
+                    console.error("Error creating submission post:", err);
+                    await interaction.followUp({ content: "There was an error submitting your video. Please try again later.", ephemeral: true });
+                }
+            }
         }
     } catch (error) {
         console.error(

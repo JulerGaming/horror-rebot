@@ -167,14 +167,14 @@ const slashRegister = async () => {
           .setDescription("makes the bot join your voice channel")
           .setIntegrationTypes(0)
           .setContexts(0) // if the bot isnt in the server it may crash because it cant find the voice channel (it has to be added to the server first)
-            .addStringOption((group) =>
+          .addStringOption((group) =>
             group
               .setName("audiofile")
               .setDescription("select the audio file to play")
               .setRequired(true)
               .setAutocomplete(true) // if not then how will they find the files??
-            ),
-              // choices managed by code — do not hardcode them here
+          ),
+        // choices managed by code — do not hardcode them here
         new SlashCommandBuilder()
           .setName("uploadaudioresource")
           .setDescription("uploads an audio resource to play in voice channels")
@@ -212,6 +212,35 @@ const slashRegister = async () => {
           .setDescription("checks if a user's profile picture is appropriate")
           .setIntegrationTypes(0, 1)
           .setContexts(0, 1, 2),
+        new SlashCommandBuilder()
+          .setName("submit")
+          .setDescription("submit a video to horrortube")
+          .setIntegrationTypes(0, 1)
+          .setContexts(0, 1, 2)
+          .addStringOption((option) =>
+            option
+              .setName("title")
+              .setDescription("the title of the video")
+              .setRequired(true)
+          )
+          .addAttachmentOption((option) =>
+            option
+              .setName("video")
+              .setDescription("the video you want to submit")
+              .setRequired(false)
+          )
+          .addStringOption((option) =>
+            option
+              .setName("url")
+              .setDescription("the URL of the video you want to submit (if it cant be uploaded for some reason)")
+              .setRequired(false)
+          )
+          .addStringOption((option) =>
+            option
+              .setName("description")
+              .setDescription("a description of the video")
+              .setRequired(false)
+          ),
       ]
     });
     console.log("Successfully registered the slash commands globally");
