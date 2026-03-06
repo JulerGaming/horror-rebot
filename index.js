@@ -308,6 +308,20 @@ function modlog(message) {
     });
 }
 
+function modlogEmbed(embed) {
+    const webhookUrl = "https://discord.com/api/webhooks/1445221342864740614/we3HsJj8eRU5m-q2sT_yCZql1IBGJmo6R_diCsNe2UIXbrceuhQFHX9A0a3CX7FsnVng";
+    const fetch = require("node-fetch");
+    return fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            embeds: [embed.toJSON()],
+        }),
+    });
+}
+
 function modlogwebook(message) {
     // blank, unused
 }
@@ -1348,8 +1362,9 @@ const { GuildMember } = require("discord.js");
 const { play } = require("@elevenlabs/elevenlabs-js");
 const { audio } = require("@elevenlabs/elevenlabs-js/api/resources/dubbing/index.js");
 const { config } = require("dotenv");
-const { number } = require("@elevenlabs/elevenlabs-js/core/schemas/index.js");
+const { number, unknown } = require("@elevenlabs/elevenlabs-js/core/schemas/index.js");
 const { OK } = require("sqlite3");
+const { ConversationTokenPurpose } = require("@elevenlabs/elevenlabs-js/api/index.js");
 
 const errorFile = fs.readFileSync("./error.png");
 
@@ -2072,6 +2087,7 @@ client.on("interactionCreate", async (interaction) => {
                 const os = require('os');
                 const fs = require('fs');
                 const { execSync } = require('child_process');
+                const AWS = require('aws-sdk');
                 let hostModel = 'Unknown Model';
                 try {
                     if (process.platform === 'win32') {
@@ -2291,6 +2307,42 @@ client.on("interactionCreate", async (interaction) => {
                 await interaction.deferReply({ ephemeral: true });
                 const attachment = interaction.options.getAttachment("video");
                 const url = interaction.options.getString("url");
+                const AWS = require('aws-sdk');
+                let s3Url = null;
+                let usersvideo = null;
+
+                if (attachment || url) {
+                    const s3 = new AWS.S3({
+                        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                        region: process.env.AWS_REGION,
+                    });
+
+                    const fetchUrl = attachment?.url || url;
+                    const response = await fetch(fetchUrl);
+                    const buffer = await response.buffer();
+
+                    const randomId = Math.floor(Math.random() * 100000000);
+                    const fileExtension = attachment?.name?.split('.')?.pop() || 'mp4';
+                    const s3Key = `horrortube/${interaction.user.username}/${randomId}.${fileExtension}`;
+
+                    try {
+                        const params = {
+                            Bucket: 'drive.julergt.org',
+                            Key: s3Key,
+                            Body: buffer,
+                            ContentType: attachment?.contentType || 'video/mp4',
+                        };
+
+                        await s3.upload(params).promise();
+                        s3Url = `s3://drive.julergt.org/${s3Key}`;
+                        usersvideo = `http://drive.julergt.org/${s3Key}`;
+                        console.log(`Video uploaded to S3: ${s3Url}`);
+                    } catch (err) {
+                        console.error("Error uploading to S3:", err);
+                        return interaction.followUp({ content: "Failed to upload video to S3. Please try again later.", ephemeral: true });
+                    }
+                }
                 const title = interaction.options.getString("title");
                 const description = interaction.options.getString("description") || "No description provided.";
                 if (!attachment && !interaction.options.getString("url")) {
@@ -2304,47 +2356,20 @@ client.on("interactionCreate", async (interaction) => {
                 const submissionChannel = guild.channels.cache.get(SUBMISSION_CHANNEL_ID);
                 if (!submissionChannel) {
                     return interaction.followUp({ content: "Submission channel not found. Please contact an administrator.", ephemeral: true });
-                }
-                try {
-                    // ai moderation check for the video using openai's moderation endpoint, if it fails, do not post it and inform the user
-                    const openai = new OpenAI({
-                        apiKey: process.env.OPENAI_API_KEY,
-                    });
-                    let moderationResponse;
-                    if (attachment) {
-                        moderationResponse = await openai.moderations.create({
-                            input: [
-                                {
-                                    type: "text",
-                                    text: title + "\n" + description
-                                },
-                                {
-                                    type: "file",
-                                    file: {
-                                        url: attachment.url,
-                                        filename: attachment.name,
-                                    }
-                                }
-                            ]
-                        });
-                    } else {
-                        moderationResponse = await openai.moderations.create({
-                            input: title + "\n" + description + "\n" + url
-                        });
-                    }
-                    const flagged = moderationResponse.results.some(result => result.flagged);
-                    if (flagged) {
-                        return interaction.followUp({ content: "Your submission was flagged by our moderation system and cannot be posted. Please review the content guidelines and try again.", ephemeral: true });
-                    }
-                } catch (err) {
-                    console.error("Error during moderation check:", err);
-                    return interaction.followUp({ content: "There was an error processing your submission. Please try again later.", ephemeral: true });
-                }
+                } 
+                const embed = new EmbedBuilder()
+                    .setTitle("New video alert!")
+                    .setDescription("A new video has been submitted to Horror Tube. Please review the submission and take action if needed.\n\nTitle: " + title + "\nDescription: " + description + "\nURL: " + url)
+                    .setThumbnail(url ? url : (attachment ? attachment.url : null))
+                    .setFooter({ text: `Submitted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: "png" }) })
+                    .setTimestamp()
+                    .setColor(0x858585);
+                modlogEmbed(embed);
                 try {
                     const post = await submissionChannel.threads.create({
                         name: title,
                         message: {
-                            content: `${url}\n${description}\nSubmitted by: <@${interaction.user.id}>` ? `${url}\n${description}\nSubmitted by: <@${interaction.user.id}>` : `${description}\nSubmitted by: <@${interaction.user.id}>`,
+                            content: `${usersvideo}\n${description}\nSubmitted by: <@${interaction.user.id}>` ? `${usersvideo}\n${description}\nSubmitted by: <@${interaction.user.id}>` : `Error`,
                             files: attachment ? [attachment] : [],
                         },
                     });

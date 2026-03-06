@@ -23,6 +23,7 @@
     "@types/node": "^22.13.11",
     "@wasm-audio-decoders/opus-ml": "^0.0.1",
     "avconv": "^3.1.0",
+    "aws-sdk": "^2.1693.0",
     "canvas": "^3.2.0",
     "choco": "^0.2.1",
     "diagnostics_channel": "^1.1.0",
@@ -57,5 +58,5 @@
   "devDependencies": {
     "pm2": "^6.0.13"
   },
-  "updated-at": "March 5, 2026 at 10:21 PM AST"
+  "updated-at": "March 5, 2026 at 11:03 PM AST"
 }

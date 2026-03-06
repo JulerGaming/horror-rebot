@@ -2,8 +2,8 @@
   "basics": {
     "prefix": ".",
     "modlogchannelid": "1366827840003113056",
-    "guildid": "1333194010201952367",
-    "submissionchannelid": "1404959201582645380"
+    "guildID": "1333194010201952367",
+    "submissionChannelID": "1404959201582645380"
   },
   "chatgptintegration": {
     "enabled": true
