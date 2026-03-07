@@ -2342,7 +2342,7 @@ client.on("interactionCreate", async (interaction) => {
                     }).promise();
 
                     let s3keyToUri = encodeURIComponent(s3Key).replace(/%2F/g, '/'); // Ensure slashes are not encoded
-                    videoUrl = `https://drive.julergt.org/${s3keyToUri}`;
+                    videoUrl = `http://drive.julergt.org/${s3keyToUri}`;
                     console.log(`Video uploaded: ${videoUrl}`);
                 } catch (err) {
                     console.error("Upload failed:", err);
