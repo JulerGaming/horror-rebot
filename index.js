@@ -699,6 +699,20 @@ client.on("guildMemberAdd", async (member) => {
     } catch (err) {
         console.error(`Error processing profile picture for ${member.user.username}:`, err);
     }
+
+    if (member.user.bot) return; // skip bots
+    if (member.user.createdAt < Date.now() - 5 * 24 * 60 * 60 * 1000) {
+         // Ban users whose account is older than 5 days
+        try {
+            await member.send("Your account is too new to join the Horror Remake Discord server. If you believe this is a mistake, please contact the moderators.").catch(() => { });
+            await member.ban({ reason: "Account age less than 5 days" });
+            modlog(`Banned ${member.user.username} for having an account age less than 5 days.`);
+        } catch (err) {
+            console.error("Error banning user for new account:", err);
+            modlog(`Could not ban ${member.user.username} for new account (less than 5 days old) - insufficient permissions.`);
+            newIssue(`Failed to ban user ${member.user.username} for new account (less than 5 days old). Please check permissions and ban manually if necessary.`)
+        }
+    }
 });
 
 client.on("messageCreate", async (message) => {
@@ -711,9 +725,14 @@ client.on("messageCreate", async (message) => {
 
     // Bad words filter
     const words = message.content.split(" ");
+    if (message.channel.type === ChannelType.DM) return; // skip bad word filter for DMs
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
-            message.delete();
+            try {
+                message.delete();
+            } catch (err) {
+                console.error("Failed to delete message with bad word:", err);
+            }
             try {
                 if (!message.guild) return null; // should not happen, but just in case
                 await message.member.timeout(600000, "Using inappropriate language.");

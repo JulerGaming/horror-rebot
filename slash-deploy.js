@@ -2,7 +2,7 @@ const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 // Info needed for slash commands (so we don't have to use "!" before commands)
 // Read environment variables from .env file
 require("dotenv").config();
-const botID = "1369007178664378429"; // Do not include serverID here
+const botID = process.env.BOT_ID; // Do not include serverID here
 const botToken = process.env.BOT_TOKEN; // Your bot token here
 // Make sure to keep your bot token secret and never share it with anyone!
 // If you need to reset your token, go to https://discord.com/developers/applications and select your bot application.
