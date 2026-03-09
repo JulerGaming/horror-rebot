@@ -701,8 +701,8 @@ client.on("guildMemberAdd", async (member) => {
     }
 
     if (member.user.bot) return; // skip bots
-    if (member.user.createdAt < Date.now() - 5 * 24 * 60 * 60 * 1000) {
-         // Ban users whose account is older than 5 days
+    if (member.user.createdTimestamp > Date.now() - 5 * 24 * 60 * 60 * 1000) {
+         // Ban users whose account is younger than 5 days
         try {
             await member.send("Your account is too new to join the Horror Remake Discord server. If you believe this is a mistake, please contact the moderators.").catch(() => { });
             await member.ban({ reason: "Account age less than 5 days" });
