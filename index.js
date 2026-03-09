@@ -114,6 +114,61 @@ const client = new Client({
     ]
 });
 
+const configJson = fs.readFileSync("./config.json", "utf-8");
+const cff = JSON.parse(configJson);
+const { exec }  = require("child_process");
+
+function run(cmd) {
+    return new Promise((resolve, reject) => {
+        exec(cmd, (err, stdout, stderr) => {
+            if (err) return reject(stderr);
+            resolve(stdout.trim());
+        });
+    });
+}
+
+async function syncRepo() {
+    if (!cff.GitHub) return null;
+    try {
+        console.log("Checking remote changes...");
+
+        await run("git fetch");
+
+        const local = await run("git rev-parse HEAD");
+        const remote = await run("git rev-parse @{u}");
+
+        if (local !== remote) {
+            console.log("Remote updates found. Pulling...");
+            await run("git pull");
+        } else {
+            console.log("Repo already up to date.");
+        }
+
+        console.log("Checking local changes...");
+
+        const status = await run("git status --porcelain");
+
+        if (status) {
+            console.log("Local changes detected. Committing and pushing...");
+
+            await run("git add .");
+            await run(`git commit -m "Auto commit from bot"`);
+            await run("git push");
+
+            console.log("Changes pushed to GitHub.");
+        } else {
+            console.log("No local changes.");
+        }
+
+    } catch (err) {
+        console.error("Git sync error:", err);
+    }
+}
+
+syncRepo();
+
+setInterval(syncRepo, 1 * 60 * 1000); // every 1 minute
+
 const shutdown = async (signal) => {
     console.log(`Received ${signal}, shutting down...`);
 

@@ -7,5 +7,6 @@
   },
   "chatgptintegration": {
     "enabled": true
-  }
+  },
+  "GitHub": true
 }
