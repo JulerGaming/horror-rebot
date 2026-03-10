@@ -780,10 +780,10 @@ client.on("messageCreate", async (message) => {
 
     // Bad words filter
     const words = message.content.split(" ");
-    if (message.channel.type === ChannelType.DM) return; // skip bad word filter for DMs
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
             try {
+                if (message.channel.type === ChannelType.DM) continue; // skip bad word filter for DMs
                 message.delete();
             } catch (err) {
                 console.error("Failed to delete message with bad word:", err);
