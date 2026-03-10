@@ -204,7 +204,7 @@
 
         function ToggleVCRelatedStuff() {
             const enabled = document.getElementById('vc-toggle').checked;
-            fetch('tools/vc', {
+            fetch('/tools/vc', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
