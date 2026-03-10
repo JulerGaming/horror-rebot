@@ -114,6 +114,8 @@ const client = new Client({
     ]
 });
 
+// DO NOT DELETE
+
 const configJson = fs.readFileSync("./config.json", "utf-8");
 const cff = JSON.parse(configJson);
 const { exec }  = require("child_process");
@@ -168,6 +170,8 @@ async function syncRepo() {
 syncRepo();
 
 setInterval(syncRepo, 1 * 60 * 1000); // every 1 minute
+
+// </> DO NOT DELETE
 
 const shutdown = async (signal) => {
     console.log(`Received ${signal}, shutting down...`);
