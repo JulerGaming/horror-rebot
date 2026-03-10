@@ -64,11 +64,11 @@ app.post('/tools/vc', (req, res) => {
     try {
         const configData = fs.readFileSync(configPath, 'utf-8');
         const config = JSON.parse(configData);
-        config.chatgptintegration.enabled = !config.chatgptintegration.enabled;
+        config.basics.vc.enabled = !config.basics.vc.enabled;
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-        console.log(`VC toggled to ${config.chatgptintegration.enabled}`);
-        res.send(`VC is now ${config.chatgptintegration.enabled ? "enabled" : "disabled"}.`);
-        configl.chatgptintegration.enabled = config.basics.vc.enabled; // update the in-memory config as well
+        console.log(`VC toggled to ${config.basics.vc.enabled}`);
+        res.send(`VC is now ${config.basics.vc.enabled ? "enabled" : "disabled"}.`);
+        configl.basics.vc.enabled = config.basics.vc.enabled; // update the in-memory config as well
     } catch (err) {
         console.error("Error toggling VC:", err);
         res.status(500).send("Error toggling VC.");
