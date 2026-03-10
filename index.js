@@ -59,9 +59,29 @@ app.post('/tools/chatgpt', (req, res) => {
     }
 });
 
+app.post('/tools/vc', (req, res) => {
+    const configPath = path.join(__dirname, 'config.json');
+    try {
+        const configData = fs.readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(configData);
+        config.chatgptintegration.enabled = !config.chatgptintegration.enabled;
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+        console.log(`VC toggled to ${config.chatgptintegration.enabled}`);
+        res.send(`VC is now ${config.chatgptintegration.enabled ? "enabled" : "disabled"}.`);
+        configl.chatgptintegration.enabled = config.basics.vc.enabled; // update the in-memory config as well
+    } catch (err) {
+        console.error("Error toggling VC:", err);
+        res.status(500).send("Error toggling VC.");
+    }
+});
+
 app.get("/chatgpt-status", (req, res) => {
     res.json({ enabled: configl.chatgptintegration.enabled });
 });
+
+app.get("/vc-status", (req, res) => {
+    res.json({ enabled: configl.basics.vc.enabled })
+})
 
 app.use((req, res) => {
     res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
@@ -1039,7 +1059,7 @@ Message: ${cleaned}
         try {
             const memberVoiceChannel = member?.voice?.channel;
             if (memberVoiceChannel) {
-                return; // voice is disabled until further notice
+                if (!configl.basics.vc.enabled) return;
                 const connection = joinVoiceChannel({
                     channelId: memberVoiceChannel.id,
                     guildId: memberVoiceChannel.guild.id,
@@ -1519,6 +1539,7 @@ client.on("interactionCreate", async (interaction) => {
     try {
         if (interaction.isCommand()) {
             if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
+                if (configl.basics.vc.enabled) return;
                 const embed = new EmbedBuilder()
                     .setTitle("Voice Commands No Longer Work")
                     .setDescription("Due to recent changes in Discord's API and policies, the voice-related commands no longer work. We apologize for any inconvenience this may cause. If you have any questions or concerns, please contact the server staff.")

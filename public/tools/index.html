@@ -202,6 +202,25 @@
             });
         }
 
+        function ToggleVCRelatedStuff() {
+            const enabled = document.getElementById('vc-toggle').checked;
+            fetch('tools/vc', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enabled })
+            }).then(response => {
+                if (response.ok) {
+                    alert('success')
+                } else {
+                    alert('error')
+                }
+            }).catch(error => {
+                alert('error: ' + error);
+            });
+        }
+
         // Fetch the current ChatGPT integration status on page load
         document.addEventListener('DOMContentLoaded', () => {
             fetch('/chatgpt-status')
@@ -212,6 +231,14 @@
                 .catch(error => {
                     console.error('Error fetching ChatGPT status:', error);
                 });
+            fetch('/vc-status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('vc-toggle').checked = data.enabled;
+                })
+                .catch(error => {
+                    console.error('Error fetching VC status:', error);
+                })
         });
     </script>
     <meta charset="utf-8" />
@@ -245,6 +272,9 @@
             <label>
                 <input type="checkbox" id="chatgpt-toggle" onchange="toggleChatGPT()" />
                 Enable ChatGPT Integration
+            </label>
+            <label>
+                <input type="checkbox" id="vc-toggle" onchange="ToggleVCRelatedStuff" />
             </label>
         </div>
     </div>
