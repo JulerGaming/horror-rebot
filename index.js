@@ -202,13 +202,10 @@ const shutdown = async (signal) => {
     } catch (err) {
         console.error("Error destroying client:", err);
     }
-
-    return process.exit(0);
 };
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
-process.on("SIGQUIT", shutdown);
 
 // Error handling
 process.on("uncaughtException", async (err) => {
