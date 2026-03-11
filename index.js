@@ -179,7 +179,6 @@ async function syncRepo() {
             await run("git push");
 
             console.log("Changes pushed to GitHub.");
-            restart(0);
         } else {
             console.log("No local changes.");
         }
