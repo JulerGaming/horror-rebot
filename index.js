@@ -162,6 +162,7 @@ async function syncRepo() {
         if (local !== remote) {
             console.log("Remote updates found. Pulling...");
             await run("git pull");
+            restart(0);
         } else {
             console.log("Repo already up to date.");
         }
@@ -178,6 +179,7 @@ async function syncRepo() {
             await run("git push");
 
             console.log("Changes pushed to GitHub.");
+            restart(0);
         } else {
             console.log("No local changes.");
         }
