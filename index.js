@@ -1977,7 +1977,7 @@ client.on("interactionCreate", async (interaction) => {
                 await interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 if (!voiceChannel) {
-                    return interaction.reply({ content: "You need to be in a voice channel.", ephemeral: true });
+                    return interaction.followUp({ content: "You need to be in a voice channel.", ephemeral: true });
                 }
 
                 const audioFile = interaction.options.getString("audiofile");
@@ -2019,7 +2019,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
 
                 await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-                await interaction.reply({ content: `Joined ${voiceChannel.name} and playing ${audioFile}!`, ephemeral: true });
+                await interaction.followUp({ content: `Joined ${voiceChannel.name} and playing ${audioFile}!`, ephemeral: true });
 
                 const player = createAudioPlayer();
                 const resource = createAudioResource(filePath, { inputType: StreamType.Arbitrary });
