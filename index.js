@@ -83,10 +83,6 @@ app.get("/vc-status", (req, res) => {
     res.json({ enabled: configl.basics.vc.enabled })
 })
 
-app.use((req, res) => {
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-});
-
 const pkg = fs.readFileSync("./package.json");
 const package = JSON.parse(pkg);
 
@@ -166,6 +162,10 @@ app.post("/send-announcement", express.json(), async (req, res) => {
     }
 
     res.json({ success: true });
+});
+
+app.use((req, res) => {
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
 async function syncRepo() {
