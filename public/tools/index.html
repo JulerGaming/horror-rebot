@@ -239,7 +239,7 @@
                 body: JSON.stringify({ enabled })
             }).then(response => {
                 if (response.ok) {
-                    sendNotification('AI moderation ' + (enabled ? 'enabled' : 'disabled') + '.');
+                    sendNotification('AI moderation ' + (enabled ? 'enabled' : 'disabled') + '.', 'success');
                 } else {
                     sendNotification('Error updating AI moderation status.', 'error');
                 }
