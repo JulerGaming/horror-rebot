@@ -622,7 +622,7 @@ client.on("clientReady", async () => {
                                     content: [
                                         {
                                             type: "text",
-                                            text: "Create a message to inform a user that they have been banned from Horror Remake because their profile picture contains a Gorilla Tag character with unnatural long arms, which is considered cheating. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.'\nUser info: \nName: " + member.user.displayName
+                                            text: "Create a message to inform a user that they have been banned from Horror Remake because their profile picture contains innapropiate content. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains innapropiate content, which is not allowed.'\nUser info: \nName: " + member.user.displayName
                                         },
                                         {
                                             type: "image_url",
@@ -748,7 +748,7 @@ client.on("guildMemberAdd", async (member) => {
                                 content: [
                                     {
                                         type: "text",
-                                        text: "Create a message to inform a user that they have been banned from Horror Remake because their profile picture contains a Gorilla Tag character with unnatural long arms, which is considered cheating. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.'\nUser info: \nName: " + member.user.displayName
+                                        text: "Create a message to inform a user that they have been banned from Horror Remake because their profile picture contains innapropiate content. The message should be polite but firm, and explain that cheating is not allowed in the community. Only respond with the message content and nothing else. Use the image provided for reference. \nExample: 'You have been banned from Horror Remake because your profile picture contains innapropiate content, which is not allowed.'\nUser info: \nName: " + member.user.displayName
                                     },
                                     {
                                         type: "image_url",
