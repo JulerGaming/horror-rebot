@@ -43,11 +43,10 @@ app.post('/tools/restart', (req, res) => {
     restart(0);
 });
 
-app.post('/tools/restartall', (req, res) => {
+app.post('/tools/restartall', async (req, res) => {
     console.log("Restart of all bots has been requested.")
     res.send('Restarting ALL bots...')
-    run("powershell.exe -File C:\\Users\\Juler\\Desktop\\Restart All Bots.ps1")
-    process.exit(0);
+    return await run("powershell.exe -File C:\\Users\\Juler\\Desktop\\Restart All Bots.ps1");
 })
 
 app.post('/tools/chatgpt', (req, res) => {
