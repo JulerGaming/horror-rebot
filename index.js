@@ -149,7 +149,7 @@ function run(cmd) {
     });
 }
 
-app.post("/api/announcements/send", express.json(), async (req, res) => {
+app.post("/send-announcement", express.json(), async (req, res) => {
     const { title, content, pingEveryone } = req.body;
 
     if (!title || !content) {
