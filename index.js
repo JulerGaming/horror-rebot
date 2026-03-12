@@ -2205,7 +2205,6 @@ client.on("interactionCreate", async (interaction) => {
                 const os = require('os');
                 const fs = require('fs');
                 const { execSync } = require('child_process');
-                const AWS = require('aws-sdk');
                 let hostModel = 'Unknown Model';
                 try {
                     if (process.platform === 'win32') {
@@ -2239,7 +2238,7 @@ client.on("interactionCreate", async (interaction) => {
                     .addFields(
                         { name: "Creator", value: "JulerGT" },
                         { name: "Library", value: "discord.js v14" },
-                        { name: "Hosting", value: `Self Hosted Machine: ${hostModel}` },
+                        { name: "Hosting", value: hostModel },
                         { name: "Created On", value: client.user.createdAt.toDateString() },
                         { name: "Version", value: package.version },
                         { name: "Uptime", value: `${Math.floor(process.uptime() / 60)} minutes` },
