@@ -161,6 +161,7 @@
         .list input[type="checkbox"] {
             transform: scale(1.2);
             margin-top: 12px;
+            margin-bottom: 21px;
         }
 
         .list button {
@@ -243,8 +244,10 @@
     <div class="body">
         <h1>Send Announcement</h1>
         <div class="list">
-            <input type="checkbox" id="ping-everyone" style="margin-top: 12px; transform: scale(1.2);">
-            <label for="ping-everyone">Ping Everyone</label>
+            <label>
+                <input type="checkbox" id="ping-everyone" />
+                Ping Everyone
+            </label>
             <input type="text" id="announcement-title" placeholder="Title..."
                 style="width: 80%; padding: 8px; font-size: 1rem; border-radius: 4px; border: none; box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);">
             <input type="text" id="announcement-content" placeholder="Content..."

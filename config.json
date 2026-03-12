@@ -10,7 +10,10 @@
     "announcementChannelID": "1333199694716862554"
   },
   "chatgptintegration": {
-    "enabled": true
+    "enabled": true,
+    "aimoderation": {
+      "enabled": true
+    }
   },
   "GitHub": true
 }

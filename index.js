@@ -75,12 +75,32 @@ app.post('/tools/vc', (req, res) => {
     }
 });
 
+app.post('/tools/aimoderation', (req, res) => {
+    const configPath = path.join(__dirname, 'config.json');
+    try {
+        const configData = fs.readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(configData);
+        config.chatgptintegration.aimoderation.enabled = !config.chatgptintegration.aimoderation.enabled;
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+        console.log(`AI Moderation toggled to ${config.chatgptintegration.aimoderation.enabled}`);
+        res.send(`AI Moderation is now ${config.chatgptintegration.aimoderation.enabled ? "enabled" : "disabled"}.`);
+        configl.chatgptintegration.aimoderation.enabled = config.chatgptintegration.aimoderation.enabled; // update the in-memory config as well
+    } catch (err) {
+        console.error("Error toggling AI Moderation:", err);
+        res.status(500).send("Error toggling AI Moderation.");
+    }
+});
+
 app.get("/chatgpt-status", (req, res) => {
     res.json({ enabled: configl.chatgptintegration.enabled });
 });
 
 app.get("/vc-status", (req, res) => {
     res.json({ enabled: configl.basics.vc.enabled })
+})
+
+app.get("/aimoderation-status", (req, res) => {
+    res.json({ enabled: configl.chatgptintegration.aimoderation.enabled });
 })
 
 const pkg = fs.readFileSync("./package.json");
@@ -543,6 +563,7 @@ client.on("clientReady", async () => {
     console.log("Completed 'a bot' role sweep and required-role warnings.");
     await modlog("'a bot' role sweep completed.");
 
+    if (!configl.chatgptintegration.aimoderation.enabled) return;
     console.log('Starting "gorilla tag character with long arms" pfp check... [Powered by AI]')
     const guild = client.guilds.cache.get(GUILD_ID);
     console.log(`Checking profile pictures for ${guild.members.cache.size} members...`);
@@ -676,6 +697,8 @@ client.on("clientReady", async () => {
 
 client.on("guildMemberAdd", async (member) => {
     try {
+        if (!configl.chatgptintegration.aimoderation.enabled) return;
+
         const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
         });
@@ -1307,6 +1330,7 @@ client.on("messageCreate", async (message) => {
             if (attachment.contentType.startsWith("image/") || attachment.url.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
                 try {
                     if (!message.guild) return; // only check images in guilds, not DMs
+                    if (!configl.chatgptintegration.aimoderation.enabled) return;
 
                     const openai = new OpenAI({
                         apiKey: process.env.OPENAI_API_KEY,
@@ -2283,6 +2307,7 @@ client.on("interactionCreate", async (interaction) => {
                 if (interaction.user.id !== "804839205309382676") {
                     return interaction.reply({ content: "You do not have permission to use this command.", ephemeral: true });
                 }
+                if (!configl.chatgptintegration.aimoderation.enabled) return interaction.reply({ content: "AI Moderation is disabled in settings. Please enable AI Moderation and try again.", ephemeral: true });
                 await interaction.deferReply({ ephemeral: true });
                 const GUILD_ID = "1333194010201952367";
                 const guild = client.guilds.cache.get(GUILD_ID);

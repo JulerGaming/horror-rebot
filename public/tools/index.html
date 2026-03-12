@@ -221,6 +221,25 @@
             });
         }
 
+        function ToggleAIMod() {
+            const enabled = document.getElementById('aimod-toggle').checked;
+            fetch('/tools/aimoderation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enabled })
+            }).then(response => {
+                if (response.ok) {
+                    alert('success')
+                } else {
+                    alert('error')
+                }
+            }).catch(error => {
+                alert('error: ' + error);
+            });
+        }
+
         // Fetch the current ChatGPT integration status on page load
         document.addEventListener('DOMContentLoaded', () => {
             fetch('/chatgpt-status')
@@ -238,6 +257,14 @@
                 })
                 .catch(error => {
                     console.error('Error fetching VC status:', error);
+                })
+            fetch('/aimoderation-status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('aimod-toggle').checked = data.enabled;
+                })
+                .catch(error => {
+                    console.error('Error fetching AI Moderation status:', error);
                 })
         });
     </script>
@@ -276,6 +303,10 @@
             <label>
                 <input type="checkbox" id="vc-toggle" onchange="ToggleVCRelatedStuff()" />
                 Enable Voice Related Stuff
+            </label>
+            <label>
+                <input type="checkbox" id="aimod-toggle" onchange="ToggleAIMod()" />
+                Enable AI Moderation
             </label>
         </div>
     </div>
