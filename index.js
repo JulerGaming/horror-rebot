@@ -43,12 +43,6 @@ app.post('/tools/restart', (req, res) => {
     restart(0);
 });
 
-app.post('/tools/restartall', async (req, res) => {
-    console.log("Restart of all bots has been requested.")
-    res.send('Restarting ALL bots...')
-    return await run("powershell.exe -File \"C:\\Users\\Juler\\Desktop\\Restart All Bots.ps1\"");
-})
-
 app.post('/tools/chatgpt', (req, res) => {
     const configPath = path.join(__dirname, 'config.json');
     try {
