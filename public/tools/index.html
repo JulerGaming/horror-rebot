@@ -3,6 +3,8 @@
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <link rel="stylesheet" href="/tools/notifications.css" />
+    <script src="/tools/notifications.js" defer></script>
     <style>
         html,
         body {
@@ -162,6 +164,12 @@
         }
     </style>
     <script>
+        // Stub that queues calls until `/tools/notifications.js` is ready.
+        window.sendNotification = window.sendNotification || function () {
+            window.__queuedNotifications = window.__queuedNotifications || [];
+            window.__queuedNotifications.push(Array.from(arguments));
+        };
+
         function goHome() {
             window.location.href = "/";
         }
@@ -174,12 +182,12 @@
                 method: 'POST'
             }).then(response => {
                 if (response.ok) {
-                    alert('Restarting bot... This server is unavailable until the bot starts.');
+                    sendNotification('Restarting bot... This server is unavailable until the bot starts.', 'success');
                 } else {
-                    alert('Failed to send restart command.');
+                    sendNotification('Failed to send restart command.', 'error');
                 }
             }).catch(error => {
-                alert('Error: ' + error);
+                sendNotification('Error: ' + error, 'error');
             });
         }
 
@@ -193,12 +201,12 @@
                 body: JSON.stringify({ enabled })
             }).then(response => {
                 if (response.ok) {
-                    alert('ChatGPT integration ' + (enabled ? 'enabled' : 'disabled') + '.');
+                    sendNotification('ChatGPT integration ' + (enabled ? 'enabled' : 'disabled') + '.', 'success');
                 } else {
-                    alert('Failed to update ChatGPT integration.');
+                    sendNotification('Error updating ChatGPT status.', 'error');
                 }
             }).catch(error => {
-                alert('Error: ' + error);
+                sendNotification('Error: ' + error, 'error');
             });
         }
 
@@ -212,12 +220,12 @@
                 body: JSON.stringify({ enabled })
             }).then(response => {
                 if (response.ok) {
-                    alert('success')
+                    sendNotification('VC related features ' + (enabled ? 'enabled' : 'disabled') + '.');
                 } else {
-                    alert('error')
+                    sendNotification('Error updating VC status.', 'error');
                 }
             }).catch(error => {
-                alert('error: ' + error);
+                sendNotification('Error: ' + error, 'error');
             });
         }
 
@@ -231,12 +239,12 @@
                 body: JSON.stringify({ enabled })
             }).then(response => {
                 if (response.ok) {
-                    alert('success')
+                    sendNotification('AI moderation ' + (enabled ? 'enabled' : 'disabled') + '.');
                 } else {
-                    alert('error')
+                    sendNotification('Error updating AI moderation status.', 'error');
                 }
             }).catch(error => {
-                alert('error: ' + error);
+                sendNotification('Error: ' + error, 'error');
             });
         }
 
