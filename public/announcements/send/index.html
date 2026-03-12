@@ -140,21 +140,6 @@
             font-size: 1rem;
         }
 
-        body input[type="text"] {
-            width: 80%;
-            padding: 8px;
-            font-size: 1rem;
-            border-radius: 4px;
-            border: none;
-            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
-            margin-top: 12px;
-        }
-
-        body input[type="checkbox"] {
-            margin-top: 12px;
-            transform: scale(1.2);
-        }
-
         .list {
             list-style: none;
             padding: 0;
@@ -162,6 +147,33 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+        }
+
+        .list input[type="text"] {
+            width: 80%;
+            padding: 8px;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: none;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+
+        .list input[type="checkbox"] {
+            transform: scale(1.2);
+            margin-top: 12px;
+        }
+
+        .list button {
+            margin-top: 16px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: none;
+            background-color: #0f0;
+            color: #000;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
         }
     </style>
     <script>
