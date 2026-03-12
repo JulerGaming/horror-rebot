@@ -6,7 +6,8 @@
     "submissionChannelID": "1404959201582645380",
     "vc": {
       "enabled": false
-    }
+    },
+    "announcementChannelID": "1333199694716862554"
   },
   "chatgptintegration": {
     "enabled": true

@@ -149,6 +149,25 @@ function run(cmd) {
     });
 }
 
+app.post("/api/announcements/send", express.json(), async (req, res) => {
+    const { title, content, pingEveryone } = req.body;
+
+    if (!title || !content) {
+        return res.status(400).json({ success: false, error: "Title and content are required." });
+    }
+
+    const channelID = configl.basics.announcementChannelID;
+    const channel = client.channels.cache.get(channelID);
+
+    if (pingEveryone) {
+        await channel.send(`@everyone\n# ${title}\n### ${content}`);
+    } else {
+        await channel.send(`# ${title}\n### ${content}`);
+    }
+
+    res.json({ success: true });
+});
+
 async function syncRepo() {
     if (!cff.GitHub) return null;
     try {

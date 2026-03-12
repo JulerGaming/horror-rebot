@@ -127,6 +127,41 @@
         function goHome() {
             window.location.href = "/";
         }
+
+        function sendAnnouncement() {
+            const title = document.getElementById("announcement-title").value.trim();
+            const content = document.getElementById("announcement-content").value.trim();
+
+            if (!title || !content) {
+                alert("Please fill in both the title and content fields.");
+                return;
+            }
+
+            fetch("/api/announcements/send", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ 
+                    title: title, 
+                    content: content, 
+                    pingEveryone: document.getElementById("ping-everyone").checked })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Announcement sent successfully!");
+                        document.getElementById("announcement-title").value = "";
+                        document.getElementById("announcement-content").value = "";
+                    } else {
+                        alert("Failed to send announcement: " + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error sending announcement:", error);
+                    alert("An error occurred while sending the announcement.");
+                });
+        }
     </script>
     <meta charset="utf-8" />
     <title>Horror Rebot</title>
@@ -153,6 +188,10 @@
     </div>
     <div class="body">
         <h1>Send Announcement</h1>
-        <span>This feature is coming soon!</span>
+        <input type="checkbox" id="ping-everyone" style="margin-top: 12px; transform: scale(1.2);">
+        <label for="ping-everyone">Ping Everyone</label>
+        <input type="text" id="announcement-title" placeholder="Title..." style="width: 80%; padding: 8px; font-size: 1rem; border-radius: 4px; border: none; box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);">
+        <input type="text" id="announcement-content" placeholder="Content..." style="width: 80%; padding: 8px; font-size: 1rem; border-radius: 4px; border: none; box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); margin-top: 12px;">
+        <button onclick="sendAnnouncement()" style="margin-top: 16px; padding: 10px 20px; font-size: 1rem; border-radius: 4px; border: none; background-color: #0f0; color: #000; font-weight: 700; cursor: pointer; box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);">Send Announcement</button>
     </div>
 </html>
