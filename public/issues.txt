@@ -1,0 +1,7 @@
+Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
+Warning: The AWS SDK for JavaScript (v2) has reached end-of-support.
+It will no longer receive updates or releases.
+
+Please migrate your code to use AWS SDK for JavaScript (v3).
+For more information, check the blog post at https://a.co/cUPnyil
+An error occurred during command execution by juler.gt at 2026-03-12T16:21:17.573Z. Check the server console for details.
