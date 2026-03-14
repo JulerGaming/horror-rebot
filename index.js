@@ -154,7 +154,7 @@ const client = new Client({
 
 const configJson = fs.readFileSync("./config.json", "utf-8");
 const cff = JSON.parse(configJson);
-const { exec }  = require("child_process");
+const { exec } = require("child_process");
 
 function run(cmd) {
     return new Promise((resolve, reject) => {
@@ -821,7 +821,7 @@ client.on("guildMemberAdd", async (member) => {
 
     if (member.user.bot) return; // skip bots
     if (member.user.createdTimestamp > Date.now() - 5 * 24 * 60 * 60 * 1000) {
-         // Ban users whose account is younger than 5 days
+        // Ban users whose account is younger than 5 days
         try {
             await member.send("Your account is too new to join the Horror Remake Discord server. If you believe this is a mistake, please contact the moderators.").catch(() => { });
             await member.ban({ reason: "Account age less than 5 days" });
@@ -1112,6 +1112,7 @@ Message: ${cleaned}
                 const resource = createAudioResource('./temp/TEMP_output_david.wav', {
                     inputType: StreamType.Arbitrary,
                 });
+
                 player.play(resource);
                 connection.subscribe(player);
 
@@ -1533,34 +1534,37 @@ async function execute(interaction) {
 }
 
 // only for autocomplete interactions
-
 client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isAutocomplete()) return;
 
-    if (interaction.commandName === "joinvoice") {
-        const focusedValue = interaction.options.getFocused(); // what user typed
-        const resourcesFolder = path.join(__dirname, "resources");
-        let files = [];
+    // AUTOCOMPLETE
+    if (interaction.isAutocomplete()) {
+        if (interaction.commandName === "joinvoice") {
+            const focusedValue = interaction.options.getFocused();
+            const resourcesFolder = path.join(__dirname, "resources");
+            let files = [];
 
-        try {
-            files = fs.readdirSync(resourcesFolder).filter(f =>
-                f.endsWith(".mp3") || f.endsWith(".wav") || f.endsWith(".ogg") || f.endsWith(".m4a") || f.endsWith(".flac") || f.endsWith(".aac") || f.endsWith(".mp4")
+            try {
+                files = fs.readdirSync(resourcesFolder).filter(f =>
+                    f.endsWith(".mp3") || f.endsWith(".wav") || f.endsWith(".ogg") ||
+                    f.endsWith(".m4a") || f.endsWith(".flac") || f.endsWith(".aac") || f.endsWith(".mp4")
+                );
+            } catch (err) {
+                console.error("Failed to read resources folder", err);
+            }
+
+            const filtered = files.filter(file =>
+                file.toLowerCase().includes(focusedValue.toLowerCase())
             );
-        } catch (err) {
-            console.error("Failed to read resources folder", err);
+
+            const choices = filtered.slice(0, 25).map(file => ({
+                name: file,
+                value: file
+            }));
+
+            await interaction.respond(choices).catch(console.error);
         }
 
-        const filtered = files.filter(file =>
-            file.toLowerCase().includes(focusedValue.toLowerCase())
-        );
-
-        // Map to { name, value } pairs for Discord
-        const choices = filtered.slice(0, 25).map(file => ({ name: file, value: file }));
-
-        // Must respond to autocomplete
-        await interaction.respond(choices).catch(err => {
-            console.error("Autocomplete respond error:", err);
-        });
+        return; // IMPORTANT
     }
 });
 
