@@ -1534,107 +1534,34 @@ async function execute(interaction) {
 }
 
 // only for autocomplete interactions
+
 client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isAutocomplete()) return;
 
-    // AUTOCOMPLETE
-    if (interaction.isAutocomplete()) {
-        if (interaction.commandName === "joinvoice") {
-            const focusedValue = interaction.options.getFocused();
-            const resourcesFolder = path.join(__dirname, "resources");
-            let files = [];
+    if (interaction.commandName === "joinvoice") {
+        const focusedValue = interaction.options.getFocused(); // what user typed
+        const resourcesFolder = path.join(__dirname, "resources");
+        let files = [];
 
-            try {
-                files = fs.readdirSync(resourcesFolder).filter(f =>
-                    f.endsWith(".mp3") || f.endsWith(".wav") || f.endsWith(".ogg") ||
-                    f.endsWith(".m4a") || f.endsWith(".flac") || f.endsWith(".aac") || f.endsWith(".mp4")
-                );
-            } catch (err) {
-                console.error("Failed to read resources folder", err);
-            }
-
-            const filtered = files.filter(file =>
-                file.toLowerCase().includes(focusedValue.toLowerCase())
+        try {
+            files = fs.readdirSync(resourcesFolder).filter(f =>
+                f.endsWith(".mp3") || f.endsWith(".wav") || f.endsWith(".ogg") || f.endsWith(".m4a") || f.endsWith(".flac") || f.endsWith(".aac") || f.endsWith(".mp4")
             );
-
-            const choices = filtered.slice(0, 25).map(file => ({
-                name: file,
-                value: file
-            }));
-
-            await interaction.respond(choices).catch(console.error);
+        } catch (err) {
+            console.error("Failed to read resources folder", err);
         }
 
-        return; // IMPORTANT
-    }
+        const filtered = files.filter(file =>
+            file.toLowerCase().includes(focusedValue.toLowerCase())
+        );
 
-    if (!interaction.isChatInputCommand()) return;
+        // Map to { name, value } pairs for Discord
+        const choices = filtered.slice(0, 25).map(file => ({ name: file, value: file }));
 
-    if (interaction.commandName === "joinvoice" && interaction.isChatInputCommand() && configl.basics.vc.enabled) {
-        console.log(`Recieved interaction request for joinvoice by ${interaction.user.displayName}`);
-        await interaction.deferReply();
-        const voiceChannel = interaction.member.voice.channel;
-        if (!voiceChannel) {
-            return interaction.followUp({ content: "You need to be in a voice channel.", ephemeral: true });
-        }
-
-        const audioFile = interaction.options.getString("audiofile");
-        const filePath = path.join(__dirname, "resources", audioFile);
-
-        if (!audioFile) {
-            return interaction.followUp({ content: "No audio file provided!", ephemeral: true });
-        }
-
-        if (!fs.existsSync(filePath)) {
-            return interaction.followUp({ content: "File not found!", ephemeral: true });
-        }
-
-        const connection = joinVoiceChannel({
-            channelId: voiceChannel.id,
-            guildId: voiceChannel.guild.id,
-            adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+        // Must respond to autocomplete
+        await interaction.respond(choices).catch(err => {
+            console.error("Autocomplete respond error:", err);
         });
-
-        if (interaction.member.voice.channel.type === ChannelType.GuildStageVoice) {
-            await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-
-            // If this is a Stage channel, request to speak so the bot becomes a speaker
-            try {
-                await fetch(
-                    `https://discord.com/api/v10/guilds/${interaction.guild.id}/voice-states/@me`,
-                    {
-                        method: "PATCH",
-                        headers: {
-                            "Authorization": `Bot ${process.env.BOT_TOKEN}`,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            suppress: false, // unsuppress = start speaking
-                        }),
-                    }
-                );
-                console.log("Bot is now speaking on the stage channel.");
-            } catch (err) {
-                console.error("Failed to speak on the stage channel:", err);
-            }
-
-        }
-
-        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-        await interaction.followUp({ content: `Joined ${voiceChannel.name} and playing ${audioFile}!`, ephemeral: true });
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource(filePath, { inputType: StreamType.Arbitrary });
-
-        player.play(resource);
-        connection.subscribe(player);
-
-        player.on(AudioPlayerStatus.Idle, () => {
-            const conn = getVoiceConnection(interaction.guild.id);
-            if (conn) conn.destroy();
-        });
-    }
-    else if (interaction.commandName === "joinvoice" && interaction.isChatInputCommand() && !configl.basics.vc.enabled) {
-        return await interaction.reply({ content: "Voice commands are currently disabled due to changes in Discord's API and policies. We apologize for any inconvenience.", ephemeral: true });
     }
 });
 
@@ -1653,8 +1580,7 @@ const EmbedBuilder = require("discord.js").EmbedBuilder;
 client.on("interactionCreate", async (interaction) => {
     try {
         if (interaction.isCommand()) {
-            if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
-                if (configl.basics.vc.enabled) return;
+            if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream") && configl.basics.vc.enabled) {
                 const embed = new EmbedBuilder()
                     .setTitle("Voice Commands No Longer Work")
                     .setDescription("Due to recent changes in Discord's API and policies, the voice-related commands no longer work. We apologize for any inconvenience this may cause. If you have any questions or concerns, please contact the server staff.")
@@ -2088,7 +2014,65 @@ client.on("interactionCreate", async (interaction) => {
                         });
                 }
             }
-            // joinvoice used to live here... now it's elsewhere...
+            if (interaction.commandName === "joinvoice") {
+                await interaction.deferReply();
+                const voiceChannel = interaction.member.voice.channel;
+                if (!voiceChannel) {
+                    return interaction.followUp({ content: "You need to be in a voice channel.", ephemeral: true });
+                }
+
+                const audioFile = interaction.options.getString("audiofile");
+                const filePath = path.join(__dirname, "resources", audioFile);
+
+                if (!fs.existsSync(filePath)) {
+                    return interaction.reply({ content: "File not found!", ephemeral: true });
+                }
+
+                const connection = joinVoiceChannel({
+                    channelId: voiceChannel.id,
+                    guildId: voiceChannel.guild.id,
+                    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+                });
+
+                if (interaction.member.voice.channel.type === ChannelType.GuildStageVoice) {
+                    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+
+                    // If this is a Stage channel, request to speak so the bot becomes a speaker
+                    try {
+                        await fetch(
+                            `https://discord.com/api/v10/guilds/${interaction.guild.id}/voice-states/@me`,
+                            {
+                                method: "PATCH",
+                                headers: {
+                                    "Authorization": `Bot ${process.env.BOT_TOKEN}`,
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    suppress: false, // unsuppress = start speaking
+                                }),
+                            }
+                        );
+                        console.log("Bot is now speaking on the stage channel.");
+                    } catch (err) {
+                        console.error("Failed to speak on the stage channel:", err);
+                    }
+
+                }
+
+                await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+                await interaction.followUp({ content: `Joined ${voiceChannel.name} and playing ${audioFile}!`, ephemeral: true });
+
+                const player = createAudioPlayer();
+                const resource = createAudioResource(filePath, { inputType: StreamType.Arbitrary });
+
+                player.play(resource);
+                connection.subscribe(player);
+
+                player.on(AudioPlayerStatus.Idle, () => {
+                    const conn = getVoiceConnection(interaction.guild.id);
+                    if (conn) conn.destroy();
+                });
+            }
             if (interaction.commandName === "uploadaudioresource") {
                 if (interaction.user.id !== "804839205309382676") {
                     return interaction.reply({ content: "You do not have permission to use this command.", ephemeral: true });
