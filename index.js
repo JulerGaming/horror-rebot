@@ -1580,7 +1580,7 @@ const EmbedBuilder = require("discord.js").EmbedBuilder;
 client.on("interactionCreate", async (interaction) => {
     try {
         if (interaction.isCommand()) {
-            if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream") && configl.basics.vc.enabled) {
+            if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream") && !configl.basics.vc.enabled) {
                 const embed = new EmbedBuilder()
                     .setTitle("Voice Commands No Longer Work")
                     .setDescription("Due to recent changes in Discord's API and policies, the voice-related commands no longer work. We apologize for any inconvenience this may cause. If you have any questions or concerns, please contact the server staff.")
