@@ -2028,8 +2028,12 @@ client.on("interactionCreate", async (interaction) => {
                 const audioFile = interaction.options.getString("audiofile");
                 const filePath = path.join(__dirname, "resources", audioFile);
 
+                if (!audioFile) {
+                    return interaction.followUp({ content: "No audio file provided!", ephemeral: true });
+                }
+
                 if (!fs.existsSync(filePath)) {
-                    return interaction.reply({ content: "File not found!", ephemeral: true });
+                    return interaction.followUp({ content: "File not found!", ephemeral: true });
                 }
 
                 const connection = joinVoiceChannel({
