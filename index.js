@@ -2138,7 +2138,7 @@ client.on("interactionCreate", async (interaction) => {
                             const stream = await play.stream(url);
 
                             const player = createAudioPlayer();
-                            const resource = createAudioResource(stream, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                             player.play(resource);
                             connection.subscribe(player);
@@ -2166,7 +2166,7 @@ client.on("interactionCreate", async (interaction) => {
                         const stream = await play.stream(url);
 
                         const player = createAudioPlayer();
-                        const resource = createAudioResource(stream, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                         player.play(resource);
                         connection.subscribe(player);
@@ -2231,7 +2231,7 @@ client.on("interactionCreate", async (interaction) => {
                             const stream = await play.stream(url);
 
                             const player = createAudioPlayer();
-                            const resource = createAudioResource(stream, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                             player.play(resource);
                             connection.subscribe(player);
@@ -2259,7 +2259,7 @@ client.on("interactionCreate", async (interaction) => {
                         const stream = await play.stream(url);
 
                         const player = createAudioPlayer();
-                        const resource = createAudioResource(stream, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                         player.play(resource);
                         connection.subscribe(player);
