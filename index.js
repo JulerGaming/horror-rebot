@@ -2134,7 +2134,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
-                        if (url.toString().includes("https://youtube.com")) {
+                        if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             const play = require("play-dl");
                             const stream = await play.stream(url);
 
@@ -2164,7 +2164,7 @@ client.on("interactionCreate", async (interaction) => {
                         }
                     }
 
-                    if (url.toString().includes("https://youtube.com")) {
+                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         const play = require("play-dl");
                         const stream = await play.stream(url);
 
@@ -2231,7 +2231,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
-                        if (url.toString().includes("https://youtube.com")) {
+                        if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             const play = require("play-dl");
                             const stream = await play.stream(url);
 
@@ -2261,7 +2261,7 @@ client.on("interactionCreate", async (interaction) => {
                         }
                     }
 
-                    if (url.toString().includes("https://youtube.com")) {
+                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         const play = require("play-dl");
                         const stream = await play.stream(url);
 
