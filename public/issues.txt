@@ -1,1 +1,0 @@
-An error occurred during command execution by juler.gt at 2026-03-14T21:32:57.021Z. Check the server console for details.
