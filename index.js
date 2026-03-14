@@ -2096,12 +2096,12 @@ client.on("interactionCreate", async (interaction) => {
                 await interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 if (!voiceChannel) {
-                    return interaction.reply({ content: "You need to be in a voice channel.", ephemeral: true });
+                    return interaction.followUp({ content: "You need to be in a voice channel.", ephemeral: true });
                 }
 
                 const url = interaction.options.getString("url");
                 if (!url) {
-                    return interaction.reply({ content: "No URL provided!", ephemeral: true });
+                    return interaction.followUp({ content: "No URL provided!", ephemeral: true });
                 }
 
                 let connection = getVoiceConnection(interaction.guild.id);
@@ -2158,7 +2158,7 @@ client.on("interactionCreate", async (interaction) => {
                         }, 10000); // 10 seconds to prevent overlapping streams
                     });
 
-                    return interaction.reply({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
+                    return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
 
                 } else {
                     connection = joinVoiceChannel({
@@ -2222,7 +2222,7 @@ client.on("interactionCreate", async (interaction) => {
                         }, 10000); // 10 seconds to prevent overlapping streams
                     });
 
-                    return interaction.reply({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
+                    return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
                 }
             }
             if (interaction.commandName === "about") {
