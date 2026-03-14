@@ -1507,6 +1507,7 @@ const { number, unknown } = require("@elevenlabs/elevenlabs-js/core/schemas/inde
 const { OK } = require("sqlite3");
 const { ConversationTokenPurpose } = require("@elevenlabs/elevenlabs-js/api/index.js");
 const { encode } = require("punycode");
+const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
 
 const errorFile = fs.readFileSync("./error.png");
 
@@ -2137,8 +2138,10 @@ client.on("interactionCreate", async (interaction) => {
                             const play = require("play-dl");
                             const stream = await play.stream(url);
 
+                            fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
+
                             const player = createAudioPlayer();
-                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
+                            const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
 
                             player.play(resource);
                             connection.subscribe(player);
@@ -2165,8 +2168,10 @@ client.on("interactionCreate", async (interaction) => {
                         const play = require("play-dl");
                         const stream = await play.stream(url);
 
+                        fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
+
                         const player = createAudioPlayer();
-                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
+                        const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
 
                         player.play(resource);
                         connection.subscribe(player);
@@ -2230,8 +2235,10 @@ client.on("interactionCreate", async (interaction) => {
                             const play = require("play-dl");
                             const stream = await play.stream(url);
 
+                            fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
+
                             const player = createAudioPlayer();
-                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
+                            const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
 
                             player.play(resource);
                             connection.subscribe(player);
@@ -2258,8 +2265,10 @@ client.on("interactionCreate", async (interaction) => {
                         const play = require("play-dl");
                         const stream = await play.stream(url);
 
+                        fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
+
                         const player = createAudioPlayer();
-                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
+                        const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
 
                         player.play(resource);
                         connection.subscribe(player);
