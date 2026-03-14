@@ -2019,6 +2019,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
             }
             if (interaction.commandName === "joinvoice") {
+                console.log(`Recieved interaction request for joinvoice by ${interaction.user.displayName}`);
                 await interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 if (!voiceChannel) {
