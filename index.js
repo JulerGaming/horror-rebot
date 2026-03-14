@@ -2135,7 +2135,10 @@ client.on("interactionCreate", async (interaction) => {
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                            return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                            interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                            const conn = getVoiceConnection(interaction.guild.id);
+                            if (conn) conn.destroy();
+                            return;
                         }
 
                         const player = createAudioPlayer();
@@ -2151,7 +2154,10 @@ client.on("interactionCreate", async (interaction) => {
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                        return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                        interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                        const conn = getVoiceConnection(interaction.guild.id);
+                        if (conn) conn.destroy();
+                        return;
                     }
 
                     const player = createAudioPlayer();
@@ -2202,7 +2208,10 @@ client.on("interactionCreate", async (interaction) => {
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                            return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                            interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                            const conn = getVoiceConnection(interaction.guild.id);
+                            if (conn) conn.destroy();
+                            return;
                         }
 
                         const player = createAudioPlayer();
@@ -2218,7 +2227,10 @@ client.on("interactionCreate", async (interaction) => {
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                        return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                        interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                        const conn = getVoiceConnection(interaction.guild.id);
+                        if (conn) conn.destroy();
+                        return;
                     }
 
                     const player = createAudioPlayer();
