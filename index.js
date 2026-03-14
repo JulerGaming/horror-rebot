@@ -2133,6 +2133,49 @@ client.on("interactionCreate", async (interaction) => {
 
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
+                        if (url.startsWith("https://youtube.com")) {
+                            const play = require("play-dl");
+                            const stream = await play.stream(url);
+
+                            const player = createAudioPlayer();
+                            const resource = createAudioResource(stream, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                            player.play(resource);
+                            connection.subscribe(player);
+
+                            player.on(AudioPlayerStatus.Idle, () => {
+                                const conn = getVoiceConnection(interaction.guild.id);
+                                if (conn) conn.destroy();
+                            });
+                        } else {
+                            const player = createAudioPlayer();
+                            const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                            player.play(resource);
+                            connection.subscribe(player);
+
+                            player.on(AudioPlayerStatus.Idle, () => {
+                                const conn = getVoiceConnection(interaction.guild.id);
+                                if (conn) conn.destroy();
+                            });
+                        }
+                    }
+
+                    if (url.startsWith("https://youtube.com")) {
+                        const play = require("play-dl");
+                        const stream = await play.stream(url);
+
+                        const player = createAudioPlayer();
+                        const resource = createAudioResource(stream, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                        player.play(resource);
+                        connection.subscribe(player);
+
+                        player.on(AudioPlayerStatus.Idle, () => {
+                            const conn = getVoiceConnection(interaction.guild.id);
+                            if (conn) conn.destroy();
+                        });
+                    } else {
                         const player = createAudioPlayer();
                         const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
 
@@ -2144,19 +2187,6 @@ client.on("interactionCreate", async (interaction) => {
                             if (conn) conn.destroy();
                         });
                     }
-
-                    const player = await createAudioPlayer();
-                    const resource = await createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
-
-                    await player.play(resource);
-                    await connection.subscribe(player);
-
-                    player.on(AudioPlayerStatus.Idle, () => {
-                        setTimeout(() => {
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
-                        }, 10000); // 10 seconds to prevent overlapping streams
-                    });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
 
