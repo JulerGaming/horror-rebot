@@ -2138,10 +2138,8 @@ client.on("interactionCreate", async (interaction) => {
                             const play = require("play-dl");
                             const stream = await play.stream(url);
 
-                            fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
-
                             const player = createAudioPlayer();
-                            const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
+                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                             player.play(resource);
                             connection.subscribe(player);
@@ -2168,10 +2166,8 @@ client.on("interactionCreate", async (interaction) => {
                         const play = require("play-dl");
                         const stream = await play.stream(url);
 
-                        fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
-
                         const player = createAudioPlayer();
-                        const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
+                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                         player.play(resource);
                         connection.subscribe(player);
@@ -2233,10 +2229,8 @@ client.on("interactionCreate", async (interaction) => {
                             const play = require("play-dl");
                             const stream = await play.stream(url);
 
-                            fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
-
                             const player = createAudioPlayer();
-                            const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
+                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                             player.play(resource);
                             connection.subscribe(player);
@@ -2263,10 +2257,8 @@ client.on("interactionCreate", async (interaction) => {
                         const play = require("play-dl");
                         const stream = await play.stream(url);
 
-                        fs.writeFileSync("./temp/TEMP_stream.mp4", stream.stream);
-
                         const player = createAudioPlayer();
-                        const resource = createAudioResource("./temp/TEMP_stream.mp4", { inputType: StreamType.Arbitrary });
+                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
                         player.play(resource);
                         connection.subscribe(player);
