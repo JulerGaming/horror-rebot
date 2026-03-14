@@ -2227,8 +2227,6 @@ client.on("interactionCreate", async (interaction) => {
                             console.error("Failed to speak on the stage channel:", err);
                         }
 
-
-
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
