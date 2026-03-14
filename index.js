@@ -2135,48 +2135,9 @@ client.on("interactionCreate", async (interaction) => {
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                            const play = require("play-dl");
-                            const stream = await play.stream(url);
-
-                            const player = createAudioPlayer();
-                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
-
-                            player.play(resource);
-                            connection.subscribe(player);
-
-                            player.on(AudioPlayerStatus.Idle, () => {
-                                const conn = getVoiceConnection(interaction.guild.id);
-                                if (conn) conn.destroy();
-                            });
-                        } else {
-                            const player = createAudioPlayer();
-                            const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
-
-                            player.play(resource);
-                            connection.subscribe(player);
-
-                            player.on(AudioPlayerStatus.Idle, () => {
-                                const conn = getVoiceConnection(interaction.guild.id);
-                                if (conn) conn.destroy();
-                            });
+                            return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                         }
-                    }
 
-                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                        const play = require("play-dl");
-                        const stream = await play.stream(url);
-
-                        const player = createAudioPlayer();
-                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
-
-                        player.play(resource);
-                        connection.subscribe(player);
-
-                        player.on(AudioPlayerStatus.Idle, () => {
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
-                        });
-                    } else {
                         const player = createAudioPlayer();
                         const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
 
@@ -2188,6 +2149,21 @@ client.on("interactionCreate", async (interaction) => {
                             if (conn) conn.destroy();
                         });
                     }
+
+                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                        return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                    }
+
+                    const player = createAudioPlayer();
+                    const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                    player.play(resource);
+                    connection.subscribe(player);
+
+                    player.on(AudioPlayerStatus.Idle, () => {
+                        const conn = getVoiceConnection(interaction.guild.id);
+                        if (conn) conn.destroy();
+                    });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
 
@@ -2226,48 +2202,9 @@ client.on("interactionCreate", async (interaction) => {
                         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                            const play = require("play-dl");
-                            const stream = await play.stream(url);
-
-                            const player = createAudioPlayer();
-                            const resource = createAudioResource(stream.stream, { inputType: stream.type });
-
-                            player.play(resource);
-                            connection.subscribe(player);
-
-                            player.on(AudioPlayerStatus.Idle, () => {
-                                const conn = getVoiceConnection(interaction.guild.id);
-                                if (conn) conn.destroy();
-                            });
-                        } else {
-                            const player = createAudioPlayer();
-                            const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
-
-                            player.play(resource);
-                            connection.subscribe(player);
-
-                            player.on(AudioPlayerStatus.Idle, () => {
-                                const conn = getVoiceConnection(interaction.guild.id);
-                                if (conn) conn.destroy();
-                            });
+                            return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                         }
-                    }
 
-                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                        const play = require("play-dl");
-                        const stream = await play.stream(url);
-
-                        const player = createAudioPlayer();
-                        const resource = createAudioResource(stream.stream, { inputType: stream.type });
-
-                        player.play(resource);
-                        connection.subscribe(player);
-
-                        player.on(AudioPlayerStatus.Idle, () => {
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
-                        });
-                    } else {
                         const player = createAudioPlayer();
                         const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
 
@@ -2279,6 +2216,21 @@ client.on("interactionCreate", async (interaction) => {
                             if (conn) conn.destroy();
                         });
                     }
+
+                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                        return interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
+                    }
+
+                    const player = createAudioPlayer();
+                    const resource = createAudioResource(url, { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                    player.play(resource);
+                    connection.subscribe(player);
+
+                    player.on(AudioPlayerStatus.Idle, () => {
+                        const conn = getVoiceConnection(interaction.guild.id);
+                        if (conn) conn.destroy();
+                    });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
                 }
