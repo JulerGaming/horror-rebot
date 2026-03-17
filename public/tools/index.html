@@ -23,7 +23,14 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background-color: #333;
+            background-color: #111;
+            background-image:
+                linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.78)),
+                url("/bg.png");
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
             color: #fff;
             text-align: center;
         }
@@ -69,6 +76,10 @@
 
             span {
                 font-size: 1.1rem;
+            }
+
+            body {
+                background-attachment: scroll;
             }
         }
 
