@@ -1,6 +1,5 @@
 const express = require("express");
 const app = express();
-const keep_alive = require("./keep_alive.js");
 const OpenAI = require("openai");
 const path = require("path");
 const { writeFile } = require("fs/promises");
@@ -28,7 +27,6 @@ app.listen(3000, () => {
 });
 
 const logFile = path.join(__dirname, 'public', 'main.log');
-const logStream = fs.createWriteStream(logFile, { flags: 'a' }); // append mode
 
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
@@ -117,7 +115,7 @@ const updatedAt = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getDa
 package["updated-at"] = updatedAt;
 fs.writeFileSync("./package.json", JSON.stringify(package, null, 2));;
 
-const { Client, GatewayIntentBits, ActivityType, ChannelType, Guild, Partials } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials } = require("discord.js");
 
 const upDate = package["updated-at"] || "January 1, 1970 at 12:00 AM UTC";
 
@@ -127,11 +125,9 @@ const {
     createAudioResource,
     AudioPlayerStatus,
     VoiceConnectionStatus,
-    EndBehaviorType,
     getVoiceConnection,
     entersState,
     StreamType,
-    AudioPlayerState,
 } = require("@discordjs/voice");
 const client = new Client({
     intents: [
@@ -152,7 +148,6 @@ const client = new Client({
 
 // DO NOT DELETE
 
-const configJson = fs.readFileSync("./config.json", "utf-8");
 const cff = require("./config.json");
 const { exec } = require("child_process");
 
@@ -354,62 +349,10 @@ async function speakText(text) {
     console.log("Wrote output_david.wav");
 }
 
-async function elevenlabsTTS(text) {
 
-    let voice = "cmjWg44AnbEIxjJCWsrP"; // default to HR Default
-    const { ElevenLabsClient } = await import('@elevenlabs/elevenlabs-js');
-
-    const elevenlabs = new ElevenLabsClient({
-        apiKey: process.env.ELEVENLABS_API_KEY,
-    });
-
-
-    const audioStream = await elevenlabs.textToSpeech.stream(voice, {
-        modelId: 'eleven_multilingual_v2',
-        text,
-        outputFormat: 'mp3_44100_128',
-        // Optional voice settings that allow you to customize the output
-        voiceSettings: {
-            stability: 0,
-            similarityBoost: 1.0,
-            useSpeakerBoost: false,
-            speed: 1.0,
-        },
-    });
-    const chunks = [];
-    for await (const chunk of audioStream) {
-        chunks.push(chunk);
-    }
-    const content = Buffer.concat(chunks);
-    return content;
-
-}
-
-async function speakcommodore(text) {
-    const { AudioContext } = require('web-audio-api');
-    global.AudioContext = AudioContext;
-
-    const fs = require('fs');
-    const WavEncoder = require('wav-encoder');
-    const SamJs = require('sam-js');
-
-    const sam = new SamJs();
-    const rawSamples = sam.speak(text); // assuming speakRaw exists
-
-    const wavData = {
-        sampleRate: 22050,           // SAM usually outputs 22.05kHz
-        channelData: [new Float32Array(rawSamples)],
-    };
-
-    WavEncoder.encode(wavData).then((buffer) => {
-        fs.writeFileSync('output.wav', Buffer.from(buffer));
-        console.log('WAV file written successfully.');
-    });
-}
 
 const configl = require("./config.json");
 console.log("Config loaded:", configl);
-const modLogChannel = configl.basics.modLogChannelID; // theres already a variable called config which is just dotenv
 function modlog(message) {
     // make a POST request to the webhook URL with the message
     const webhookUrl = process.env.WEBHOOK_URL;
@@ -439,9 +382,6 @@ function modlogEmbed(embed) {
     });
 }
 
-function modlogwebook(message) {
-    // blank, unused
-}
 
 // On ready, scan all members in the server and remove anyone with the disallowed role "a bot"
 client.on("clientReady", async () => {
@@ -1482,7 +1422,6 @@ const fetch = require("node-fetch");
 async function saveAvatar(user) {
 
     const avatarURL = user.displayAvatarURL({ size: 1024, extension: "png" });
-    const avatarDecoration = user.avatarDecorationURL({ size: 1024, dynamic: true });
 
     const response = await fetch(avatarURL);
     const buffer = await response.buffer();
@@ -1510,30 +1449,8 @@ const { ConversationTokenPurpose } = require("@elevenlabs/elevenlabs-js/api/inde
 const { encode } = require("punycode");
 const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
 
-const errorFile = fs.readFileSync("./error.png");
 
-async function autocomplete(interaction) {
-    const focusedValue = interaction.options.getFocused(); // what user typed so far
-    const resourcesFolder = path.join(__dirname, 'resources');
 
-    // Get all files in folder
-    const files = fs.readdirSync(resourcesFolder)
-        .filter(f => f.endsWith('.txt')) // filter file types if needed
-        .map(f => f);
-
-    // Filter options based on what user typed
-    const filtered = files.filter(file => file.toLowerCase().includes(focusedValue.toLowerCase()));
-
-    // Send up to 25 choices (Discord limit)
-    await interaction.respond(
-        filtered.slice(0, 25).map(file => ({ name: file, value: file }))
-    );
-}
-
-async function execute(interaction) {
-    const file = interaction.options.getString('file');
-    await interaction.reply(`You selected: ${file}`);
-}
 
 // only for autocomplete interactions
 
@@ -1971,7 +1888,6 @@ client.on("interactionCreate", async (interaction) => {
                 const path = require("path");
 
                 const avatarURL = user.displayAvatarURL({ size: 128, extension: "png" });
-                const avatarhighquality = user.displayAvatarURL({ size: 1024, extension: "png" });
                 if (!avatarURL) { return null; }
                 else { saveAvatar(user); }
                 const options = {
@@ -2250,8 +2166,6 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "about") {
                 console.log("Recieved interaction request for about by " + interaction.user.displayName);
-                var import_node_process = require("process");
-                const os = require('os');
                 const fs = require('fs');
                 const { execSync } = require('child_process');
                 let hostModel = 'Unknown Model';
