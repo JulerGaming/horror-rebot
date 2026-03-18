@@ -405,13 +405,12 @@ async function speakcommodore(text) {
     });
 }
 
-const confJson = fs.readFileSync("./config.json", "utf-8");
-const configl = JSON.parse(confJson);
+const configl = require("./config.json");
 console.log("Config loaded:", configl);
 const modLogChannel = configl.basics.modLogChannelID; // theres already a variable called config which is just dotenv
 function modlog(message) {
     // make a POST request to the webhook URL with the message
-    const webhookUrl = "https://discord.com/api/webhooks/1445221342864740614/we3HsJj8eRU5m-q2sT_yCZql1IBGJmo6R_diCsNe2UIXbrceuhQFHX9A0a3CX7FsnVng";
+    const webhookUrl = process.env.WEBHOOK_URL;
     const fetch = require("node-fetch");
     return fetch(webhookUrl, {
         method: "POST",
@@ -425,7 +424,7 @@ function modlog(message) {
 }
 
 function modlogEmbed(embed) {
-    const webhookUrl = "https://discord.com/api/webhooks/1445221342864740614/we3HsJj8eRU5m-q2sT_yCZql1IBGJmo6R_diCsNe2UIXbrceuhQFHX9A0a3CX7FsnVng";
+    const webhookUrl = process.env.WEBHOOK_URL;
     const fetch = require("node-fetch");
     return fetch(webhookUrl, {
         method: "POST",
