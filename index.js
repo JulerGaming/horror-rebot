@@ -299,9 +299,6 @@ client.once('clientReady', async () => {
     console.log("Update status!")
 });
 
-const { markAsUncloneable } = require("worker_threads");
-const { TIMEOUT } = require("dns");
-const { channel, Channel } = require("diagnostics_channel");
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8").split("\n");
@@ -312,7 +309,6 @@ fs.writeFileSync(path.join(__dirname, "public", "issues.txt"), "", "utf-8");
 async function newIssue(message) {
     // creates an issue in the issues tab of the web interface
     const issuesFile = path.join(__dirname, "public", "issues.txt");
-    let issues = [];
 
     try {
 
