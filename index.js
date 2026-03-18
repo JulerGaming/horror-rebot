@@ -153,8 +153,14 @@ const client = new Client({
 // DO NOT DELETE
 
 const configJson = fs.readFileSync("./config.json", "utf-8");
-const cff = JSON.parse(configJson);
+const cff = require("./config.json");
 const { exec } = require("child_process");
+
+if (!process.env.OPENAI_API_KEY && cff.chatgptintegration.enabled) {
+    throw new Error("OPENAI_API_KEY was not set in .env file but ChatGPT Integration is enabled.");
+} else if (!process.env.OPENAI_API_KEY && cff.chatgptintegration.aimoderation.enabled) {
+    throw new Error("OPENAI_API_KEY was not set in .env file but AI Moderation is enabled.");
+}
 
 function run(cmd) {
     return new Promise((resolve, reject) => {
