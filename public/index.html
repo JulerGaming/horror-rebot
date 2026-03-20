@@ -294,6 +294,101 @@
                         console.error('Could not load issues from issues.txt:', err);
                         addIssue('Could not load issues from server.');
                     });
+                fetch('/logs/horror-rebot-out.log')
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.text();
+                    })
+                    .then(function (text) {
+                        if (text === "") {
+                            var consoleEl = document.querySelector('.console ul');
+                            if (consoleEl) {
+                                var li = document.createElement('li');
+                                li.textContent = 'No logs available.';
+                                consoleEl.appendChild(li);
+                            }
+                            return;
+                        }
+                        var consoleEl = document.querySelector('.console ul');
+                        if (consoleEl) {
+                            text.split('\n').forEach(function (line) {
+                                if (line.trim()) {
+                                    var li = document.createElement('li');
+                                    li.textContent = line.trim();
+                                    consoleEl.appendChild(li);
+                                }
+                            });
+                        }
+                    })
+                    .then(function () {
+                        return fetch('/logs/horror-rebot-error.log');
+                    })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.text();
+                    })
+                    .then(function (text) {
+                        var consoleEl = document.querySelector('.console ul');
+                        if (consoleEl && text.trim()) {
+                            text.split('\n').forEach(function (line) {
+                                if (line.trim()) {
+                                    var li = document.createElement('li');
+                                    li.textContent = line.trim();
+                                    li.style.color = '#ff6b6b';
+                                    consoleEl.appendChild(li);
+                                }
+                            });
+                        }
+                    });
+                
+                // Poll for log changes every 5 seconds
+                setInterval(function () {
+                    fetch('/logs/horror-rebot-out.log', { cache: 'no-store' })
+                        .then(function (r) { return r.text(); })
+                        .then(function (text) {
+                            var consoleEl = document.querySelector('.console ul');
+                            if (consoleEl && text.trim()) {
+                                var existingLogs = consoleEl.querySelectorAll('li:not([data-error])');
+                                var newLines = text.split('\n').filter(function (line) { return line.trim(); });
+                                if (newLines.length > existingLogs.length) {
+                                    newLines.slice(existingLogs.length).forEach(function (line) {
+                                        var li = document.createElement('li');
+                                        li.textContent = line.trim();
+                                        consoleEl.appendChild(li);
+                                    });
+                                }
+                            }
+                        })
+                        .then(function () {
+                            return fetch('/logs/horror-rebot-error.log', { cache: 'no-store' });
+                        })
+                        .then(function (r) { return r.text(); })
+                        .then(function (text) {
+                            var consoleEl = document.querySelector('.console ul');
+                            if (consoleEl && text.trim()) {
+                                var existingErrors = consoleEl.querySelectorAll('li[data-error]');
+                                var newLines = text.split('\n').filter(function (line) { return line.trim(); });
+                                if (newLines.length > existingErrors.length) {
+                                    newLines.slice(existingErrors.length).forEach(function (line) {
+                                        var li = document.createElement('li');
+                                        li.setAttribute('data-error', 'true');
+                                        li.textContent = line.trim();
+                                        li.style.color = '#ff6b6b';
+                                        consoleEl.appendChild(li);
+                                    });
+                                }
+                            }
+                        });
+                }, 5000)
+                    .catch(function (err) {
+                        console.error('Could not load logs from server:', err);
+                        var consoleEl = document.querySelector('.console ul');
+                        if (consoleEl) {
+                            var li = document.createElement('li');
+                            li.textContent = 'Could not load logs from server.';
+                            consoleEl.appendChild(li);
+                        }
+                    });
             });
         </script>
         <h1>Horror Rebot</h1>
