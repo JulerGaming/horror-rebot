@@ -26,8 +26,6 @@ app.listen(3000, () => {
     console.log("Web interface running on port 3000");
 });
 
-const logFile = path.join(__dirname, 'public', 'main.log');
-
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 // serve pm2 logs in "/logs"
