@@ -26,10 +26,14 @@ app.listen(3000, () => {
     console.log("Web interface running on port 3000");
 });
 
+const pm2_logs_dir = "C:\\Users\\Juler\\.pm2\\logs";
+fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-out.log"), "", "utf-8");
+fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-error.log"), "", "utf-8");
+
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 // serve pm2 logs in "/logs"
-app.use('/logs', express.static("C:\\Users\\Juler\\.pm2\\logs"));
+app.use('/logs', express.static(pm2_logs_dir));
 
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
