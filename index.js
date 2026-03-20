@@ -30,6 +30,8 @@ const logFile = path.join(__dirname, 'public', 'main.log');
 
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
+// serve pm2 logs in "/logs"
+app.use('/logs', express.static("C:\\Users\\Juler\\.pm2\\logs"));
 
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
