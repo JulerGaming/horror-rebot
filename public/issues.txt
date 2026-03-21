@@ -1,0 +1,1 @@
+A scheduled kick failed for jonathanzzw_74158 at 2026-03-21T14:45:47.100Z. Check the server console for details.
