@@ -977,7 +977,7 @@ client.on("messageCreate", async (message) => {
         // ====== PUSH USER MESSAGE ======
         history.push({
             role: "user",
-            content: message.toJSON()
+            content: message.content
         });
 
         // ====== TRIM MEMORY ======
