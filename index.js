@@ -977,15 +977,7 @@ client.on("messageCreate", async (message) => {
         // ====== PUSH USER MESSAGE ======
         history.push({
             role: "user",
-            content: `
-User info:
-- Username: ${message.author.username}
-- Display name: ${member?.displayName || message.author.username}
-- Activity: ${message.author.presence || activity || "No current activity"}
-- Mention (only use this if needed): <@${message.author.id}>
-
-Message: ${cleaned}
-`.trim()
+            content: message.toJSON()
         });
 
         // ====== TRIM MEMORY ======
