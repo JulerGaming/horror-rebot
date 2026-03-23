@@ -22,14 +22,6 @@ process.on("warning", (warning) => {
 
 const fs = require("fs");
 
-app.listen(3000, () => {
-    console.log("Web interface running on port 3000");
-});
-
-const pm2_logs_dir = "C:\\Users\\Juler\\.pm2\\logs";
-fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-out.log"), "", "utf-8");
-fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-error.log"), "", "utf-8");
-
 const USER = process.env.USER;
 const PASS = process.env.PASS;
 
@@ -51,6 +43,14 @@ app.use((req, res, next) => {
     res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
     res.status(401).send("Invalid credentials");
 });
+
+app.listen(3000, () => {
+    console.log("Web interface running on port 3000");
+});
+
+const pm2_logs_dir = "C:\\Users\\Juler\\.pm2\\logs";
+fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-out.log"), "", "utf-8");
+fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-error.log"), "", "utf-8");
 
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
