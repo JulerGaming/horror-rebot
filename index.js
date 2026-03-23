@@ -989,7 +989,7 @@ client.on("messageCreate", async (message) => {
         const response = await openai.responses.create({
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "19"
+                "version": "20"
             },
             input: history,
             text: {
