@@ -240,14 +240,18 @@ setInterval(syncRepo, 1 * 60 * 1000); // every 1 minute
 
 const shutdown = async (signal) => {
     console.log(`Received ${signal}, shutting down...`);
+    await CleanUp()
+    process.exit(0);
+};
 
+async function CleanUp() {
     try {
         await client.destroy(); // cleanly disconnects
         console.log("Client destroyed.");
     } catch (err) {
         console.error("Error destroying client:", err);
     }
-};
+}
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
@@ -977,10 +981,10 @@ client.on("messageCreate", async (message) => {
         // ====== PUSH USER MESSAGE ======
         history.push({
             role: "user",
-            content: JSON.stringify({ 
-                message: message, 
-                author: message.author, 
-                channel: message.channel 
+            content: JSON.stringify({
+                message: message,
+                author: message.author,
+                channel: message.channel
             })
         });
 
