@@ -119,7 +119,7 @@ const updatedAt = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getDa
 package["updated-at"] = updatedAt;
 fs.writeFileSync("./package.json", JSON.stringify(package, null, 2));;
 
-const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials, Events } = require("discord.js");
 
 const upDate = package["updated-at"] || "January 1, 1970 at 12:00 AM UTC";
 
@@ -290,7 +290,7 @@ const blacklistedTags = {
 
 const warnedUsers = new Set();
 
-client.once('clientReady', async () => {
+client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
     if (client.user.setAFK) client.user.setAFK(false);
     const guild = client.guilds.cache.get("1333194010201952367");
@@ -388,7 +388,7 @@ function modlogEmbed(embed) {
 
 
 // On ready, scan all members in the server and remove anyone with the disallowed role "a bot"
-client.on("clientReady", async () => {
+client.on(Events.ClientReady, async () => {
     const GUILD_ID = "1333194010201952367";
     const ROLE_A = "1445133130917871788";
     const ROLE_B = "1445133175499264092";
