@@ -247,6 +247,8 @@ const shutdown = async (signal) => {
 async function CleanUp() {
     try {
         await client.destroy(); // cleanly disconnects
+        const conn = getVoiceConnection(configl.basics.guildID);
+        if (conn) conn.destroy();
         console.log("Client destroyed.");
     } catch (err) {
         console.error("Error destroying client:", err);
