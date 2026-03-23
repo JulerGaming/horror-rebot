@@ -38,6 +38,8 @@ app.use((req, res, next) => {
 
     if (user === USER && pass === PASS) {
         return next();
+    } else {
+        res.sendFile(path.join(__dirname, "public", "incorrect-password.html"))
     }
 
     res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
