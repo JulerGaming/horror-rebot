@@ -30,7 +30,7 @@ app.use((req, res, next) => {
 
     if (!auth) {
         res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
-        return res.status(401).send("Unauthorized");
+        return res.status(401).sendFile(path.join(__dirname, "public", "unauthorized.html"))
     }
 
     const base64 = auth.split(" ")[1];
