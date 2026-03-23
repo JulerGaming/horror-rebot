@@ -984,9 +984,7 @@ client.on("messageCreate", async (message) => {
             })
         });
 
-        console.log(JSON.stringify({
-            author: message.author
-        }))
+        console.log(JSON.parse(message.author))
 
         // ====== TRIM MEMORY ======
         if (history.length > 21) {
