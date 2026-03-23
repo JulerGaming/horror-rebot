@@ -977,8 +977,16 @@ client.on("messageCreate", async (message) => {
         // ====== PUSH USER MESSAGE ======
         history.push({
             role: "user",
-            content: JSON.stringify({ message: message, author: message.author, channel: message.channel })
+            content: JSON.stringify({ 
+                message: message, 
+                author: message.author, 
+                channel: message.channel 
+            })
         });
+
+        console.log(JSON.stringify({
+            author: message.author
+        }))
 
         // ====== TRIM MEMORY ======
         if (history.length > 21) {
