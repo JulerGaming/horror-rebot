@@ -41,7 +41,7 @@ app.use((req, res, next) => {
     }
 
     res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
-    res.status(401).send("Invalid credentials");
+    res.status(401).sendFile(path.join(__dirname, "public", "unauthorized.html"))
 });
 
 app.listen(3000, () => {
