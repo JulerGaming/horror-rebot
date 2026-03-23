@@ -30,6 +30,28 @@ const pm2_logs_dir = "C:\\Users\\Juler\\.pm2\\logs";
 fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-out.log"), "", "utf-8");
 fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-error.log"), "", "utf-8");
 
+const USER = process.env.USER;
+const PASS = process.env.PASS;
+
+app.use((req, res, next) => {
+    const auth = req.headers.authorization;
+
+    if (!auth) {
+        res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
+        return res.status(401).send("Unauthorized");
+    }
+
+    const base64 = auth.split(" ")[1];
+    const [user, pass] = Buffer.from(base64, "base64").toString().split(":");
+
+    if (user === USER && pass === PASS) {
+        return next();
+    }
+
+    res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
+    res.status(401).send("Invalid credentials");
+});
+
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 // serve pm2 logs in "/logs"
