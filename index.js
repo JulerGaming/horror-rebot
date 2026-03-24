@@ -2552,34 +2552,7 @@ client.on("interactionCreate", async (interaction) => {
 client.login(process.env.BOT_TOKEN); // I had to expose the token here because it was not working with the .env file, but I will change it back to the .env file when I can.
 
 async function restart(code) {
-    console.log(`About to exit with code: ${code}`);
-    try {
-        client.guilds.cache.forEach((guild) => {
-            if (guild.voiceAdapterCreator) {
-                const voiceConnection = getVoiceConnection(guild.id);
-                if (voiceConnection) {
-                    console.log(`Disconnecting from voice channel in guild: ${guild.name}`);
-                    voiceConnection.destroy();
-                }
-            }
-        });
-        fs.writeFileSync("./public/main.log", ""); // Clear log file on exit
-        try {
-            // for each file in the temp folder, delete it (except if it ends in .keep)
-            const tempDir = path.join(__dirname, "temp");
-            fs.readdirSync(tempDir).forEach(file => {
-                if (file !== ".keep") {
-                    fs.unlinkSync(path.join(tempDir, file));
-                }
-            });
-        } catch (err) {
-            console.warn("Failed to clear temp directory!");
-        }
-        await client.destroy();
-        await require("child_process").exec("pm2 restart horror-rebot");
-    } catch (err) {
-        console.error("Error during shutdown:", err);
-        newIssue(`An error occurred during bot restart at ${new Date().toISOString()}. Check the server console for details.`);
-        process.exit(1); // Force exit with error code if something goes wrong
-    }
+    console.log(`Restart requested with code: ${code}`);
+    await CleanUp();
+    process.exit(code);
 }
