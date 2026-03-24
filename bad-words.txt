@@ -2,8 +2,6 @@ DIDDY
 diddy
 Ljuler
 ljuler
-l
-L
 @$$
 @ss
 AssMonkey
