@@ -269,14 +269,28 @@ const shutdown = async (signal) => {
 };
 
 async function CleanUp() {
+    client.guilds.cache.forEach((guild) => {
+        if (guild.voiceAdapterCreator) {
+            const voiceConnection = getVoiceConnection(guild.id);
+            if (voiceConnection) {
+                console.log(`Disconnecting from voice channel in guild: ${guild.name}`);
+                voiceConnection.destroy();
+            }
+        }
+    });
+    fs.writeFileSync("./public/main.log", ""); // Clear log file on exit
     try {
-        await client.destroy(); // cleanly disconnects
-        const conn = getVoiceConnection(configl.basics.guildID);
-        if (conn) conn.destroy();
-        console.log("Client destroyed.");
+        // for each file in the temp folder, delete it (except if it ends in .keep)
+        const tempDir = path.join(__dirname, "temp");
+        fs.readdirSync(tempDir).forEach(file => {
+            if (file !== ".keep") {
+                fs.unlinkSync(path.join(tempDir, file));
+            }
+        });
     } catch (err) {
-        console.error("Error destroying client:", err);
+        console.warn("Failed to clear temp directory!");
     }
+    await client.destroy();
 }
 
 process.on("SIGINT", shutdown);
@@ -1607,7 +1621,7 @@ client.on("interactionCreate", async (interaction) => {
                             );
                             let randomMember = membersArray[randomIndex];
                             while (randomMember.user.bot || randomMember.user == client.user) {
-                                let randomIndex2 = Math.floor( Math.random() * membersArray.length );
+                                let randomIndex2 = Math.floor(Math.random() * membersArray.length);
                                 console.log(`User ${randomMember.user.displayName} is a bot / self, skipping...`);
                                 randomMember = membersArray[randomIndex2];
                             }
