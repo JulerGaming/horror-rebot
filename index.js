@@ -1604,7 +1604,10 @@ client.on("interactionCreate", async (interaction) => {
                             const randomIndex = Math.floor(
                                 Math.random() * membersArray.length,
                             );
-                            const randomMember = membersArray[randomIndex];
+                            let randomMember = membersArray[randomIndex];
+                            do {
+                                randomMember = membersArray[randomIndex];
+                            } while (randomMember.user.bot)
                             console.log("Bot chose " + randomMember.user.displayName);
                             if (randomMember.user.bot) return;
                             saveAvatar(randomMember.user); // Cache the avatar
