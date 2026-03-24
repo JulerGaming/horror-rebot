@@ -1606,6 +1606,7 @@ client.on("interactionCreate", async (interaction) => {
                             );
                             const randomMember = membersArray[randomIndex];
                             console.log("Bot chose " + randomMember.user.displayName);
+                            if (randomMember.user.bot) continue;
                             saveAvatar(randomMember.user); // Cache the avatar
                             const pokemonAhhMessage = [
                                 `<@${randomMember.user.id}>, I choose you!`,
