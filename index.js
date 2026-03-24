@@ -2562,7 +2562,7 @@ async function restart(code) {
             console.warn("Failed to clear temp directory!");
         }
         await client.destroy();
-        await process.exit(code);
+        await require("child_process").exec("pm2 restart horror-rebot");
     } catch (err) {
         console.error("Error during shutdown:", err);
         newIssue(`An error occurred during bot restart at ${new Date().toISOString()}. Check the server console for details.`);
