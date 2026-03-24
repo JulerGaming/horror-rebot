@@ -1606,11 +1606,11 @@ client.on("interactionCreate", async (interaction) => {
                                 Math.random() * membersArray.length,
                             );
                             let randomMember = membersArray[randomIndex];
-                            do {
+                            while (randomMember.user.bot) {
                                 let randomIndex2 = Math.floor( Math.random() * membersArray.length );
                                 console.log(`User ${randomMember.user.displayName} is a bot, skipping...`);
                                 randomMember = membersArray[randomIndex2];
-                            } while (randomMember.user.bot)
+                            }
                             console.log("Bot chose " + randomMember.user.displayName);
                             if (randomMember.user.bot) return;
                             saveAvatar(randomMember.user); // Cache the avatar
