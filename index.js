@@ -1591,7 +1591,7 @@ client.on("interactionCreate", async (interaction) => {
                 console.log(
                     `Received interaction request for randommention by ${interaction.user.displayName}`,
                 );
-                interaction.deferReply();
+                await interaction.deferReply();
                 const limit = 1000; // Corrected limit for Discord API fetch
                 console.time("FetchMembers");
                 interaction.guild.members
