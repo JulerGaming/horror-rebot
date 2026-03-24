@@ -1014,8 +1014,6 @@ client.on("messageCreate", async (message) => {
             })
         });
 
-        console.log(message.author)
-
         // ====== TRIM MEMORY ======
         if (history.length > 21) {
             history.splice(1, history.length - 21);
