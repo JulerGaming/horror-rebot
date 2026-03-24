@@ -818,7 +818,7 @@ client.on("messageCreate", async (message) => {
     }
 
     // Bad words filter
-    const words = message.content.split("");
+    const words = message.content.split();
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
             try {
@@ -827,8 +827,9 @@ client.on("messageCreate", async (message) => {
             } catch (err) {
                 console.error("Failed to delete message with bad word:", err);
             }
+
             try {
-                if (!message.guild) return null; // should not happen, but just in case
+                if (!message.guild) retllurn null; // should not happen, but just in case
                 await message.member.timeout(600000, "Using inappropriate language.");
             } catch (error) {
                 if (error.code === 50013) {
