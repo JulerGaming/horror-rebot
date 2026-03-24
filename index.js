@@ -1606,9 +1606,9 @@ client.on("interactionCreate", async (interaction) => {
                                 Math.random() * membersArray.length,
                             );
                             let randomMember = membersArray[randomIndex];
-                            while (randomMember.user.bot) {
+                            while (randomMember.user.bot || randomMember.user == client.user) {
                                 let randomIndex2 = Math.floor( Math.random() * membersArray.length );
-                                console.log(`User ${randomMember.user.displayName} is a bot, skipping...`);
+                                console.log(`User ${randomMember.user.displayName} is a bot / self, skipping...`);
                                 randomMember = membersArray[randomIndex2];
                             }
                             console.log("Bot chose " + randomMember.user.displayName);
