@@ -818,7 +818,7 @@ client.on("messageCreate", async (message) => {
     }
 
     // Bad words filter
-    const words = message.content.split(" ");
+    const words = message.content.split("");
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
             try {
