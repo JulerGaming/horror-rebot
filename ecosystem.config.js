@@ -5,6 +5,7 @@ module.exports = {
         watch: ["index.js"],
         ignore_watch: ["node_modules"],
         watch_delay: 1000,
-        kill_timeout: 5000
+        kill_signal: "SIGINT",
+        kill_timeout: 10000
     }]
 };
