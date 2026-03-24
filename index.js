@@ -829,7 +829,7 @@ client.on("messageCreate", async (message) => {
             }
 
             try {
-                if (!message.guild) retllurn null; // should not happen, but just in case
+                if (!message.guild) return null; // should not happen, but just in case
                 await message.member.timeout(600000, "Using inappropriate language.");
             } catch (error) {
                 if (error.code === 50013) {
