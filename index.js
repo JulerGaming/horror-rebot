@@ -1591,6 +1591,7 @@ client.on("interactionCreate", async (interaction) => {
                 console.log(
                     `Received interaction request for randommention by ${interaction.user.displayName}`,
                 );
+                interaction.deferReply();
                 const limit = 1000; // Corrected limit for Discord API fetch
                 console.time("FetchMembers");
                 interaction.guild.members
@@ -1621,10 +1622,10 @@ client.on("interactionCreate", async (interaction) => {
                                 pokemonAhhMessage[
                                 Math.floor(Math.random() * pokemonAhhMessage.length)
                                 ];
-                            interaction.reply(message);
+                            interaction.followUp(message);
                         } else {
                             console.log("No members available.");
-                            interaction.reply("Could not find any members to mention.");
+                            interaction.followUp("Could not find any members to mention.");
                         }
                     })
                     .catch((error) => {
