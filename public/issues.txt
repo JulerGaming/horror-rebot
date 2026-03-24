@@ -1,0 +1,1 @@
+A scheduled kick failed for burnt_chicken.8675309 at 2026-03-24T20:35:59.965Z. Check the server console for details.
