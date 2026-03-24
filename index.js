@@ -1602,13 +1602,14 @@ client.on("interactionCreate", async (interaction) => {
                         const membersArray = Array.from(members.values());
 
                         if (membersArray.length > 0) {
-                            const randomIndex = Math.floor(
+                            let randomIndex = Math.floor(
                                 Math.random() * membersArray.length,
                             );
                             let randomMember = membersArray[randomIndex];
                             do {
+                                let randomIndex2 = Math.floor( Math.random() * membersArray.length );
                                 console.log(`User ${randomMember.user.displayName} is a bot, skipping...`);
-                                randomMember = membersArray[randomIndex];
+                                randomMember = membersArray[randomIndex2];
                             } while (randomMember.user.bot)
                             console.log("Bot chose " + randomMember.user.displayName);
                             if (randomMember.user.bot) return;
