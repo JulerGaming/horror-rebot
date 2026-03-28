@@ -1,1 +1,0 @@
-Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
