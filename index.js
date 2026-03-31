@@ -1688,14 +1688,14 @@ client.on("interactionCreate", async (interaction) => {
             if (interaction.commandName === "tenor") {
                 console.log("Recieved interaction request for tenor by " + interaction.user.displayName)
                 const tenorQuery = interaction.options.getString("query")
-                const cmdTenorGifs = `https://api.giphy.com/v1/gifs/search?q=${tenorQuery}&api_key=d9QYYYi1hWCbAy3tJr4sBklSlvQXfmBV`; //exposed here for now
+                const cmdTenorGifs = `https://api.giphy.com/v1/gifs/search?q=${tenorQuery}&api_key=d9QYYYi1hWCbAy3tJr4sBklSlvQXfmBV&limit=8`; //exposed here for now
                 try {
                     const response = await fetch(cmdTenorGifs);
                     const data = await response.json();
 
                     if (data.data && data.data.length > 0) {
                         const randomIndex = Math.floor(Math.random() * data.data.length);
-                        const randomGif = data.data[randomIndex].url;
+                        const randomGif = data.data[randomIndex].images.original.url;
                         console.log("Bot chose " + randomGif + " for " + interaction.user.displayName + ", sending...")
                         interaction.reply(randomGif);
                     } else {
