@@ -1693,7 +1693,7 @@ client.on("interactionCreate", async (interaction) => {
                     const response = await fetch(cmdTenorGifs);
                     const data = await response.json();
 
-                    if (data.results && data.results.length > 0) {
+                    if (data.data && data.data.length > 0) {
                         const randomIndex = Math.floor(Math.random() * data.data.length);
                         const randomGif = data.data[randomIndex].url;
                         console.log("Bot chose " + randomGif + " for " + interaction.user.displayName + ", sending...")
