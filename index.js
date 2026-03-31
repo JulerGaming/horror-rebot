@@ -1687,8 +1687,8 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "tenor") {
                 console.log("Recieved interaction request for tenor by " + interaction.user.displayName)
-                const tenorQuery = interaction.options.getString("query")
-                const cmdTenorGifs = `https://api.giphy.com/v1/gifs/search?q=${tenorQuery}&api_key=d9QYYYi1hWCbAy3tJr4sBklSlvQXfmBV&limit=8`; //exposed here for now
+                const tenorQuery = interaction.options.getString("query");
+                const cmdTenorGifs = `https://api.giphy.com/v1/gifs/search?q=${encodeURIComponent(tenorQuery)}&api_key=d9QYYYi1hWCbAy3tJr4sBklSlvQXfmBV&limit=8`; //exposed here for now
                 try {
                     const response = await fetch(cmdTenorGifs);
                     const data = await response.json();
