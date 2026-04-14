@@ -366,6 +366,9 @@ async function checkBirthdays() {
             if (birthdayMMDD === todayMMDD) {
                 try {
                     const user = await client.users.fetch(userId);
+                    if (user === client.user) {
+                        console.log("happy birthday to me yay");
+                    }
                     await user.send(`🎉 Happy Birthday! 🎉\n\nWishing you an amazing day filled with joy and celebration!`);
                     console.log(`Birthday message sent to ${user.username}`);
                 } catch (err) {
