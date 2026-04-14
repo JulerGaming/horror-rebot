@@ -1,1 +1,2 @@
+An error occurred during command execution by juler.gt at 2026-04-14T16:52:20.231Z. Check the server console for details.
 Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
