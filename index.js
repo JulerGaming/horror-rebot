@@ -126,7 +126,6 @@ app.get('/birthdays', async (req, res) => {
         const birthdays = data.birthdays || {};
         const today = new Date();
         const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        console.log(`Today is ${todayMMDD}`);
         let birthdayBois = [];
         let parsedBirthdays = {};
 
