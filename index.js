@@ -1924,6 +1924,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 // Save the birthday for the user
                 const birthdays = require("./birthdays.json");
+                console.log(birthdays.birthdays[userId]);
                 const userId = interaction.user.id;
                 birthdays.birthdays[userId] = birthdayDate;
                 fs.writeFileSync("bot_saved_data.json", JSON.stringify(birthdays, null, 2));
@@ -1938,7 +1939,7 @@ client.on("interactionCreate", async (interaction) => {
                 fs.writeFileSync("birthdays.json", JSON.stringify(birthdays, null, 2));
                 console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
                 // If the user has a birthday set, do not overwrite it
-                if (birthdaysload[userId]) {
+                if (birthdaysload.birthdays[userId] && birthdayDate !== birthdaysload.birthdays[userId]) {
                     return interaction.reply({
                         content: "You already have a birthday set. Please use the command again to update it.",
                         ephemeral: true,
