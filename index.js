@@ -117,6 +117,38 @@ app.post('/tools/aimoderation', (req, res) => {
     }
 });
 
+app.get('/birthdays', async (req, res) => {
+    try {
+        const birthdaysFile = "birthdays.json";
+        if (!fs.existsSync(birthdaysFile)) return;
+
+        const data = require("./birthdays.json");
+        const birthdays = data.birthdays || {};
+        const today = new Date();
+        const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        console.log(`Today is ${todayMMDD}`);
+        let birthdayBois = [];
+        let parsedBirthdays = {};
+
+        for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
+            if (birthdayMMDD === todayMMDD) {
+                const user = client.users.cache.get(userId);
+                birthdayBois.push(user.displayName);
+            }
+        }
+
+        for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
+            const user = client.users.cache.get(userId);
+            parsedBirthdays[user.displayName] = birthdayMMDD;
+        }
+
+        res.status(200).json({ status: 200, today: birthdayBois, birthdays: parsedBirthdays });
+    } catch (err) {
+        console.error("Error checking birthdays:", err);
+        res.status(500).json({ status: 500, message: err.message })
+    }
+})
+
 app.get("/chatgpt-status", (req, res) => {
     res.json({ enabled: configl.chatgptintegration.enabled });
 });
@@ -344,10 +376,10 @@ client.once(Events.ClientReady, async () => {
 
 client.on(Events.ClientReady, async () => {
     console.log("Birthday check system initialized");
-    
+
     // Check birthdays immediately on startup
     checkBirthdays();
-    
+
     // Then check every day at midnight
     setInterval(checkBirthdays, 24 * 60 * 60 * 1000);
 });
@@ -356,13 +388,13 @@ async function checkBirthdays() {
     try {
         const birthdaysFile = "birthdays.json";
         if (!fs.existsSync(birthdaysFile)) return;
-        
+
         const data = require("./birthdays.json");
         const birthdays = data.birthdays || {};
         const today = new Date();
         const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         console.log(`Today is ${todayMMDD}`);
-        
+
         for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
             if (birthdayMMDD === todayMMDD) {
                 try {
@@ -1924,9 +1956,9 @@ client.on("interactionCreate", async (interaction) => {
                     const fileData = fs.readFileSync(birthdaysFile, 'utf-8');
                     data = JSON.parse(fileData);
                 }
-                
+
                 const userId = interaction.user.id;
-                
+
                 // Check if the user already has a birthday set and it's the same
                 if (data.birthdays[userId] && data.birthdays[userId] === birthdayDate) {
                     return interaction.reply({
@@ -1934,12 +1966,12 @@ client.on("interactionCreate", async (interaction) => {
                         ephemeral: true,
                     });
                 }
-                
+
                 // Save the birthday for the user
                 data.birthdays[userId] = birthdayDate;
                 fs.writeFileSync(birthdaysFile, JSON.stringify(data, null, 2), 'utf-8');
                 console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
-                
+
                 // Tell discord the bot is thinking
                 await interaction.deferReply({ ephemeral: true });
                 if (isDirectMessage) {
