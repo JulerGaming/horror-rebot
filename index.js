@@ -1926,18 +1926,10 @@ client.on("interactionCreate", async (interaction) => {
                 const birthdays = require("./birthdays.json");
                 const userId = interaction.user.id;
                 console.log(birthdays.birthdays[userId]);
-                birthdays.birthdays[userId] = birthdayDate;
-                fs.writeFileSync("bot_saved_data.json", JSON.stringify(birthdays, null, 2));
-                console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
-                // Fix for bot overwriting birthdays once someone else sets their birthday
-                if (birthdaysload.birthdays[userId] && birthdaysload.birthdays[userId] !== birthdayDate) {
-                    return interaction.reply({
-                        content: "You already have a birthday set. Please use the command again to update it.",
-                        ephemeral: true,
-                    });
-                }
-                fs.writeFileSync("birthdays.json", JSON.stringify(birthdays, null, 2));
-                console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
+                birthdays.birthdays[userId] = 
+                [
+                    birthdayDate
+                ];
                 // If the user has a birthday set, do not overwrite it
                 if (birthdaysload.birthdays[userId] && birthdayDate == birthdaysload.birthdays[userId]) {
                     return interaction.reply({
@@ -1945,6 +1937,8 @@ client.on("interactionCreate", async (interaction) => {
                         ephemeral: true,
                     });
                 }
+                fs.writeFileSync("bot_saved_data.json", JSON.stringify(birthdays, null, 2));
+                console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
                 // Tell discord the bot is thinking
                 await interaction.deferReply({ ephemeral: true });
                 if (isDirectMessage) {
