@@ -1916,7 +1916,7 @@ client.on("interactionCreate", async (interaction) => {
                 // Read existing birthdays (Birthday is already called)
                 const birthdaysload = require('./birthdays.json');
                 // Check if the user already has a birthday set
-                if (birthdaysload.birthdays[interaction.user.id]) {
+                if (birthdaysload.birthdays[interaction.user.id] == birthdayDate) {
                     return interaction.reply({
                         content: "You already have a birthday set. Please use the command again to update it.",
                         ephemeral: true,
@@ -1939,7 +1939,7 @@ client.on("interactionCreate", async (interaction) => {
                 fs.writeFileSync("birthdays.json", JSON.stringify(birthdays, null, 2));
                 console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
                 // If the user has a birthday set, do not overwrite it
-                if (birthdaysload.birthdays[userId] && birthdayDate !== birthdaysload.birthdays[userId]) {
+                if (birthdaysload.birthdays[userId] && birthdayDate == birthdaysload.birthdays[userId]) {
                     return interaction.reply({
                         content: "You already have a birthday set. Please use the command again to update it.",
                         ephemeral: true,
