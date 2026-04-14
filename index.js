@@ -1924,8 +1924,8 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 // Save the birthday for the user
                 const birthdays = require("./birthdays.json");
-                console.log(birthdays.birthdays[userId]);
                 const userId = interaction.user.id;
+                console.log(birthdays.birthdays[userId]);
                 birthdays.birthdays[userId] = birthdayDate;
                 fs.writeFileSync("bot_saved_data.json", JSON.stringify(birthdays, null, 2));
                 console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
