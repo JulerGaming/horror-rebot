@@ -361,13 +361,14 @@ async function checkBirthdays() {
         const birthdays = data.birthdays || {};
         const today = new Date();
         const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        console.log(`Today is ${todayMMDD}`);
         
         for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
             if (birthdayMMDD === todayMMDD) {
                 try {
                     const user = await client.users.fetch(userId);
                     if (user === client.user) {
-                        console.log("happy birthday to me yay");
+                        return console.log("happy birthday to me yay");
                     }
                     await user.send(`🎉 Happy Birthday! 🎉\n\nWishing you an amazing day filled with joy and celebration!`);
                     console.log(`Birthday message sent to ${user.username}`);
