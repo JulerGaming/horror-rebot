@@ -342,6 +342,41 @@ client.once(Events.ClientReady, async () => {
     console.log("Update status!")
 });
 
+client.on(Events.ClientReady, async () => {
+    console.log("Birthday check system initialized");
+    
+    // Check birthdays immediately on startup
+    checkBirthdays();
+    
+    // Then check every day at midnight
+    setInterval(checkBirthdays, 24 * 60 * 60 * 1000);
+});
+
+async function checkBirthdays() {
+    try {
+        const birthdaysFile = "birthdays.json";
+        if (!fs.existsSync(birthdaysFile)) return;
+        
+        const birthdays = require("./birthdays.json");
+        const today = new Date();
+        const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        
+        for (const [userId, birthdayMMDD] of birthdays) {
+            if (birthdayMMDD === todayMMDD) {
+                try {
+                    const user = await client.users.fetch(userId);
+                    await user.send(`🎉 Happy Birthday! 🎉\n\nWishing you an amazing day filled with joy and celebration!`);
+                    console.log(`Birthday message sent to ${user.username}`);
+                } catch (err) {
+                    console.error(`Failed to send birthday message to user ${userId}:`, err);
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error checking birthdays:", err);
+    }
+}
+
 const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8").split("\n");
@@ -1879,22 +1914,22 @@ client.on("interactionCreate", async (interaction) => {
                     fs.writeFileSync(birthdaysFile, JSON.stringify({}));
                 }
                 // Read existing birthdays (Birthday is already called)
-                const birthdaysload = JSON.parse(fs.readFileSync(birthdaysFile, "utf-8") || "{}");
+                const birthdaysload = require('./birthdays.json');
                 // Check if the user already has a birthday set
-                if (birthdaysload[interaction.user.id]) {
+                if (birthdaysload.birthdays[interaction.user.id]) {
                     return interaction.reply({
                         content: "You already have a birthday set. Please use the command again to update it.",
                         ephemeral: true,
                     });
                 }
                 // Save the birthday for the user
-                const birthdays = JSON.parse(fs.readFileSync("birthdays.json", "utf-8") || "{}");
+                const birthdays = require("./birthdays.json");
                 const userId = interaction.user.id;
-                birthdays[userId] = birthdayDate;
+                birthdays.birthdays[userId] = birthdayDate;
                 fs.writeFileSync("bot_saved_data.json", JSON.stringify(birthdays, null, 2));
                 console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
                 // Fix for bot overwriting birthdays once someone else sets their birthday
-                if (birthdaysload[userId] && birthdaysload[userId] !== birthdayDate) {
+                if (birthdaysload.birthdays[userId] && birthdaysload.birthdays[userId] !== birthdayDate) {
                     return interaction.reply({
                         content: "You already have a birthday set. Please use the command again to update it.",
                         ephemeral: true,
