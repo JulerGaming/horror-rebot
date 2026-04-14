@@ -361,7 +361,7 @@ async function checkBirthdays() {
         const today = new Date();
         const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         
-        for (const [userId, birthdayMMDD] of birthdays) {
+        for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
             if (birthdayMMDD === todayMMDD) {
                 try {
                     const user = await client.users.fetch(userId);
