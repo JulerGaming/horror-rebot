@@ -636,6 +636,8 @@ client.on(Events.ClientReady, async () => {
                 try {
                     if (!member.bannable) {
                         console.warn('cannot ban user with GT character pfp and long arms:', member.user.username);
+                        newIssue('could not ban ' + member.user.username);
+                        modlog('Could not ban GT long arms pfp guy: ' + member.user.username)
                     } else {
                         // create a ban message with AI and send it to the user
                         const banMessageResponse = await openai.chat.completions.create({
@@ -676,6 +678,8 @@ client.on(Events.ClientReady, async () => {
                 try {
                     if (!member.bannable) {
                         console.warn('cannot ban user with innapropiate content in pfp:', member.user.username);
+                        newIssue('could not ban ' + member.user.username);
+                        modlog('Could not ban dude with innapropiate content in pfp: ' + member.user.username);
                     } else {
                         // create a ban message with AI and send it to the user
                         const banMessageResponse = await openai.chat.completions.create({
