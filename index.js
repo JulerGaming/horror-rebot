@@ -357,7 +357,8 @@ async function checkBirthdays() {
         const birthdaysFile = "birthdays.json";
         if (!fs.existsSync(birthdaysFile)) return;
         
-        const birthdays = require("./birthdays.json");
+        const data = require("./birthdays.json");
+        const birthdays = data.birthdays || {};
         const today = new Date();
         const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         
@@ -1910,35 +1911,27 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 // Load existing birthdays or create a new object
                 const birthdaysFile = "birthdays.json";
-                if (!fs.existsSync(birthdaysFile)) {
-                    fs.writeFileSync(birthdaysFile, JSON.stringify({}));
+                let data = { birthdays: {} };
+                if (fs.existsSync(birthdaysFile)) {
+                    const fileData = fs.readFileSync(birthdaysFile, 'utf-8');
+                    data = JSON.parse(fileData);
                 }
-                // Read existing birthdays (Birthday is already called)
-                const birthdaysload = require('./birthdays.json');
-                // Check if the user already has a birthday set
-                if (birthdaysload.birthdays[interaction.user.id] == birthdayDate) {
-                    return interaction.reply({
-                        content: "You already have a birthday set. Please use the command again to update it.",
-                        ephemeral: true,
-                    });
-                }
-                // Save the birthday for the user
-                const birthdays = require("./birthdays.json");
+                
                 const userId = interaction.user.id;
-                console.log(birthdays.birthdays[userId]);
-                birthdays.birthdays[userId] = 
-                [
-                    birthdayDate
-                ];
-                // If the user has a birthday set, do not overwrite it
-                if (birthdaysload.birthdays[userId] && birthdayDate == birthdaysload.birthdays[userId]) {
+                
+                // Check if the user already has a birthday set and it's the same
+                if (data.birthdays[userId] && data.birthdays[userId] === birthdayDate) {
                     return interaction.reply({
-                        content: "You already have a birthday set. Please use the command again to update it.",
+                        content: "You already have this birthday set. Please use the command again to update it to a different date.",
                         ephemeral: true,
                     });
                 }
-                fs.writeFileSync("bot_saved_data.json", JSON.stringify(birthdays, null, 2));
+                
+                // Save the birthday for the user
+                data.birthdays[userId] = birthdayDate;
+                fs.writeFileSync(birthdaysFile, JSON.stringify(data, null, 2), 'utf-8');
                 console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
+                
                 // Tell discord the bot is thinking
                 await interaction.deferReply({ ephemeral: true });
                 if (isDirectMessage) {
