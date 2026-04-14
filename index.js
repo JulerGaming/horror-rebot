@@ -380,8 +380,17 @@ client.on(Events.ClientReady, async () => {
     // Check birthdays immediately on startup
     checkBirthdays();
 
-    // Then check every day at midnight
-    setInterval(checkBirthdays, 24 * 60 * 60 * 1000);
+    // Schedule check at every midnight
+    function scheduleMidnightCheck() {
+        const now = new Date();
+        const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+        const msUntilMidnight = nextMidnight - now;
+        setTimeout(() => {
+            checkBirthdays();
+            scheduleMidnightCheck();
+        }, msUntilMidnight);
+    }
+    scheduleMidnightCheck();
 });
 
 async function checkBirthdays() {
@@ -402,7 +411,7 @@ async function checkBirthdays() {
                     if (user === client.user) {
                         return console.log("happy birthday to me yay");
                     }
-                    await user.send(`🎉 Happy Birthday! 🎉\n\nWishing you an amazing day filled with joy and celebration!`);
+                    await user.send(`<@${userId}>\n# 🎉 Happy Birthday! 🎉\n\n### Wishing you an amazing day filled with joy and celebration!`);
                     console.log(`Birthday message sent to ${user.username}`);
                 } catch (err) {
                     console.error(`Failed to send birthday message to user ${userId}:`, err);
