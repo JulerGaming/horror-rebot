@@ -368,7 +368,7 @@ const warnedUsers = new Set();
 client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
     const { execSync } = require("child_process");
-    execSync("node", ['slash-deploy.js']);
+    execSync("node slash-deploy.js");
     if (client.user.setAFK) client.user.setAFK(false);
     const guild = client.guilds.cache.get("1333194010201952367");
     client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
