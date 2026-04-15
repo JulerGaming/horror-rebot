@@ -30,7 +30,7 @@ app.use((req, res, next) => {
 
     if (!auth) {
         res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
-        return res.status(401).sendFile(path.join(__dirname, "public", "unauthorized.html"))
+        return res.status(401).sendFile(path.join(__dirname, "public", "unauthorized.html"));
     }
 
     const base64 = auth.split(" ")[1];
@@ -39,11 +39,11 @@ app.use((req, res, next) => {
     if (user === USER && pass === PASS) {
         return next();
     } else {
-        res.sendFile(path.join(__dirname, "public", "incorrect-password.html"))
+        res.sendFile(path.join(__dirname, "public", "incorrect-password.html"));
     }
 
     res.setHeader("WWW-Authenticate", 'Basic realm="Protected"');
-    res.status(401).sendFile(path.join(__dirname, "public", "unauthorized.html"))
+    res.status(401).sendFile(path.join(__dirname, "public", "unauthorized.html"));
 });
 
 app.listen(3000, () => {
@@ -120,7 +120,7 @@ app.post('/tools/aimoderation', (req, res) => {
 app.get('/birthdays', async (req, res) => {
     try {
         const birthdaysFile = "birthdays.json";
-        if (!fs.existsSync(birthdaysFile)) return;
+        if (!fs.existsSync(birthdaysFile)) {return;}
 
         const data = require("./birthdays.json");
         const birthdays = data.birthdays || {};
@@ -132,36 +132,35 @@ app.get('/birthdays', async (req, res) => {
         for (const [userId, birthdayData] of Object.entries(birthdays)) {
             if (getBirthdayMMDD(birthdayData) === todayMMDD) {
                 const user = client.users.cache.get(userId);
-                if (user) birthdayBois.push(user.displayName);
+                if (user) {birthdayBois.push(user.displayName);}
             }
         }
 
         for (const [userId, birthdayData] of Object.entries(birthdays)) {
             const user = client.users.cache.get(userId);
-            if (user) parsedBirthdays[user.displayName] = getBirthdayMMDD(birthdayData);
+            if (user) {parsedBirthdays[user.displayName] = getBirthdayMMDD(birthdayData);}
         }
 
         res.status(200).json({ status: 200, today: birthdayBois, birthdays: parsedBirthdays });
     } catch (err) {
         console.error("Error checking birthdays:", err);
-        res.status(500).json({ status: 500, message: err.message })
+        res.status(500).json({ status: 500, message: err.message });
     }
-})
+});
 
 app.get("/chatgpt-status", (req, res) => {
     res.json({ enabled: configl.chatgptintegration.enabled });
 });
 
 app.get("/vc-status", (req, res) => {
-    res.json({ enabled: configl.basics.vc.enabled })
-})
+    res.json({ enabled: configl.basics.vc.enabled });
+});
 
 app.get("/aimoderation-status", (req, res) => {
     res.json({ enabled: configl.chatgptintegration.aimoderation.enabled });
-})
+});
 
-const pkg = fs.readFileSync("./package.json");
-const package = JSON.parse(pkg);
+const package = require('./package.json');
 
 // increase version number when making changes
 
@@ -219,7 +218,7 @@ if (!process.env.OPENAI_API_KEY && cff.chatgptintegration.enabled) {
 function run(cmd) {
     return new Promise((resolve, reject) => {
         exec(cmd, (err, stdout, stderr) => {
-            if (err) return reject(stderr);
+            if (err) {return reject(stderr);}
             resolve(stdout.trim());
         });
     });
@@ -249,7 +248,7 @@ app.use((req, res) => {
 });
 
 async function syncRepo() {
-    if (!cff.GitHub) return;
+    if (!cff.GitHub) {return;}
     try {
         console.log("Checking remote changes...");
 
@@ -299,7 +298,7 @@ setInterval(syncRepo, 1 * 60 * 1000); // every 1 minute
 
 const shutdown = async (signal) => {
     console.log(`Received ${signal}, shutting down...`);
-    await CleanUp()
+    await CleanUp();
     process.exit(0);
 };
 
@@ -341,7 +340,7 @@ process.on("uncaughtException", async (err) => {
     console.error("");
     console.error("Horror Rebot, " + version);
     console.error("Node.js, " + process.version);
-    console.error("")
+    console.error("");
     console.error("==============================");
     restart(err.code); // exit the process to avoid undefined states
 });
@@ -355,7 +354,7 @@ process.on("unhandledRejection", async (err) => {
     console.error("");
     console.error("Horror Rebot, " + version);
     console.error("Node.js, " + process.version);
-    console.error("")
+    console.error("");
     console.error("==============================");
     // make this console line red
     console.error("\x1b[31m%s\x1b[0m", "[fatal] Bot crashed, HANGING HERE!");
@@ -373,7 +372,7 @@ client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
     const { slashRegister } = require('./slash-deploy.js');
     slashRegister();
-    if (client.user.setAFK) client.user.setAFK(false);
+    if (client.user.setAFK) {client.user.setAFK(false);}
     const guild = client.guilds.cache.get("1333194010201952367");
     client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
     console.log("Update status!");
@@ -415,7 +414,7 @@ function getBirthYear(entry) {
 async function checkBirthdays() {
     try {
         const birthdaysFile = "birthdays.json";
-        if (!fs.existsSync(birthdaysFile)) return;
+        if (!fs.existsSync(birthdaysFile)) {return;}
 
         delete require.cache[require.resolve("./birthdays.json")];
         const data = require("./birthdays.json");
@@ -455,7 +454,7 @@ const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
 
 const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8").split("\n");
 
-console.log("Clearing old issues...")
+console.log("Clearing old issues...");
 fs.writeFileSync(path.join(__dirname, "public", "issues.txt"), "", "utf-8");
 
 async function newIssue(message) {
@@ -481,7 +480,7 @@ async function newIssue(message) {
 }
 
 async function speakText(text) {
-    const { getVoiceList, synthesize } = await import('@echogarden/windows-media-tts')
+    const { getVoiceList, synthesize } = await import('@echogarden/windows-media-tts');
     const voices = getVoiceList();
     console.log("Installed voices:", voices);
 
@@ -562,7 +561,7 @@ client.on(Events.ClientReady, async () => {
         for (const member of targetGuild.members.cache.values()) {
             try {
                 // skip bots, the guild owner and the client itself
-                if (member.user.bot || member.id === targetGuild.ownerId || member.id === client.user.id) continue;
+                if (member.user.bot || member.id === targetGuild.ownerId || member.id === client.user.id) {continue;}
 
                 // 1) Handle disallowed role "a bot"
                 const hasABotRole = member.roles.cache.some(r => (r.name || "").toLowerCase() === "a bot");
@@ -661,13 +660,13 @@ client.on(Events.ClientReady, async () => {
     console.log("Completed 'a bot' role sweep and required-role warnings.");
     await modlog("'a bot' role sweep completed.");
 
-    if (!configl.chatgptintegration.aimoderation.enabled) return;
-    console.log('Starting "gorilla tag character with long arms" pfp check... [Powered by AI]')
+    if (!configl.chatgptintegration.aimoderation.enabled) {return;}
+    console.log('Starting "gorilla tag character with long arms" pfp check... [Powered by AI]');
     const guild = client.guilds.cache.get(GUILD_ID);
     console.log(`Checking profile pictures for ${guild.members.cache.size} members...`);
     for (const member of guild.members.cache.values()) {
-        if (member.user.bot) continue; // skip bots
-        if (guild.ownerId === member.id) continue; // skip server owner
+        if (member.user.bot) {continue;} // skip bots
+        if (guild.ownerId === member.id) {continue;} // skip server owner
         try {
             const openai = new OpenAI({
                 apiKey: process.env.OPENAI_API_KEY,
@@ -707,7 +706,7 @@ client.on(Events.ClientReady, async () => {
                     if (!member.bannable) {
                         console.warn('cannot ban user with GT character pfp and long arms:', member.user.username);
                         newIssue('could not ban ' + member.user.username);
-                        modlog('Could not ban GT long arms pfp guy: ' + member.user.username)
+                        modlog('Could not ban GT long arms pfp guy: ' + member.user.username);
                     } else {
                         // create a ban message with AI and send it to the user
                         const banMessageResponse = await openai.chat.completions.create({
@@ -733,7 +732,7 @@ client.on(Events.ClientReady, async () => {
                                     ]
                                 }
                             ]
-                        })
+                        });
                         const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
                         console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
                         await member.send(otherAiReply).catch(() => { });
@@ -775,7 +774,7 @@ client.on(Events.ClientReady, async () => {
                                     ]
                                 }
                             ]
-                        })
+                        });
                         const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
                         console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
                         await member.send(otherAiReply).catch(() => { });
@@ -799,7 +798,7 @@ client.on(Events.ClientReady, async () => {
 
 client.on("guildMemberAdd", async (member) => {
     try {
-        if (!configl.chatgptintegration.aimoderation.enabled) return;
+        if (!configl.chatgptintegration.aimoderation.enabled) {return;}
 
         const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
@@ -863,7 +862,7 @@ client.on("guildMemberAdd", async (member) => {
                                 ]
                             }
                         ]
-                    })
+                    });
                     const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
                     console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
                     await member.send(otherAiReply).catch(() => { });
@@ -903,7 +902,7 @@ client.on("guildMemberAdd", async (member) => {
                                 ]
                             }
                         ]
-                    })
+                    });
                     const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
                     console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
                     await member.send(otherAiReply).catch(() => { });
@@ -921,7 +920,7 @@ client.on("guildMemberAdd", async (member) => {
         console.error(`Error processing profile picture for ${member.user.username}:`, err);
     }
 
-    if (member.user.bot) return; // skip bots
+    if (member.user.bot) {return;} // skip bots
     if (member.user.createdTimestamp > Date.now() - 5 * 24 * 60 * 60 * 1000) {
         // Ban users whose account is younger than 5 days
         try {
@@ -931,13 +930,13 @@ client.on("guildMemberAdd", async (member) => {
         } catch (err) {
             console.error("Error banning user for new account:", err);
             modlog(`Could not ban ${member.user.username} for new account (less than 5 days old) - insufficient permissions.`);
-            newIssue(`Failed to ban user ${member.user.username} for new account (less than 5 days old). Please check permissions and ban manually if necessary.`)
+            newIssue(`Failed to ban user ${member.user.username} for new account (less than 5 days old). Please check permissions and ban manually if necessary.`);
         }
     }
 });
 
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) return; // Ignore bot messages
+    if (message.author.bot) {return;} // Ignore bot messages
 
     // Log DMs
     if (message.channel.type === ChannelType.DM) { // 1 = DMChannel in discord.js v14+
@@ -949,14 +948,14 @@ client.on("messageCreate", async (message) => {
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
             try {
-                if (message.channel.type === ChannelType.DM) continue; // skip bad word filter for DMs
+                if (message.channel.type === ChannelType.DM) {continue;} // skip bad word filter for DMs
                 message.delete();
             } catch (err) {
                 console.error("Failed to delete message with bad word:", err);
             }
 
             try {
-                if (!message.guild) return null; // should not happen, but just in case
+                if (!message.guild) {return null;} // should not happen, but just in case
                 await message.member.timeout(600000, "Using inappropriate language.");
             } catch (error) {
                 if (error.code === 50013) {
@@ -1002,12 +1001,12 @@ client.on("messageCreate", async (message) => {
     ) {
         console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
 
-        if (!configl.chatgptintegration.enabled) return message.reply("Sorry, Horror ReAI is currently disabled.");
+        if (!configl.chatgptintegration.enabled) {return message.reply("Sorry, Horror ReAI is currently disabled.");}
 
-        if (message.content.startsWith("!")) return; // commands start with ! so ignore those
+        if (message.content.startsWith("!")) {return;} // commands start with ! so ignore those
 
-        if (message.author.bot) return;
-        if (message.mentions.has("@everyone") || message.mentions.has("@here")) return;
+        if (message.author.bot) {return;}
+        if (message.mentions.has("@everyone") || message.mentions.has("@here")) {return;}
 
         message.channel.sendTyping();
 
@@ -1016,7 +1015,7 @@ client.on("messageCreate", async (message) => {
             .replace(`<@${client.user.id}>`, "")
             .trim();
 
-        if (!cleaned) cleaned = "Hello";
+        if (!cleaned) {cleaned = "Hello";}
 
         // ====== MEMORY KEY ======
         const memoryKey = message.guild
@@ -1105,7 +1104,7 @@ client.on("messageCreate", async (message) => {
                         const page = await browser.newPage();
                         await page.setExtraHTTPHeaders({
                             "ngrok-skip-browser-warning": "1",
-                        })
+                        });
                         await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3");
                         await page.goto(url, { waitUntil: "networkidle2", timeout: 15000 });
                         html = await page.content();
@@ -1198,7 +1197,7 @@ client.on("messageCreate", async (message) => {
         try {
             const memberVoiceChannel = member?.voice?.channel;
             if (memberVoiceChannel) {
-                if (!configl.basics.vc.enabled) return;
+                if (!configl.basics.vc.enabled) {return;}
                 const connection = joinVoiceChannel({
                     channelId: memberVoiceChannel.id,
                     guildId: memberVoiceChannel.guild.id,
@@ -1227,7 +1226,7 @@ client.on("messageCreate", async (message) => {
                     }, 30000);
                 });
             } else {
-                if (!message.guild) return;
+                if (!message.guild) {return;}
                 return; // voice is disabled until further notice
                 const connection = getVoiceConnection(message.guild.id);
                 if (connection) {
@@ -1248,7 +1247,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 
     // check roles
     try {
-        if (oldMember.user.bot || newMember.user.bot) return; // skip bots
+        if (oldMember.user.bot || newMember.user.bot) {return;} // skip bots
 
         const oldRoleIds = new Set(oldMember.roles.cache.map(r => r.id));
         const newRoleIds = new Set(newMember.roles.cache.map(r => r.id));
@@ -1422,15 +1421,15 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 });
 
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) return; // Ignore bot messages
+    if (message.author.bot) {return;} // Ignore bot messages
 
     // image filter
     if (message.attachments.size > 0 || message.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|bmp|webp)$/i) || message.content.match(/https?:\/\/[^\s]+/i)) {
         for (const attachment of message.attachments.values()) {
             if (attachment.contentType.startsWith("image/") || attachment.url.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
                 try {
-                    if (!message.guild) return; // only check images in guilds, not DMs
-                    if (!configl.chatgptintegration.aimoderation.enabled) return;
+                    if (!message.guild) {return;} // only check images in guilds, not DMs
+                    if (!configl.chatgptintegration.aimoderation.enabled) {return;}
 
                     const openai = new OpenAI({
                         apiKey: process.env.OPENAI_API_KEY,
@@ -1482,7 +1481,7 @@ client.on("messageCreate", async (message) => {
                             }
                         }, 60 * 60 * 1000); // Check every hour
 
-                        c
+                        c;
                         offenderCounts.set(offenderKey, offenderCount);
 
                         if (offenderCount === 1) {
@@ -1555,7 +1554,7 @@ async function checkServerTagViolation(member) {
 
         if (inNickname || inRoles) {
             const key = `${member.guild.id}-${member.id}-${serverId}`;
-            if (warnedUsers.has(key)) return;
+            if (warnedUsers.has(key)) {return;}
 
             try {
                 await member.send(
@@ -1594,7 +1593,7 @@ const ballGifTenor = [
     "https://tenor.com/view/bouncing-blue-ball-boy-gif-12378937218633738106",
     "https://tenor.com/view/basketball-activity-joypixels-ball-orange-ball-gif-17197142",
     "https://tenor.com/view/pepeballs-gif-7861594524755615584",
-]
+];
 
 const { property, get, set, max } = require("lodash");
 const { GuildMember } = require("discord.js");
@@ -1613,7 +1612,7 @@ const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
 // only for autocomplete interactions
 
 client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isAutocomplete()) return;
+    if (!interaction.isAutocomplete()) {return;}
 
     if (interaction.commandName === "joinvoice") {
         const focusedValue = interaction.options.getFocused(); // what user typed
@@ -1643,9 +1642,9 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) return;
+    if (message.author.bot) {return;}
     if (message.content.startsWith("!crash")) {
-        if (message.author.id !== "804839205309382676") return message.react("💔");
+        if (message.author.id !== "804839205309382676") {return message.react("💔");}
         throw new Error("Intentional crash triggered by !crash command");
     }
 });
@@ -1701,7 +1700,7 @@ client.on("interactionCreate", async (interaction) => {
                             ephemeral: true,
                         }),
                     );
-                    saveAvatar(user) // Cache the avatar
+                    saveAvatar(user); // Cache the avatar
                 } else {
                     interaction.reply(
                         interaction.user.displayAvatarURL({
@@ -1733,13 +1732,13 @@ client.on("interactionCreate", async (interaction) => {
                                 Math.random() * membersArray.length,
                             );
                             let randomMember = membersArray[randomIndex];
-                            while (randomMember.user.bot || randomMember.user == client.user) {
+                            while (randomMember.user.bot || randomMember.user === client.user) {
                                 let randomIndex2 = Math.floor(Math.random() * membersArray.length);
                                 console.log(`User ${randomMember.user.displayName} is a bot / self, skipping...`);
                                 randomMember = membersArray[randomIndex2];
                             }
                             console.log("Bot chose " + randomMember.user.displayName);
-                            if (randomMember.user.bot) return;
+                            if (randomMember.user.bot) {return;}
                             saveAvatar(randomMember.user); // Cache the avatar
                             const pokemonAhhMessage = [
                                 `<@${randomMember.user.id}>, I choose you!`,
@@ -1766,7 +1765,7 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "8ball") {
                 await interaction.deferReply();
-                const question = interaction.options.getString("question")
+                const question = interaction.options.getString("question");
                 const eightBallResponses = [
                     "Yes",
                     "No",
@@ -1774,9 +1773,9 @@ client.on("interactionCreate", async (interaction) => {
                     "Ew"
                 ];
                 const nintendo = ["mario", "luigi", "peach", "yoshi", "toad", "bowser", "wario", "waluigi", "donkey kong", "diddy kong", "link", "zelda", "nintendo", "pokemon", "pikachu", "ash", "misty", "brock", "squirtle", "charmander", "bulbasaur", "meowth", "psyduck", "jigglypuff", "snorlax", "mewtwo", "mew"];
-                const mdpSlop = ["max", "jimmy", "maxwell", "angus", "nugget"]
-                const bimo = ["bimo"]
-                const brainrotWords = ["lankybox", "goodboy", "good boy", "cocomelon", "skibidi"]
+                const mdpSlop = ["max", "jimmy", "maxwell", "angus", "nugget"];
+                const bimo = ["bimo"];
+                const brainrotWords = ["lankybox", "goodboy", "good boy", "cocomelon", "skibidi"];
                 const response =
                     eightBallResponses[
                     Math.floor(Math.random() * eightBallResponses.length)
@@ -1795,11 +1794,11 @@ client.on("interactionCreate", async (interaction) => {
                 if (mdpSlop.some(v => question.toLowerCase().includes(v))) { interaction.followUp({ content: `error 400: ${mdpInAnswer} detected in question. max design pro (or any brainrot slop) is not supported. please dont associate with that.` }); return; }
                 if (bimo.some(v => question.toLowerCase().includes(v))) { interaction.followUp({ content: `error 400: ${bimoInAnswer} detected in question. bimo (or any ai slop) is not supported. please dont associate with that.` }); return; }
                 if (brainrotWords.some(v => question.toLowerCase().includes(v))) { interaction.followUp({ content: `error 400: ${brainrotInAnswer} detected in question. brainrot is not supported in 8ball. remove that from your answer.` }); return; }
-                await interaction.followUp(interaction.user.displayName + " asked: " + question + "\nThe 8 ball said: " + response)
+                await interaction.followUp(interaction.user.displayName + " asked: " + question + "\nThe 8 ball said: " + response);
 
             }
             if (interaction.commandName === "tenor") {
-                console.log("Recieved interaction request for tenor by " + interaction.user.displayName)
+                console.log("Recieved interaction request for tenor by " + interaction.user.displayName);
                 const tenorQuery = interaction.options.getString("query");
                 const cmdTenorGifs = `https://api.giphy.com/v1/gifs/search?q=${encodeURIComponent(tenorQuery)}&api_key=d9QYYYi1hWCbAy3tJr4sBklSlvQXfmBV&limit=8`; //exposed here for now
                 try {
@@ -1809,7 +1808,7 @@ client.on("interactionCreate", async (interaction) => {
                     if (data.data && data.data.length > 0) {
                         const randomIndex = Math.floor(Math.random() * data.data.length);
                         const randomGif = data.data[randomIndex].images.original.url;
-                        console.log("Bot chose " + randomGif + " for " + interaction.user.displayName + ", sending...")
+                        console.log("Bot chose " + randomGif + " for " + interaction.user.displayName + ", sending...");
                         interaction.reply(randomGif);
                     } else {
                         interaction.reply("No GIFs found for that query.");
@@ -1820,14 +1819,14 @@ client.on("interactionCreate", async (interaction) => {
                 }
             }
             if (interaction.commandName === "base64encode") {
-                console.log("Recieved interaction request for base64encode by " + interaction.user.displayName)
-                const wordToEncode = interaction.options.getString("input")
+                console.log("Recieved interaction request for base64encode by " + interaction.user.displayName);
+                const wordToEncode = interaction.options.getString("input");
                 const encoded = Buffer.from(wordToEncode, "utf-8").toString("base64");
                 interaction.reply(`${encoded}`);
             }
             if (interaction.commandName === "base64decode") {
-                console.log("Recieved interaction request for base64encode by " + interaction.user.displayName)
-                const wordToEncode = interaction.options.getString("input")
+                console.log("Recieved interaction request for base64encode by " + interaction.user.displayName);
+                const wordToEncode = interaction.options.getString("input");
                 const decoded = Buffer.from(wordToEncode, "base64").toString("utf-8");
                 interaction.reply(`${decoded}`);
             }
@@ -2148,7 +2147,7 @@ client.on("interactionCreate", async (interaction) => {
 
                 player.on(AudioPlayerStatus.Idle, () => {
                     const conn = getVoiceConnection(interaction.guild.id);
-                    if (conn) conn.destroy();
+                    if (conn) {conn.destroy();}
                 });
             }
             if (interaction.commandName === "uploadaudioresource") {
@@ -2212,7 +2211,7 @@ client.on("interactionCreate", async (interaction) => {
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
+                            if (conn) {conn.destroy();}
                             return;
                         }
 
@@ -2224,14 +2223,14 @@ client.on("interactionCreate", async (interaction) => {
 
                         player.on(AudioPlayerStatus.Idle, () => {
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
+                            if (conn) {conn.destroy();}
                         });
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) conn.destroy();
+                        if (conn) {conn.destroy();}
                         return;
                     }
 
@@ -2243,7 +2242,7 @@ client.on("interactionCreate", async (interaction) => {
 
                     player.on(AudioPlayerStatus.Idle, () => {
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) conn.destroy();
+                        if (conn) {conn.destroy();}
                     });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
@@ -2285,7 +2284,7 @@ client.on("interactionCreate", async (interaction) => {
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
+                            if (conn) {conn.destroy();}
                             return;
                         }
 
@@ -2297,14 +2296,14 @@ client.on("interactionCreate", async (interaction) => {
 
                         player.on(AudioPlayerStatus.Idle, () => {
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) conn.destroy();
+                            if (conn) {conn.destroy();}
                         });
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) conn.destroy();
+                        if (conn) {conn.destroy();}
                         return;
                     }
 
@@ -2316,7 +2315,7 @@ client.on("interactionCreate", async (interaction) => {
 
                     player.on(AudioPlayerStatus.Idle, () => {
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) conn.destroy();
+                        if (conn) {conn.destroy();}
                     });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
@@ -2404,13 +2403,13 @@ client.on("interactionCreate", async (interaction) => {
                 if (interaction.user.id !== "804839205309382676") {
                     return interaction.reply({ content: "You do not have permission to use this command.", ephemeral: true });
                 }
-                if (!configl.chatgptintegration.aimoderation.enabled) return interaction.reply({ content: "AI Moderation is disabled in settings. Please enable AI Moderation and try again.", ephemeral: true });
+                if (!configl.chatgptintegration.aimoderation.enabled) {return interaction.reply({ content: "AI Moderation is disabled in settings. Please enable AI Moderation and try again.", ephemeral: true });}
                 await interaction.deferReply({ ephemeral: true });
                 const GUILD_ID = "1333194010201952367";
                 const guild = client.guilds.cache.get(GUILD_ID);
                 for (const member of guild.members.cache.values()) {
-                    if (member.user.bot) continue; // skip bots
-                    if (guild.ownerId === member.id) continue; // skip server owner
+                    if (member.user.bot) {continue;} // skip bots
+                    if (guild.ownerId === member.id) {continue;} // skip server owner
                     try {
                         const openai = new OpenAI({
                             apiKey: process.env.OPENAI_API_KEY,
@@ -2475,7 +2474,7 @@ client.on("interactionCreate", async (interaction) => {
                                                 ]
                                             }
                                         ]
-                                    })
+                                    });
                                     const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
                                     console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
                                     await member.send(otherAiReply).catch(() => { });
@@ -2517,7 +2516,7 @@ client.on("interactionCreate", async (interaction) => {
                                                 ]
                                             }
                                         ]
-                                    })
+                                    });
                                     const otherAiReply = banMessageResponse.choices?.[0]?.message?.content || "You have been banned from Horror Remake because your profile picture contains a Gorilla Tag character with long arms, which is not allowed.";
                                     console.log(`Generated ban message for ${member.user.username}: ${otherAiReply}`);
                                     await member.send(otherAiReply).catch(() => { });
@@ -2604,7 +2603,7 @@ client.on("interactionCreate", async (interaction) => {
                         return interaction.followUp({ content: "Submission channel not found.", ephemeral: true });
                     }
 
-                    if (videoUrl == "null" || videoUrl == null) {
+                    if (videoUrl === "null" || videoUrl === null) {
                         throw new Error("Video URL is null after upload.");
                     }
 

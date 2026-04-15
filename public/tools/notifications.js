@@ -9,7 +9,7 @@
   const live = new Map();
 
   function ensureContainer() {
-    if (container) return container;
+    if (container) {return container;}
     container = document.createElement("div");
     container.className = "hr-toast-container";
     container.setAttribute("aria-live", "polite");
@@ -50,8 +50,8 @@
 
   function startTimer(id, timeoutMs) {
     const entry = live.get(id);
-    if (!entry) return;
-    if (!timeoutMs || timeoutMs <= 0) return;
+    if (!entry) {return;}
+    if (!timeoutMs || timeoutMs <= 0) {return;}
 
     entry.startedAt = Date.now();
     entry.remainingMs = timeoutMs;
@@ -60,8 +60,8 @@
 
   function pauseTimer(id) {
     const entry = live.get(id);
-    if (!entry) return;
-    if (entry.timeoutId == null) return;
+    if (!entry) {return;}
+    if (entry.timeoutId == null) {return;}
     window.clearTimeout(entry.timeoutId);
     entry.timeoutId = null;
     if (entry.remainingMs != null) {
@@ -72,8 +72,8 @@
 
   function resumeTimer(id) {
     const entry = live.get(id);
-    if (!entry) return;
-    if (entry.remainingMs == null) return;
+    if (!entry) {return;}
+    if (entry.remainingMs == null) {return;}
     if (entry.remainingMs <= 0) {
       dismiss(id);
       return;
@@ -84,8 +84,8 @@
 
   function dismiss(id) {
     const entry = live.get(id);
-    if (!entry) return;
-    if (entry.timeoutId != null) window.clearTimeout(entry.timeoutId);
+    if (!entry) {return;}
+    if (entry.timeoutId != null) {window.clearTimeout(entry.timeoutId);}
     entry.timeoutId = null;
     entry.el.classList.remove("hr-toast__enter");
     entry.el.classList.add("hr-toast__exit");
@@ -99,9 +99,9 @@
   function enforceMaxVisible() {
     // Remove oldest toasts first.
     const ids = Array.from(live.keys());
-    if (ids.length <= MAX_VISIBLE) return;
+    if (ids.length <= MAX_VISIBLE) {return;}
     const overflow = ids.slice(0, ids.length - MAX_VISIBLE);
-    for (const id of overflow) dismiss(id);
+    for (const id of overflow) {dismiss(id);}
   }
 
   function notify(message, typeOrOptions, maybeOptions) {
@@ -160,7 +160,7 @@
     toast.addEventListener("pointerenter", () => pauseTimer(id));
     toast.addEventListener("pointerleave", () => resumeTimer(id));
     toast.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") dismiss(id);
+      if (e.key === "Escape") {dismiss(id);}
     });
 
     startTimer(id, timeoutMs);
