@@ -249,7 +249,7 @@ app.use((req, res) => {
 });
 
 async function syncRepo() {
-    if (!cff.GitHub) return null;
+    if (!cff.GitHub) return;
     try {
         console.log("Checking remote changes...");
 
@@ -259,9 +259,13 @@ async function syncRepo() {
         const remote = await run("git rev-parse @{u}");
 
         if (local !== remote) {
-            console.log("Remote updates found. Pulling...");
-            await run("git pull");
-            restart(0);
+            console.log("Remote updates found. Forcing overwrite...");
+
+            // 🔥 THIS IS THE IMPORTANT PART
+            await run("git reset --hard @{u}");
+            await run("git clean -fd");
+
+            console.log("Local repo synced to remote (overwrite complete).");
         } else {
             console.log("Repo already up to date.");
         }
