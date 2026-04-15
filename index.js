@@ -2034,6 +2034,8 @@ client.on("interactionCreate", async (interaction) => {
                     content: `Your birthday has been set to ${birthdayDate}.${yearConfirm} You will receive a birthday message on your birthday!`,
                     ephemeral: true,
                 });
+
+                restart(0);
             }
             if (interaction.commandName === "petpet") {
                 const user = interaction.options.getUser("user");
