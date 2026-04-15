@@ -145,6 +145,14 @@ const slashRegister = async () => {
               .setName("direct-message")
               .setDescription("whether you want your birthday to be public or not")
               .setRequired(false)
+          )
+          .addIntegerOption((option) =>
+            option
+              .setName("year")
+              .setDescription("your birth year (optional) — lets the bot say your age on your birthday")
+              .setRequired(false)
+              .setMinValue(1900)
+              .setMaxValue(2025)
           ),
         new SlashCommandBuilder()
           .setName("petpet")

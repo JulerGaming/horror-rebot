@@ -129,16 +129,16 @@ app.get('/birthdays', async (req, res) => {
         let birthdayBois = [];
         let parsedBirthdays = {};
 
-        for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
-            if (birthdayMMDD === todayMMDD) {
+        for (const [userId, birthdayData] of Object.entries(birthdays)) {
+            if (getBirthdayMMDD(birthdayData) === todayMMDD) {
                 const user = client.users.cache.get(userId);
-                birthdayBois.push(user.displayName);
+                if (user) birthdayBois.push(user.displayName);
             }
         }
 
-        for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
+        for (const [userId, birthdayData] of Object.entries(birthdays)) {
             const user = client.users.cache.get(userId);
-            parsedBirthdays[user.displayName] = birthdayMMDD;
+            if (user) parsedBirthdays[user.displayName] = getBirthdayMMDD(birthdayData);
         }
 
         res.status(200).json({ status: 200, today: birthdayBois, birthdays: parsedBirthdays });
@@ -208,7 +208,7 @@ const client = new Client({
 // DO NOT DELETE
 
 const cff = require("./config.json");
-const { exec } = require("child_process");
+const { exec, execSync } = require("child_process");
 
 if (!process.env.OPENAI_API_KEY && cff.chatgptintegration.enabled) {
     throw new Error("OPENAI_API_KEY was not set in .env file but ChatGPT Integration is enabled.");
@@ -367,10 +367,12 @@ const warnedUsers = new Set();
 
 client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
+    const { execSync } = require("child_process");
+    execSync("node", ['slash-deploy.js']);
     if (client.user.setAFK) client.user.setAFK(false);
     const guild = client.guilds.cache.get("1333194010201952367");
-    await client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
-    console.log("Update status!")
+    client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
+    console.log("Update status!");
 });
 
 client.on(Events.ClientReady, async () => {
@@ -392,25 +394,48 @@ client.on(Events.ClientReady, async () => {
     scheduleMidnightCheck();
 });
 
+function getOrdinalSuffix(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function getBirthdayMMDD(entry) {
+    return typeof entry === "string" ? entry : entry.date;
+}
+
+function getBirthYear(entry) {
+    return typeof entry === "object" && entry.year ? entry.year : null;
+}
+
 async function checkBirthdays() {
     try {
         const birthdaysFile = "birthdays.json";
         if (!fs.existsSync(birthdaysFile)) return;
 
+        delete require.cache[require.resolve("./birthdays.json")];
         const data = require("./birthdays.json");
         const birthdays = data.birthdays || {};
         const today = new Date();
         const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         console.log(`Today is ${todayMMDD}`);
 
-        for (const [userId, birthdayMMDD] of Object.entries(birthdays)) {
+        for (const [userId, birthdayData] of Object.entries(birthdays)) {
+            const birthdayMMDD = getBirthdayMMDD(birthdayData);
+            const birthYear = getBirthYear(birthdayData);
+
             if (birthdayMMDD === todayMMDD) {
                 try {
                     const user = await client.users.fetch(userId);
                     if (user === client.user) {
                         return console.log("happy birthday to me yay");
                     }
-                    await user.send(`<@${userId}>\n# 🎉 Happy Birthday! 🎉\n\n### Wishing you an amazing day filled with joy and celebration!`);
+                    let ageText = "";
+                    if (birthYear) {
+                        const age = today.getFullYear() - birthYear;
+                        ageText = ` ${getOrdinalSuffix(age)}`;
+                    }
+                    await user.send(`<@${userId}>\n# 🎉 Happy${ageText} Birthday! 🎉\n\n### Wishing you an amazing day filled with joy and celebration!`);
                     console.log(`Birthday message sent to ${user.username}`);
                 } catch (err) {
                     console.error(`Failed to send birthday message to user ${userId}:`, err);
@@ -1949,8 +1974,8 @@ client.on("interactionCreate", async (interaction) => {
                 console.log(`Recieved interaction request for birthday by ${interaction.user.displayName}`);
                 const birthdayDate = interaction.options.getString("date"); // Format: MM-DD
                 const isDirectMessage = interaction.options.getBoolean("direct_message");
-                // Now save the birthday data to 'birthdays.json'
-                // Birthday format = MM-DD
+                const birthYear = interaction.options.getInteger("year") || null;
+
                 if (!/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(birthdayDate)) {
                     return interaction.reply({
                         content: "Please provide a valid date in MM-DD format.",
@@ -1966,25 +1991,28 @@ client.on("interactionCreate", async (interaction) => {
                 }
 
                 const userId = interaction.user.id;
+                const existing = data.birthdays[userId];
+                const existingDate = existing ? getBirthdayMMDD(existing) : null;
+                const existingYear = existing ? getBirthYear(existing) : null;
 
-                // Check if the user already has a birthday set and it's the same
-                if (data.birthdays[userId] && data.birthdays[userId] === birthdayDate) {
+                // Check if the user already has the exact same birthday + year set
+                if (existingDate === birthdayDate && existingYear === birthYear) {
                     return interaction.reply({
-                        content: "You already have this birthday set. Please use the command again to update it to a different date.",
+                        content: "You already have this birthday set. Please use the command again to update it.",
                         ephemeral: true,
                     });
                 }
 
                 // Save the birthday for the user
-                data.birthdays[userId] = birthdayDate;
+                data.birthdays[userId] = birthYear ? { date: birthdayDate, year: birthYear } : { date: birthdayDate };
                 fs.writeFileSync(birthdaysFile, JSON.stringify(data, null, 2), 'utf-8');
-                console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}`);
+                console.log(`Saved birthday for ${interaction.user.displayName}: ${birthdayDate}${birthYear ? ` (${birthYear})` : ""}`);
 
                 // Tell discord the bot is thinking
                 await interaction.deferReply({ ephemeral: true });
                 if (isDirectMessage) {
                     try {
-                        await interaction.user.send(`Your birthday has been set to ${birthdayDate}.`);
+                        await interaction.user.send(`Your birthday has been set to ${birthdayDate}${birthYear ? ` (${birthYear})` : ""}.`);
                         interaction.reply({
                             content: "Your birthday has been set successfully! Check your DMs.",
                             ephemeral: true,
@@ -1997,8 +2025,9 @@ client.on("interactionCreate", async (interaction) => {
                         });
                     }
                 }
+                const yearConfirm = birthYear ? " Your age will be included in the birthday message!" : "";
                 await interaction.followUp({
-                    content: `Your birthday has been set to ${birthdayDate}. You will receive a birthday message on your birthday!`,
+                    content: `Your birthday has been set to ${birthdayDate}.${yearConfirm} You will receive a birthday message on your birthday!`,
                     ephemeral: true,
                 });
             }
