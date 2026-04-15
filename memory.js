@@ -1,2 +1,3 @@
 // memory.js
-export const memory = new Map();
+const memory = new Map();
+module.exports = memory;

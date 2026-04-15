@@ -61,10 +61,10 @@
   function pauseTimer(id) {
     const entry = live.get(id);
     if (!entry) {return;}
-    if (entry.timeoutId == null) {return;}
+    if (entry.timeoutId === null) {return;}
     window.clearTimeout(entry.timeoutId);
     entry.timeoutId = null;
-    if (entry.remainingMs != null) {
+    if (entry.remainingMs !== null) {
       const elapsed = Date.now() - entry.startedAt;
       entry.remainingMs = Math.max(0, entry.remainingMs - elapsed);
     }
@@ -73,7 +73,7 @@
   function resumeTimer(id) {
     const entry = live.get(id);
     if (!entry) {return;}
-    if (entry.remainingMs == null) {return;}
+    if (entry.remainingMs === null) {return;}
     if (entry.remainingMs <= 0) {
       dismiss(id);
       return;
@@ -85,7 +85,7 @@
   function dismiss(id) {
     const entry = live.get(id);
     if (!entry) {return;}
-    if (entry.timeoutId != null) {window.clearTimeout(entry.timeoutId);}
+    if (entry.timeoutId !== null) {window.clearTimeout(entry.timeoutId);}
     entry.timeoutId = null;
     entry.el.classList.remove("hr-toast__enter");
     entry.el.classList.add("hr-toast__exit");
