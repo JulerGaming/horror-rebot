@@ -11,6 +11,10 @@ const botToken = process.env.BOT_TOKEN; // Your bot token here
 // Incase the bot token is compromised, please reset it immediately so the bot doesn't give everyone admin permissions or something like that. (Or worse, nuke your server. Theres a security bot so that doesn't happen.)
 
 const rest = new REST().setToken(botToken);
+
+/**
+ * Registers slash commands to the bot.
+ */
 const slashRegister = async () => {
   try {
     await rest.put(Routes.applicationCommands(botID), {
@@ -257,4 +261,8 @@ const slashRegister = async () => {
   }
 };
 
-slashRegister();
+module.exports = { slashRegister };
+
+if (require.main === module) {
+    slashRegister();
+}
