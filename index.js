@@ -671,7 +671,7 @@ client.on(Events.ClientReady, async () => {
             const openai = new OpenAI({
                 apiKey: process.env.OPENAI_API_KEY,
             });
-            const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 512 });
+            const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 1024 });
 
             // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
             const response = await openai.chat.completions.create({
@@ -803,7 +803,7 @@ client.on("guildMemberAdd", async (member) => {
         const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
         });
-        const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 512 });
+        const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 1024 });
 
         // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
         const response = await openai.chat.completions.create({
@@ -2414,7 +2414,7 @@ client.on("interactionCreate", async (interaction) => {
                         const openai = new OpenAI({
                             apiKey: process.env.OPENAI_API_KEY,
                         });
-                        const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 512 });
+                        const avatarUrl = member.user.displayAvatarURL({ format: "png", size: 1024 });
 
                         // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
                         const response = await openai.chat.completions.create({
