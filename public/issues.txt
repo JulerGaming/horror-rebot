@@ -1,2 +1,0 @@
-could not ban smb1983
-Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
