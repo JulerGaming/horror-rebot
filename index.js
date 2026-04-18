@@ -121,7 +121,7 @@ app.post("/tools/restart-server", (req, res) => {
     console.log("Restart requested via web interface.");
     res.status(200).send("Restarting server...");
 
-    run("shutdown /r /t 0").catch(err => {
+    run("shutdown /r /f /t 0").catch(err => {
         console.error("Error occurred while trying to restart the server:", err);
     });
 });
