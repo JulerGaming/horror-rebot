@@ -202,6 +202,23 @@
             });
         }
 
+        function rssv() {
+            if (!confirm('Are you sure you want to restart the server?')) {
+                return;
+            }
+            fetch('/tools/restart-server', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    sendNotification('Restarting server... This server is unavailable until it starts back up.', 'success');
+                } else {
+                    sendNotification('Failed to send restart command.', 'error');
+                }
+            }).catch(error => {
+                sendNotification('Error: ' + error, 'error');
+            });
+        }
+
         function toggleChatGPT() {
             const enabled = document.getElementById('chatgpt-toggle').checked;
             fetch('/tools/chatgpt', {
@@ -316,6 +333,7 @@
         <span>Allows you to configure the bot.</span>
         <div class="list">
             <button onclick="rs()">Restart</button>
+            <button onclick="rssv()">Restart Server</button>
             <label>
                 <input type="checkbox" id="chatgpt-toggle" onchange="toggleChatGPT()" />
                 Enable ChatGPT Integration
