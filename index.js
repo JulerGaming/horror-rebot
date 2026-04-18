@@ -166,7 +166,6 @@ app.post("/tools/restart-server", (req, res) => {
 
     run("shutdown /r /t 0").catch(err => {
         console.error("Error occurred while trying to restart the server:", err);
-        res.status(500).send("Error occurred while trying to restart the server.");
     });
 });
 const package = require('./package.json');
