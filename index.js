@@ -117,6 +117,15 @@ app.post('/tools/aimoderation', (req, res) => {
     }
 });
 
+app.post("/tools/restart-server", (req, res) => {
+    console.log("Restart requested via web interface.");
+    res.status(200).send("Restarting server...");
+
+    run("shutdown /r /t 0").catch(err => {
+        console.error("Error occurred while trying to restart the server:", err);
+    });
+});
+
 app.get('/birthdays', async (req, res) => {
     try {
         const birthdaysFile = "birthdays.json";
@@ -160,14 +169,6 @@ app.get("/aimoderation-status", (req, res) => {
     res.json({ enabled: configl.chatgptintegration.aimoderation.enabled });
 });
 
-app.post("/tools/restart-server", (req, res) => {
-    console.log("Restart requested via web interface.");
-    res.send("Restarting server...");
-
-    run("shutdown /r /t 0").catch(err => {
-        console.error("Error occurred while trying to restart the server:", err);
-    });
-});
 const package = require('./package.json');
 
 // increase version number when making changes
