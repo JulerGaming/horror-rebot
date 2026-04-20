@@ -56,8 +56,70 @@ fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-error.log"), "", "utf-8")
 
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
-// serve pm2 logs in "/logs"
-app.use('/logs', express.static(pm2_logs_dir));
+
+function watchFile(filePath, type, send) {
+    let lastSize = 0;
+
+    try {
+        lastSize = fs.statSync(filePath).size;
+    } catch {
+        lastSize = 0;
+    }
+
+    const watcher = fs.watch(filePath, () => {
+        fs.stat(filePath, (err, stats) => {
+            if (err) return;
+
+            // handle truncation (log reset)
+            if (stats.size < lastSize) lastSize = 0;
+
+            if (stats.size > lastSize) {
+                const stream = fs.createReadStream(filePath, {
+                    start: lastSize,
+                    end: stats.size
+                });
+
+                let buffer = "";
+
+                stream.on("data", chunk => buffer += chunk.toString());
+
+                stream.on("end", () => {
+                    buffer.split("\n").forEach(line => {
+                        if (line.trim()) {
+                            send({
+                                type, // "error" or "out"
+                                message: line
+                            });
+                        }
+                    });
+
+                    lastSize = stats.size;
+                });
+            }
+        });
+    });
+
+    return watcher;
+}
+
+app.get("/logs", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const send = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const watchers = [
+        watchFile(path.join(pm2_logs_dir, "horror-rebot-out.log"), "out", send),
+        watchFile(path.join(pm2_logs_dir, "horror-rebot-error.log"), "error", send)
+    ];
+
+    req.on("close", () => {
+        watchers.forEach(w => w.close());
+    });
+});
 
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -129,7 +191,7 @@ app.post("/tools/restart-server", (req, res) => {
 app.get('/birthdays', async (req, res) => {
     try {
         const birthdaysFile = "birthdays.json";
-        if (!fs.existsSync(birthdaysFile)) {return;}
+        if (!fs.existsSync(birthdaysFile)) { return; }
 
         const data = require("./birthdays.json");
         const birthdays = data.birthdays || {};
@@ -141,13 +203,13 @@ app.get('/birthdays', async (req, res) => {
         for (const [userId, birthdayData] of Object.entries(birthdays)) {
             if (getBirthdayMMDD(birthdayData) === todayMMDD) {
                 const user = client.users.cache.get(userId);
-                if (user) {birthdayBois.push(user.displayName);}
+                if (user) { birthdayBois.push(user.displayName); }
             }
         }
 
         for (const [userId, birthdayData] of Object.entries(birthdays)) {
             const user = client.users.cache.get(userId);
-            if (user) {parsedBirthdays[user.displayName] = getBirthdayMMDD(birthdayData);}
+            if (user) { parsedBirthdays[user.displayName] = getBirthdayMMDD(birthdayData); }
         }
 
         res.status(200).json({ status: 200, today: birthdayBois, birthdays: parsedBirthdays });
@@ -227,7 +289,7 @@ if (!process.env.OPENAI_API_KEY && cff.chatgptintegration.enabled) {
 function run(cmd) {
     return new Promise((resolve, reject) => {
         exec(cmd, (err, stdout, stderr) => {
-            if (err) {return reject(stderr);}
+            if (err) { return reject(stderr); }
             resolve(stdout.trim());
         });
     });
@@ -257,7 +319,7 @@ app.use((req, res) => {
 });
 
 async function syncRepo() {
-    if (!cff.GitHub) {return;}
+    if (!cff.GitHub) { return; }
     try {
         console.log("Checking remote changes...");
 
@@ -378,7 +440,7 @@ client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
     const { slashRegister } = require('./slash-deploy.js');
     slashRegister();
-    if (client.user.setAFK) {client.user.setAFK(false);}
+    if (client.user.setAFK) { client.user.setAFK(false); }
     const guild = client.guilds.cache.get("1333194010201952367");
     client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
     console.log("Update status!");
@@ -420,7 +482,7 @@ function getBirthYear(entry) {
 async function checkBirthdays() {
     try {
         const birthdaysFile = "birthdays.json";
-        if (!fs.existsSync(birthdaysFile)) {return;}
+        if (!fs.existsSync(birthdaysFile)) { return; }
 
         delete require.cache[require.resolve("./birthdays.json")];
         const data = require("./birthdays.json");
@@ -567,7 +629,7 @@ client.on(Events.ClientReady, async () => {
         for (const member of targetGuild.members.cache.values()) {
             try {
                 // skip bots, the guild owner and the client itself
-                if (member.user.bot || member.id === targetGuild.ownerId || member.id === client.user.id) {continue;}
+                if (member.user.bot || member.id === targetGuild.ownerId || member.id === client.user.id) { continue; }
 
                 // 1) Handle disallowed role "a bot"
                 const hasABotRole = member.roles.cache.some(r => (r.name || "").toLowerCase() === "a bot");
@@ -666,13 +728,13 @@ client.on(Events.ClientReady, async () => {
     console.log("Completed 'a bot' role sweep and required-role warnings.");
     await modlog("'a bot' role sweep completed.");
 
-    if (!configl.chatgptintegration.aimoderation.enabled) {return;}
+    if (!configl.chatgptintegration.aimoderation.enabled) { return; }
     console.log('Starting "gorilla tag character with long arms" pfp check... [Powered by AI]');
     const guild = client.guilds.cache.get(GUILD_ID);
     console.log(`Checking profile pictures for ${guild.members.cache.size} members...`);
     for (const member of guild.members.cache.values()) {
-        if (member.user.bot) {continue;} // skip bots
-        if (guild.ownerId === member.id) {continue;} // skip server owner
+        if (member.user.bot) { continue; } // skip bots
+        if (guild.ownerId === member.id) { continue; } // skip server owner
         try {
             const openai = new OpenAI({
                 apiKey: process.env.OPENAI_API_KEY,
@@ -804,7 +866,7 @@ client.on(Events.ClientReady, async () => {
 
 client.on("guildMemberAdd", async (member) => {
     try {
-        if (!configl.chatgptintegration.aimoderation.enabled) {return;}
+        if (!configl.chatgptintegration.aimoderation.enabled) { return; }
 
         const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
@@ -926,7 +988,7 @@ client.on("guildMemberAdd", async (member) => {
         console.error(`Error processing profile picture for ${member.user.username}:`, err);
     }
 
-    if (member.user.bot) {return;} // skip bots
+    if (member.user.bot) { return; } // skip bots
     if (member.user.createdTimestamp > Date.now() - 5 * 24 * 60 * 60 * 1000) {
         // Ban users whose account is younger than 5 days
         try {
@@ -942,7 +1004,7 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) {return;} // Ignore bot messages
+    if (message.author.bot) { return; } // Ignore bot messages
 
     // Log DMs
     if (message.channel.type === ChannelType.DM) { // 1 = DMChannel in discord.js v14+
@@ -954,14 +1016,14 @@ client.on("messageCreate", async (message) => {
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
             try {
-                if (message.channel.type === ChannelType.DM) {continue;} // skip bad word filter for DMs
+                if (message.channel.type === ChannelType.DM) { continue; } // skip bad word filter for DMs
                 message.delete();
             } catch (err) {
                 console.error("Failed to delete message with bad word:", err);
             }
 
             try {
-                if (!message.guild) {return null;} // should not happen, but just in case
+                if (!message.guild) { return null; } // should not happen, but just in case
                 await message.member.timeout(600000, "Using inappropriate language.");
             } catch (error) {
                 if (error.code === 50013) {
@@ -1007,12 +1069,12 @@ client.on("messageCreate", async (message) => {
     ) {
         console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
 
-        if (!configl.chatgptintegration.enabled) {return message.reply("Sorry, Horror ReAI is currently disabled.");}
+        if (!configl.chatgptintegration.enabled) { return message.reply("Sorry, Horror ReAI is currently disabled."); }
 
-        if (message.content.startsWith("!")) {return;} // commands start with ! so ignore those
+        if (message.content.startsWith("!")) { return; } // commands start with ! so ignore those
 
-        if (message.author.bot) {return;}
-        if (message.mentions.has("@everyone") || message.mentions.has("@here")) {return;}
+        if (message.author.bot) { return; }
+        if (message.mentions.has("@everyone") || message.mentions.has("@here")) { return; }
 
         message.channel.sendTyping();
 
@@ -1021,7 +1083,7 @@ client.on("messageCreate", async (message) => {
             .replace(`<@${client.user.id}>`, "")
             .trim();
 
-        if (!cleaned) {cleaned = "Hello";}
+        if (!cleaned) { cleaned = "Hello"; }
 
         // ====== MEMORY KEY ======
         const memoryKey = message.guild
@@ -1203,7 +1265,7 @@ client.on("messageCreate", async (message) => {
         try {
             const memberVoiceChannel = member?.voice?.channel;
             if (memberVoiceChannel) {
-                if (!configl.basics.vc.enabled) {return;}
+                if (!configl.basics.vc.enabled) { return; }
                 const connection = joinVoiceChannel({
                     channelId: memberVoiceChannel.id,
                     guildId: memberVoiceChannel.guild.id,
@@ -1232,7 +1294,7 @@ client.on("messageCreate", async (message) => {
                     }, 30000);
                 });
             } else {
-                if (!message.guild) {return;}
+                if (!message.guild) { return; }
                 return; // voice is disabled until further notice
                 const connection = getVoiceConnection(message.guild.id);
                 if (connection) {
@@ -1253,7 +1315,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 
     // check roles
     try {
-        if (oldMember.user.bot || newMember.user.bot) {return;} // skip bots
+        if (oldMember.user.bot || newMember.user.bot) { return; } // skip bots
 
         const oldRoleIds = new Set(oldMember.roles.cache.map(r => r.id));
         const newRoleIds = new Set(newMember.roles.cache.map(r => r.id));
@@ -1427,15 +1489,15 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 });
 
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) {return;} // Ignore bot messages
+    if (message.author.bot) { return; } // Ignore bot messages
 
     // image filter
     if (message.attachments.size > 0 || message.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|bmp|webp)$/i) || message.content.match(/https?:\/\/[^\s]+/i)) {
         for (const attachment of message.attachments.values()) {
             if (attachment.contentType.startsWith("image/") || attachment.url.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
                 try {
-                    if (!message.guild) {return;} // only check images in guilds, not DMs
-                    if (!configl.chatgptintegration.aimoderation.enabled) {return;}
+                    if (!message.guild) { return; } // only check images in guilds, not DMs
+                    if (!configl.chatgptintegration.aimoderation.enabled) { return; }
 
                     const openai = new OpenAI({
                         apiKey: process.env.OPENAI_API_KEY,
@@ -1560,7 +1622,7 @@ async function checkServerTagViolation(member) {
 
         if (inNickname || inRoles) {
             const key = `${member.guild.id}-${member.id}-${serverId}`;
-            if (warnedUsers.has(key)) {return;}
+            if (warnedUsers.has(key)) { return; }
 
             try {
                 await member.send(
@@ -1618,7 +1680,7 @@ const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
 // only for autocomplete interactions
 
 client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isAutocomplete()) {return;}
+    if (!interaction.isAutocomplete()) { return; }
 
     if (interaction.commandName === "joinvoice") {
         const focusedValue = interaction.options.getFocused(); // what user typed
@@ -1648,9 +1710,9 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) {return;}
+    if (message.author.bot) { return; }
     if (message.content.startsWith("!crash")) {
-        if (message.author.id !== "804839205309382676") {return message.react("💔");}
+        if (message.author.id !== "804839205309382676") { return message.react("💔"); }
         throw new Error("Intentional crash triggered by !crash command");
     }
 });
@@ -1744,7 +1806,7 @@ client.on("interactionCreate", async (interaction) => {
                                 randomMember = membersArray[randomIndex2];
                             }
                             console.log("Bot chose " + randomMember.user.displayName);
-                            if (randomMember.user.bot) {return;}
+                            if (randomMember.user.bot) { return; }
                             saveAvatar(randomMember.user); // Cache the avatar
                             const pokemonAhhMessage = [
                                 `<@${randomMember.user.id}>, I choose you!`,
@@ -2153,7 +2215,7 @@ client.on("interactionCreate", async (interaction) => {
 
                 player.on(AudioPlayerStatus.Idle, () => {
                     const conn = getVoiceConnection(interaction.guild.id);
-                    if (conn) {conn.destroy();}
+                    if (conn) { conn.destroy(); }
                 });
             }
             if (interaction.commandName === "uploadaudioresource") {
@@ -2217,7 +2279,7 @@ client.on("interactionCreate", async (interaction) => {
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) {conn.destroy();}
+                            if (conn) { conn.destroy(); }
                             return;
                         }
 
@@ -2229,14 +2291,14 @@ client.on("interactionCreate", async (interaction) => {
 
                         player.on(AudioPlayerStatus.Idle, () => {
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) {conn.destroy();}
+                            if (conn) { conn.destroy(); }
                         });
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) {conn.destroy();}
+                        if (conn) { conn.destroy(); }
                         return;
                     }
 
@@ -2248,7 +2310,7 @@ client.on("interactionCreate", async (interaction) => {
 
                     player.on(AudioPlayerStatus.Idle, () => {
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) {conn.destroy();}
+                        if (conn) { conn.destroy(); }
                     });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
@@ -2290,7 +2352,7 @@ client.on("interactionCreate", async (interaction) => {
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) {conn.destroy();}
+                            if (conn) { conn.destroy(); }
                             return;
                         }
 
@@ -2302,14 +2364,14 @@ client.on("interactionCreate", async (interaction) => {
 
                         player.on(AudioPlayerStatus.Idle, () => {
                             const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) {conn.destroy();}
+                            if (conn) { conn.destroy(); }
                         });
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) {conn.destroy();}
+                        if (conn) { conn.destroy(); }
                         return;
                     }
 
@@ -2321,7 +2383,7 @@ client.on("interactionCreate", async (interaction) => {
 
                     player.on(AudioPlayerStatus.Idle, () => {
                         const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) {conn.destroy();}
+                        if (conn) { conn.destroy(); }
                     });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
@@ -2409,13 +2471,13 @@ client.on("interactionCreate", async (interaction) => {
                 if (interaction.user.id !== "804839205309382676") {
                     return interaction.reply({ content: "You do not have permission to use this command.", ephemeral: true });
                 }
-                if (!configl.chatgptintegration.aimoderation.enabled) {return interaction.reply({ content: "AI Moderation is disabled in settings. Please enable AI Moderation and try again.", ephemeral: true });}
+                if (!configl.chatgptintegration.aimoderation.enabled) { return interaction.reply({ content: "AI Moderation is disabled in settings. Please enable AI Moderation and try again.", ephemeral: true }); }
                 await interaction.deferReply({ ephemeral: true });
                 const GUILD_ID = "1333194010201952367";
                 const guild = client.guilds.cache.get(GUILD_ID);
                 for (const member of guild.members.cache.values()) {
-                    if (member.user.bot) {continue;} // skip bots
-                    if (guild.ownerId === member.id) {continue;} // skip server owner
+                    if (member.user.bot) { continue; } // skip bots
+                    if (guild.ownerId === member.id) { continue; } // skip server owner
                     try {
                         const openai = new OpenAI({
                             apiKey: process.env.OPENAI_API_KEY,

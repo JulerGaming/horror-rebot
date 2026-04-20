@@ -12,10 +12,14 @@ module.exports = [
         __dirname: "readonly"
       }
     },
+    env: {
+      node: true,
+    },
     rules: {
       semi: ["error", "always"],
       eqeqeq: ["error", "always"],
-      curly: ["error", "all"]
+      curly: ["error", "all"],
+      "no-undef": "error"
     }
   },
 
