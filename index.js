@@ -113,7 +113,7 @@ app.get("/logs", (req, res) => {
     ];
 
     req.on("close", () => {
-        watchers.forEach(w => w.close());
+        watchers.forEach(w => w());
     });
 });
 
