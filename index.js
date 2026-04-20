@@ -117,6 +117,19 @@ app.get("/logs", (req, res) => {
     });
 });
 
+app.get("/presence", (req, res) => {
+    const presence = client.user.presence;
+    res.json({
+        status: presence.status,
+        activities: presence.activities.map(a => ({
+            name: a.name,
+            type: a.type,
+            details: a.details,
+            state: a.state
+        }))
+    });
+});
+
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

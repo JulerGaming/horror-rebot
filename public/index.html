@@ -257,7 +257,7 @@
                     });
 
                 // Attempt to get bot activity via the guild widget (avoids exposing bot token and CORS issues)
-                fetch('https://discord.com/api/guilds/' + guildId + '/widget.json', { cache: 'no-store' })
+                fetch('/presence', { cache: 'no-store' })
                     .then(function (r) {
                         if (!r.ok) {
                             throw new Error('HTTP ' + r.status);
@@ -266,21 +266,21 @@
                     })
                     .then(function (data) {
                         var activityText = 'No activity';
-                        if (Array.isArray(data.members) && data.members.length) {
-                            for (var j = 0; j < data.members.length; j++) {
-                                if (data.members[j].id === '1369007178664378429') {
-                                    // widget may include a "status" field (e.g. "online"), fall back to username if not present
-                                    activityText = data.members[j].status ? data.members[j].status : (data.members[j].username || 'No activity');
-                                    break;
-                                }
+                        if (data.activities && data.activities.length > 0) {
+                            var activity = data.activities[0];
+                            activityText = activity.name;
+                            if (activity.state) {
+                                activityText += ' - ' + activity.state;
                             }
                         }
-                        var el = document.getElementById('activity-text');
-                        if (el) el.textContent = activityText;
+                        var presenceText = 'Not available';
+                        if (data.status) {
+                            presenceText = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                        }
                     })
                     .catch(function (err) {
-                        console.error('Could not load bot activity from widget:', err);
-                        addIssue('Could not load bot activity from Discord widget.');
+                        console.error('Could not load bot activity:', err);
+                        addIssue('Could not load bot activity.');
                     });
                 // check if theres internet connection, if not, then create an issue
                 if (!navigator.onLine) {
