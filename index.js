@@ -108,8 +108,8 @@ app.get("/logs", (req, res) => {
     };
 
     const watchers = [
-        watchFile(path.join(pm2_logs_dir, "horror-rebot-out.log"), "out", send),
-        watchFile(path.join(pm2_logs_dir, "horror-rebot-error.log"), "error", send)
+        streamFile(path.join(pm2_logs_dir, "horror-rebot-out.log"), "out", send),
+        streamFile(path.join(pm2_logs_dir, "horror-rebot-error.log"), "error", send)
     ];
 
     req.on("close", () => {
