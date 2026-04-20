@@ -271,13 +271,13 @@
                             activityText = activity.name;
                             if (activity.type) {
                                 // activityText = the thing your doing
-                                if (activity.type === 0) {
+                                if (activity.type == 0) {
                                     "Playing" + ' ' + activityText; // Playing
-                                } else if (activity.type === 1) {
+                                } else if (activity.type == 1) {
                                     "Streaming" + ' ' + activityText; // Streaming
-                                } else if (activity.type === 2) {
+                                } else if (activity.type == 2) {
                                     "Listening" + ' ' + activityText; // Listening
-                                } else if (activity.type === 3) {
+                                } else if (activity.type == 3) {
                                     "Watching" + ' ' + activityText; // Watching
                                 }
                             }
