@@ -57,24 +57,23 @@ fs.writeFileSync(path.join(pm2_logs_dir, "horror-rebot-error.log"), "", "utf-8")
 // Serve all files in "public" (including log.txt, images, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-function watchFile(filePath, type, send) {
+function streamFile(filePath, type, send) {
     let lastSize = 0;
 
     try {
-        lastSize = fs.statSync(filePath).size;
+        lastSize = require("fs").statSync(filePath).size;
     } catch {
         lastSize = 0;
     }
 
-    const watcher = fs.watch(filePath, () => {
-        fs.stat(filePath, (err, stats) => {
+    const interval = setInterval(() => {
+        require("fs").stat(filePath, (err, stats) => {
             if (err) return;
 
-            // handle truncation (log reset)
             if (stats.size < lastSize) lastSize = 0;
 
             if (stats.size > lastSize) {
-                const stream = fs.createReadStream(filePath, {
+                const stream = require("fs").createReadStream(filePath, {
                     start: lastSize,
                     end: stats.size
                 });
@@ -86,10 +85,7 @@ function watchFile(filePath, type, send) {
                 stream.on("end", () => {
                     buffer.split("\n").forEach(line => {
                         if (line.trim()) {
-                            send({
-                                type, // "error" or "out"
-                                message: line
-                            });
+                            send({ type, message: line });
                         }
                     });
 
@@ -97,9 +93,9 @@ function watchFile(filePath, type, send) {
                 });
             }
         });
-    });
+    }, 200);
 
-    return watcher;
+    return () => clearInterval(interval);
 }
 
 app.get("/logs", (req, res) => {
