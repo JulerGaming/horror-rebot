@@ -270,14 +270,15 @@
                             var activity = data.activities[0];
                             activityText = activity.name;
                             if (activity.state) {
+                                // activityText = the thing your doing
                                 if (activity.type === 0) {
-                                    "Playing" += ' ' + activityText; // Playing
+                                    "Playing" + ' ' + activityText; // Playing
                                 } else if (activity.type === 1) {
-                                    "Streaming" += ' ' + activityText; // Streaming
+                                    "Streaming" + ' ' + activityText; // Streaming
                                 } else if (activity.type === 2) {
-                                    "Listening" += ' ' + activityText; // Listening
+                                    "Listening" + ' ' + activityText; // Listening
                                 } else if (activity.type === 3) {
-                                    "Watching" += ' ' + activityText; // Watching
+                                    "Watching" + ' ' + activityText; // Watching
                                 }
                             }
                         }
