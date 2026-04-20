@@ -270,12 +270,40 @@
                             var activity = data.activities[0];
                             activityText = activity.name;
                             if (activity.state) {
-                                activityText += ' - ' + activity.state;
+                                if (activity.type === 0) {
+                                    activity.state += ' ' + activityText; // Playing
+                                } else if (activity.type === 1) {
+                                    activity.state += ' ' + activityText; // Streaming
+                                } else if (activity.type === 2) {
+                                    activity.state += ' ' + activityText; // Listening
+                                } else if (activity.type === 3) {
+                                    activity.state += ' ' + activityText; // Watching
+                                }
                             }
                         }
                         var presenceText = 'Not available';
                         if (data.status) {
-                            presenceText = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                            presenceText = data.status;
+                        }
+
+                        var presenceSpan = document.getElementById('presence-text');
+                        var activitySpan = document.getElementById('activity-text');
+
+                        if (presenceText === 'online') {
+                            presenceText = 'Online';
+                        } else if (presenceText === 'idle') {
+                            presenceText = 'Idle';
+                        } else if (presenceText === 'dnd') {
+                            presenceText = 'Do Not Disturb';
+                        } else if (presenceText === 'offline') {
+                            presenceText = 'Offline';
+                        }
+
+                        if (presenceSpan) {
+                            presenceSpan.textContent = presenceText;
+                        }
+                        if (activitySpan) {
+                            activitySpan.textContent = activityText;
                         }
                     })
                     .catch(function (err) {
@@ -346,7 +374,7 @@
                 <div
                     style="width: 12px; height: 12px; background-color: #43b581; border-radius: 50%; border: 2px solid #2c2f33;">
                 </div>
-                <span>Online</span>
+                <span id="presence-text">Online</span>
                 <span id="activity-text">Loading...</span>
             </div>
         </div>
