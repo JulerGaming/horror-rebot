@@ -157,30 +157,16 @@
         }
 
         .console {
-            margin-top: 16px;
-            text-align: left;
-            max-width: 90%;
-            background-color: #1d1d1d;
-            padding: 16px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
-
-        .console ul {
-            margin: 0;
-            padding-left: 20px;
-            list-style-type: disc;
-            display: flex;
-            flex-direction: column;
-            max-height: 300px;
+            margin-top: 32px;
+            background: #0d0d0d;
+            color: #d0d0d0;
+            font-family: monospace;
+            padding: 10px;
+            height: 400px;
             overflow-y: auto;
-            justify-content: flex-end;
-        }
-
-        .console li {
-            margin: 4px 0;
-            font-size: 0.9rem;
-            word-break: break-word;
+            border-radius: 6px;
+            border: 1px solid #222;
+            white-space: pre-wrap;
         }
     </style>
     <meta charset="utf-8" />
@@ -311,39 +297,32 @@
                         console.error('Could not load issues from issues.txt:', err);
                         addIssue('Could not load issues from server.');
                     });
-                const consoleEl = document.querySelector('.console ul');
+                const consoleEl = document.getElementById('console');
 
-                if (!consoleEl) {
-                    console.error("Console element not found");
-                } else {
-                    const source = new EventSource('/logs');
+                const source = new EventSource('/logs');
 
-                    source.onmessage = (event) => {
-                        const { type, message } = JSON.parse(event.data);
+                source.onmessage = (event) => {
+                    const { type, message } = JSON.parse(event.data);
 
-                        const li = document.createElement('li');
-                        li.textContent = message;
+                    const line = document.createElement('div');
 
-                        // color errors
-                        if (type === "error") {
-                            li.style.color = '#ff6b6b';
-                        }
+                    if (type === "error") {
+                        line.style.color = "#ff6b6b";
+                        line.textContent = "[ERROR] " + message;
+                    } else {
+                        line.textContent = "[OUT] " + message;
+                    }
 
-                        consoleEl.appendChild(li);
+                    consoleEl.appendChild(line);
 
-                        // auto-scroll
-                        consoleEl.scrollTop = consoleEl.scrollHeight;
+                    // auto-scroll
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
 
-                        // optional: prevent infinite growth
-                        if (consoleEl.children.length > 500) {
-                            consoleEl.removeChild(consoleEl.firstChild);
-                        }
-                    };
-
-                    source.onerror = (err) => {
-                        console.error("Log stream error:", err);
-                    };
-                }
+                    // prevent infinite growth
+                    if (consoleEl.children.length > 500) {
+                        consoleEl.removeChild(consoleEl.firstChild);
+                    }
+                };
             });
         </script>
         <h1>Horror Rebot</h1>
@@ -368,7 +347,7 @@
                 <!-- Issues will be populated here by JavaScript -->
             </ul>
         </div>
-        <div class="console">
+        <div class="console" id="console">
             <h3>Console</h3>
             <ul>
                 <!-- Console messages will be populated here by JavaScript -->
