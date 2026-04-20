@@ -271,13 +271,13 @@
                             activityText = activity.name;
                             if (activity.state) {
                                 if (activity.type === 0) {
-                                    activity.state += ' ' + activityText; // Playing
+                                    "Playing" += ' ' + activityText; // Playing
                                 } else if (activity.type === 1) {
-                                    activity.state += ' ' + activityText; // Streaming
+                                    "Streaming" += ' ' + activityText; // Streaming
                                 } else if (activity.type === 2) {
-                                    activity.state += ' ' + activityText; // Listening
+                                    "Listening" += ' ' + activityText; // Listening
                                 } else if (activity.type === 3) {
-                                    activity.state += ' ' + activityText; // Watching
+                                    "Watching" += ' ' + activityText; // Watching
                                 }
                             }
                         }
