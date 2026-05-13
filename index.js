@@ -1369,6 +1369,10 @@ client.on("messageCreate", async (message) => {
                 if (item?.type !== "function_call") {continue;}
                 executedAnyTool = true;
 
+                // IMPORTANT: include the function_call item itself in the next request,
+                // otherwise the API will reject the corresponding function_call_output.
+                toolInput.push(item);
+
                 const handler = serverFunctionHandlers[item.name];
                 let output;
                 if (!handler) {
