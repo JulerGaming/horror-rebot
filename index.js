@@ -1115,6 +1115,7 @@ client.on("messageCreate", async (message) => {
             .trim();
 
         if (!cleaned) { cleaned = "Hello"; }
+        message.content = cleaned;
 
         // ====== MEMORY KEY ======
         const memoryKey = message.guild
