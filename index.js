@@ -410,9 +410,17 @@ process.on("SIGTERM", shutdown);
 
 // Error handling
 process.on("uncaughtException", async (err) => {
-    const guild = client.guilds.cache.get("1333194010201952367");
-    const julergt = guild.members.fetch("804839205309382676");
-    await (await julergt).send(`<@804839205309382676>\n# Bot Crashed!\n### The bot crashed due to an unhandled exception.\nHere is the error report:\n\`\`\`\n${err.stack || err}\n\`\`\``);
+    try {
+        if (client?.isReady?.() && process.env.BOT_TOKEN) {
+            const guild = client.guilds.cache.get("1333194010201952367");
+            const julergt = await guild?.members?.fetch?.("804839205309382676").catch(() => null);
+            await julergt?.send?.(
+                `<@804839205309382676>\n# Bot Crashed!\n### The bot crashed due to an unhandled exception.\nHere is the error report:\n\`\`\`\n${err.stack || err}\n\`\`\``,
+            );
+        }
+    } catch (dmErr) {
+        console.error("Failed to DM crash report (uncaughtException):", dmErr);
+    }
     console.error("==============================");
     console.error("Bot Crashed!", err);
     console.error("");
@@ -424,9 +432,17 @@ process.on("uncaughtException", async (err) => {
 });
 
 process.on("unhandledRejection", async (err) => {
-    const guild = client.guilds.cache.get("1333194010201952367");
-    const julergt = guild.members.fetch("804839205309382676");
-    await (await julergt).send(`<@804839205309382676>\n# Bot Crashed!\n### The bot crashed due to an unhandled exception.\nHere is the error report:\n\`\`\`\n${err.stack || err}\n\`\`\``);
+    try {
+        if (client?.isReady?.() && process.env.BOT_TOKEN) {
+            const guild = client.guilds.cache.get("1333194010201952367");
+            const julergt = await guild?.members?.fetch?.("804839205309382676").catch(() => null);
+            await julergt?.send?.(
+                `<@804839205309382676>\n# Bot Crashed!\n### The bot crashed due to an unhandled rejection.\nHere is the error report:\n\`\`\`\n${err?.stack || err}\n\`\`\``,
+            );
+        }
+    } catch (dmErr) {
+        console.error("Failed to DM crash report (unhandledRejection):", dmErr);
+    }
     console.error("==============================");
     console.error("Unhandled Rejection:", err);
     console.error("");
@@ -2896,6 +2912,11 @@ client.on("interactionCreate", async (interaction) => {
         }
     }
 });
+
+if (!process.env.BOT_TOKEN) {
+    console.error("[fatal] Missing BOT_TOKEN environment variable. Set BOT_TOKEN (or update the code to use DISCORD_TOKEN) and restart.");
+    process.exit(1);
+}
 
 client.login(process.env.BOT_TOKEN); // I had to expose the token here because it was not working with the .env file, but I will change it back to the .env file when I can.
 
