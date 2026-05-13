@@ -1297,10 +1297,11 @@ client.on("messageCreate", async (message) => {
                     type: "object",
                     properties: {
                         targetUserID: { type: "string", description: "User ID of the person to ban"},
-                        reason: { type: "string", description: "An optional reason for banning the member"}
+                        reason: { type: "string", description: "Reason for banning the member (can be an empty string)"}
                     },
                     required: [
-                        "targetUserID"
+                        "targetUserID",
+                        "reason"
                     ],
                     additionalProperties: false,
                 },
