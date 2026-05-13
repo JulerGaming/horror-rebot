@@ -1213,44 +1213,13 @@ client.on("messageCreate", async (message) => {
             }
         }
 
-        // ====== TOOL INSTRUCTIONS (NUDGE) ======
-        // Helps the model realize tools are available and when to call them.
-        history.push({
-            role: "system",
-            content:
-                "You can call server-side function tools when needed. " +
-                "If the user asks to run a function/tool/command, call the appropriate function tool. " +
-                "Available tools: \n\ndo_nothing\nban_member\npackage",
-        });
-
         // ====== PUSH USER MESSAGE ======
-        // Allow forcing a specific function call using: !fn <name> <jsonArgs?>
-        let toolChoice;
-        const knownToolNames = new Set(["do_nothing"]);
-        const forceMatch = cleaned.match(/^!(?:fn|func|tool)\s+([a-zA-Z0-9_]+)\s*(.*)$/);
-        let forcedTool = null;
-        let forcedArgsRaw = null;
-        if (forceMatch?.[1]) {
-            const forcedName = forceMatch[1];
-            forcedArgsRaw = (forceMatch[2] || "").trim();
-            if (forcedName && knownToolNames.has(forcedName)) {
-                toolChoice = { type: "function", name: forcedName };
-                forcedTool = forcedName;
-            }
-        }
-
-        message.content = cleaned;
-
         history.push({
             role: "user",
             content: JSON.stringify({
                 message: message,
                 author: message.author,
-                channel: message.channel,
-                cleaned_text: cleaned,
-                page_content: pageContent || "",
-                forced_tool: forcedTool,
-                forced_tool_args_raw: forcedArgsRaw,
+                channel: message.channel
             })
         });
 
@@ -1265,29 +1234,39 @@ client.on("messageCreate", async (message) => {
                 console.log("AI ran do_nothing");
                 return "ok";
             },
-            ban_member: async (executor, targetUserID, reason = null) => {
+            ban_member: async (args, { message }) => {
                 console.log("AI ran ban_member");
+                const { targetUserID, reason = null } = args || {};
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
                     return "(Error) Guild is null or unknown :(";
                 }
 
-                const member = guild.members.cache.get(executor);
-                if (member.user === client.user) {
-                    return "(Error) You cannot be the executor!!!";
+                const executorMember = message.member;
+                if (!executorMember) {
+                    return "(Error) Could not resolve executor member.";
                 }
-                if (!member.permissions.has("Administrator")) {
+                if (!executorMember.permissions.has("Administrator")) {
                     return "(Error) Executor does not have permission to use this function";
                 }
 
-                const victim = guild.members.cache.get(targetUserID);
-                if (victim.user === client.user) {
+                if (!targetUserID) {
+                    return "(Error) Missing targetUserID";
+                }
+
+                const victim = await guild.members.fetch(targetUserID).catch(() => null);
+                if (!victim) {
+                    return "(Error) Could not find that user in this server.";
+                }
+                if (victim.user?.id === client.user.id) {
                     return "(Error) Attempted suicide (Tried to ban self)";
                 }
                 if (victim && victim.bannable) {
-                    victim.ban({ reason: reason ? reason : "No reason given." });
+                    await victim.ban({ reason: reason ? reason : "No reason given." });
                     return `(Success) Banned ${victim.displayName}`;
                 }
+
+                return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
             },
             package: async () => {
                 console.log("AI read package.json");
@@ -1316,13 +1295,11 @@ client.on("messageCreate", async (message) => {
                 parameters: {
                     type: "object",
                     properties: {
-                        executor: { type: "string", description: "User ID of the person who told you to do this"},
                         targetUserID: { type: "string", description: "User ID of the person to ban"},
                         reason: { type: "string", description: "An optional reason for banning the member"}
                     },
                     required: [
-                        executor,
-                        targetUserID
+                        "targetUserID"
                     ],
                     additionalProperties: false,
                 },
@@ -1349,7 +1326,6 @@ client.on("messageCreate", async (message) => {
             },
             input: history,
             tools: tools,
-            ...(toolChoice ? { tool_choice: toolChoice } : {}),
             text: {
                 "format": {
                     "type": "text"
