@@ -1290,6 +1290,26 @@ client.on("messageCreate", async (message) => {
                 console.log("AI read package.json");
                 return package;
             },
+            view_user_info: async (args, { message }) => {
+                let output;
+                const { id } = args || {};
+                try {
+                    console.log("AI is getting info from user " + id);
+
+                    output += "Getting user";
+                    const member = client.users.cache.get(id);
+
+                    if (member) {
+                        output += `Final member information: ${JSON.stringify(member)}`;
+                    } else {
+                        output += "Unknown User";
+                    }
+
+                    return output;
+                } catch (error) {
+                    output += error;
+                }
+            }
         };
 
         const tools = [
@@ -1313,8 +1333,8 @@ client.on("messageCreate", async (message) => {
                 parameters: {
                     type: "object",
                     properties: {
-                        targetUserID: { type: "string", description: "User ID of the person to ban"},
-                        reason: { type: "string", description: "Reason for banning the member (can be an empty string)"}
+                        targetUserID: { type: "string", description: "User ID of the person to ban" },
+                        reason: { type: "string", description: "Reason for banning the member (can be an empty string)" }
                     },
                     required: [
                         "targetUserID",
@@ -1332,6 +1352,22 @@ client.on("messageCreate", async (message) => {
                     type: "object",
                     properties: {},
                     required: [],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "view_user_info",
+                description: "Returns information about a user that you specify",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string", description: "User ID of the person to look up (If the user provides <@...>, the user id is \"...\"" },
+                    },
+                    required: [
+                        "id"
+                    ],
                     additionalProperties: false,
                 },
             },
@@ -1367,7 +1403,7 @@ client.on("messageCreate", async (message) => {
                     continue;
                 }
 
-                if (item?.type !== "function_call") {continue;}
+                if (item?.type !== "function_call") { continue; }
                 executedAnyTool = true;
 
                 // IMPORTANT: include the function_call item itself in the next request,
@@ -1389,7 +1425,7 @@ client.on("messageCreate", async (message) => {
 
                 // Allow handlers to `return "something"` (or any JSON-serializable value).
                 let toolOutput = output;
-                if (toolOutput === undefined) {toolOutput = "";}
+                if (toolOutput === undefined) { toolOutput = ""; }
                 if (typeof toolOutput !== "string") {
                     try {
                         toolOutput = JSON.stringify(toolOutput);
