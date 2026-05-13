@@ -1011,8 +1011,13 @@ client.on("messageCreate", async (message) => {
         message.channel.sendTyping();
 
         let cleaned = message.content
-            .replace(`<@!${client.user.id}>`, "")
-            .replace(`<@${client.user.id}>`, "")
+            .replace(`<@!${client.user.id}>`, "@Horror Rebot")
+            .replace(`<@${client.user.id}>`, "@Horror Rebot")
+            .replace(/<@!?\d+>/g, "(Blocked Discord Mention)")
+            .replace(/<@&\d+>/g, "(Blocked Discord Mention)")
+            .replace(/<#\d+>/g, "(Blocked Discord Channel)")
+            .replace(/@everyone|@here/g, "(Blocked Discord Mention)")
+            .replace(/\s{2,}/g, " ")
             .trim();
 
         if (!cleaned) {cleaned = "Hello";}
@@ -1146,13 +1151,96 @@ client.on("messageCreate", async (message) => {
             history.splice(1, history.length - 21);
         }
 
+        // ====== SERVER-SIDE FUNCTIONS (OPENAI TOOL CALLING) ======
+        const serverFunctionHandlers = {
+            do_nothing: async () => {
+                console.log("AI ran do_nothing");
+                return "ok";
+            },
+            ban_member: async (executor, targetUserID, reason = null) => {
+                console.log("AI ran ban_member");
+                const guild = message.guild ? message.guild : null;
+                if (!guild) {
+                    return "(Error) Guild is null or unknown :(";
+                }
+
+                const member = guild.members.cache.get(executor);
+                if (member.user === client.user) {
+                    return "(Error) You cannot be the executor!!!";
+                }
+                if (!member.permissions.has("Administrator")) {
+                    return "(Error) Executor does not have permission to use this function";
+                }
+
+                const victim = guild.members.cache.get(targetUserID);
+                if (victim.user === client.user) {
+                    return "(Error) Attempted suicide (Tried to ban self)";
+                }
+                if (victim && victim.bannable) {
+                    victim.ban({ reason: reason ? reason : "No reason given." });
+                    return `(Success) Banned ${victim.displayName}`;
+                }
+            },
+            package: async () => {
+                console.log("AI read package.json");
+                return package;
+            },
+        };
+
+        const tools = [
+            {
+                type: "function",
+                name: "do_nothing",
+                description: "Example server-side function that does nothing. Returns a short status string ('ok').",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {},
+                    required: [],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "ban_member",
+                description: "Bans a member.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        executor: { type: "string", description: "User ID of the person who told you to do this"},
+                        targetUserID: { type: "string", description: "User ID of the person to ban"},
+                        reason: { type: "string", description: "An optional reason for banning the member"}
+                    },
+                    required: [
+                        executor,
+                        targetUserID
+                    ],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "package",
+                description: "Returns information about the app that you run on",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {},
+                    required: [],
+                    additionalProperties: false,
+                },
+            },
+        ];
+
         // ====== OPENAI REQUEST ======
-        const response = await openai.responses.create({
+        let response = await openai.responses.create({
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "21"
+                "version": "22"
             },
             input: history,
+            tools,
             text: {
                 "format": {
                     "type": "text"
@@ -1163,6 +1251,72 @@ client.on("messageCreate", async (message) => {
             store: true,
             include: ["web_search_call.action.sources"]
         });
+
+        // ====== EXECUTE TOOL CALLS (IF ANY) ======
+        if (Array.isArray(response.output)) {
+            const toolInput = [...history];
+            let executedAnyTool = false;
+
+            for (const item of response.output) {
+                if (item?.type === "reasoning") {
+                    toolInput.push(item);
+                    continue;
+                }
+
+                if (item?.type !== "function_call") {continue;}
+                executedAnyTool = true;
+
+                const handler = serverFunctionHandlers[item.name];
+                let output;
+                if (!handler) {
+                    output = JSON.stringify({ ok: false, error: `Unknown function: ${item.name}` });
+                } else {
+                    try {
+                        const args = item.arguments ? JSON.parse(item.arguments) : {};
+                        output = await handler(args, { message });
+                    } catch (err) {
+                        output = JSON.stringify({ ok: false, error: err?.message || String(err) });
+                    }
+                }
+
+                // Allow handlers to `return "something"` (or any JSON-serializable value).
+                let toolOutput = output;
+                if (toolOutput === undefined) {toolOutput = "";}
+                if (typeof toolOutput !== "string") {
+                    try {
+                        toolOutput = JSON.stringify(toolOutput);
+                    } catch {
+                        toolOutput = String(toolOutput);
+                    }
+                }
+
+                toolInput.push({
+                    type: "function_call_output",
+                    call_id: item.call_id,
+                    output: toolOutput,
+                });
+            }
+
+            if (executedAnyTool) {
+                response = await openai.responses.create({
+                    prompt: {
+                        "id": process.env.OPENAI_ASSISTANT_ID,
+                        "version": "22"
+                    },
+                    input: toolInput,
+                    tools,
+                    text: {
+                        "format": {
+                            "type": "text"
+                        }
+                    },
+                    reasoning: {},
+                    max_output_tokens: 2048,
+                    store: true,
+                    include: ["web_search_call.action.sources"]
+                });
+            }
+        }
 
         // ====== EXTRACT REPLY ======
         let replyText = "";
@@ -1605,6 +1759,8 @@ const { OK } = require("sqlite3");
 const { ConversationTokenPurpose } = require("@elevenlabs/elevenlabs-js/api/index.js");
 const { encode } = require("punycode");
 const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
+const e = require("express");
+const { json } = require("stream/consumers");
 
 
 
