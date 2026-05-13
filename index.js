@@ -1213,13 +1213,44 @@ client.on("messageCreate", async (message) => {
             }
         }
 
+        // ====== TOOL INSTRUCTIONS (NUDGE) ======
+        // Helps the model realize tools are available and when to call them.
+        history.push({
+            role: "system",
+            content:
+                "You can call server-side function tools when needed. " +
+                "If the user asks to run a function/tool/command, call the appropriate function tool. " +
+                "Available tools: \n\ndo_nothing\nban_member\npackage",
+        });
+
         // ====== PUSH USER MESSAGE ======
+        // Allow forcing a specific function call using: !fn <name> <jsonArgs?>
+        let toolChoice;
+        const knownToolNames = new Set(["do_nothing"]);
+        const forceMatch = cleaned.match(/^!(?:fn|func|tool)\s+([a-zA-Z0-9_]+)\s*(.*)$/);
+        let forcedTool = null;
+        let forcedArgsRaw = null;
+        if (forceMatch?.[1]) {
+            const forcedName = forceMatch[1];
+            forcedArgsRaw = (forceMatch[2] || "").trim();
+            if (forcedName && knownToolNames.has(forcedName)) {
+                toolChoice = { type: "function", name: forcedName };
+                forcedTool = forcedName;
+            }
+        }
+
+        message.content = cleaned;
+
         history.push({
             role: "user",
             content: JSON.stringify({
                 message: message,
                 author: message.author,
-                channel: message.channel
+                channel: message.channel,
+                cleaned_text: cleaned,
+                page_content: pageContent || "",
+                forced_tool: forcedTool,
+                forced_tool_args_raw: forcedArgsRaw,
             })
         });
 
@@ -1317,7 +1348,8 @@ client.on("messageCreate", async (message) => {
                 "version": "22"
             },
             input: history,
-            tools,
+            tools: tools,
+            ...(toolChoice ? { tool_choice: toolChoice } : {}),
             text: {
                 "format": {
                     "type": "text"
