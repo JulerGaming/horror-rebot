@@ -32,7 +32,7 @@ BOT_TOKEN=your-bot-token-here
 
 Run the bot:
 ```
-pm2 start ecosystem-config.js
+pm2 start ecosystem.config.js
 ```
 Alternative way:
 ```
