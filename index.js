@@ -1110,6 +1110,9 @@ client.on("messageCreate", async (message) => {
         let cleaned = message.content
             .replace(`<@!${client.user.id}>`, "@Horror Rebot")
             .replace(`<@${client.user.id}>`, "@Horror Rebot")
+            .replace(/<@!?\d+>/g, "@...")
+            .replace(/<@&\d+>/g, "@...")
+            .replace(/<#\d+>/g, "@...")
             .replace(/\s{2,}/g, " ")
             .trim();
 
