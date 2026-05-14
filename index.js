@@ -1282,7 +1282,7 @@ client.on("messageCreate", async (message) => {
 
                 try {
                     await user.send(content.slice(0, 1900));
-                    actionsMade += `Sent a DM to ${user.displayName}\n`;
+                    actionsMade += `-# Sent a DM to ${user.displayName}\n`;
                     return `(Success) Sent a DM to ${user.username}`;
                 } catch (err) {
                     return `(Error) Could not DM that user (privacy settings or blocked). ${err?.message || String(err)}`;
@@ -1317,7 +1317,7 @@ client.on("messageCreate", async (message) => {
                 }
                 if (victim && victim.bannable) {
                     await victim.ban({ reason: reason ? reason : "No reason given." });
-                    actionsMade += `Banned ${victim.displayName}\n`;
+                    actionsMade += `-# Banned ${victim.displayName}\n`;
                     return `(Success) Banned ${victim.displayName}`;
                 }
 
@@ -1325,7 +1325,7 @@ client.on("messageCreate", async (message) => {
             },
             package: async () => {
                 console.log("AI read package.json");
-                actionsMade += `Looked up information on the bot\n`;
+                actionsMade += `-# Looked up information on the bot\n`;
                 return package;
             },
             view_user_info: async (args, { message }) => {
@@ -1343,7 +1343,7 @@ client.on("messageCreate", async (message) => {
                         output += "\nUnknown User";
                     }
 
-                    actionsMade += member ? `Got information on user: ${member.displayName}\n` : `Could not fetch user information`;
+                    actionsMade += member ? `-# Got information on user: ${member.displayName}\n` : `-# Could not fetch user information`;
                     return output;
                 } catch (error) {
                     output += error;
@@ -1378,7 +1378,7 @@ client.on("messageCreate", async (message) => {
                 }
                 if (victim && victim.kickable) {
                     await victim.kick({ reason: reason ? reason : "No reason given." });
-                    actionsMade += `Kicked ${victim.displayName}\n`;
+                    actionsMade += `-# Kicked ${victim.displayName}\n`;
                     return `(Success) Kicked ${victim.displayName}`;
                 }
 
@@ -1429,13 +1429,13 @@ client.on("messageCreate", async (message) => {
                 try {
                     await victim.timeout(durationMs, (reason || "").slice(0, 400));
                     if (durationMs === 0) {
-                        actionsMade += `Removed timeout\n`;
+                        actionsMade += `-# Removed timeout\n`;
                         return `(Success) Removed timeout for ${victim.displayName}`;
                     }
-                    actionsMade += `Timed out ${victim.displayName}\n`;
+                    actionsMade += `-# Timed out ${victim.displayName}\n`;
                     return `(Success) Timed out ${victim.displayName} for ${clampedSeconds} seconds`;
                 } catch (err) {
-                    actionsMade += `Could not time out user\n`;
+                    actionsMade += `-# Could not time out user\n`;
                     return `(Error) Failed to timeout user. ${err?.message || String(err)}`;
                 }
             },
@@ -1773,7 +1773,7 @@ client.on("messageCreate", async (message) => {
             .replace(/\s{2,}/g, " ")
             .trim();
 
-        replyText = `-# ${actionsMade}${replyText}`;
+        replyText = `${actionsMade}${replyText}`;
         if (actionsMade === "") { replyText = response.output_text; }
 
         if (!replyText) {
