@@ -1377,6 +1377,143 @@ client.on("messageCreate", async (message) => {
 
                 return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
             },
+            timeout_member: async (args, { message }) => {
+                console.log("AI ran timeout_member");
+                const { targetUserID, durationSeconds, reason = "" } = args || {};
+
+                const guild = message.guild ? message.guild : null;
+                if (!guild) {
+                    return "(Error) Guild is null or unknown :(";
+                }
+
+                const executorMember = message.member;
+                if (!executorMember) {
+                    return "(Error) Could not resolve executor member.";
+                }
+                if (!executorMember.permissions.has("Administrator")) {
+                    return "(Error) Executor does not have permission to use this function";
+                }
+
+                if (!targetUserID) {
+                    return "(Error) Missing targetUserID";
+                }
+
+                const seconds = Number(durationSeconds);
+                if (!Number.isFinite(seconds) || seconds < 0) {
+                    return "(Error) durationSeconds must be a number >= 0";
+                }
+                // Discord timeout max is 28 days
+                const maxSeconds = 28 * 24 * 60 * 60;
+                const clampedSeconds = Math.min(Math.floor(seconds), maxSeconds);
+                const durationMs = clampedSeconds * 1000;
+
+                const victim = await guild.members.fetch(targetUserID).catch(() => null);
+                if (!victim) {
+                    return "(Error) Could not find that user in this server.";
+                }
+                if (victim.user?.id === client.user.id) {
+                    return "(Error) Attempted suicide (Tried to timeout self)";
+                }
+
+                if (!victim.moderatable) {
+                    return "(Error) I cannot timeout this user (missing permissions / role hierarchy).";
+                }
+
+                try {
+                    await victim.timeout(durationMs, (reason || "").slice(0, 400));
+                    if (durationMs === 0) {
+                        return `(Success) Removed timeout for ${victim.displayName}`;
+                    }
+                    return `(Success) Timed out ${victim.displayName} for ${clampedSeconds} seconds`;
+                } catch (err) {
+                    return `(Error) Failed to timeout user. ${err?.message || String(err)}`;
+                }
+            },
+            send_image_message: async (args, { message }) => {
+                console.log("AI ran send_image_message");
+                const { imageUrl, content = "" } = args || {};
+
+                const executorMember = message.member;
+                if (!executorMember) {
+                    return "(Error) Could not resolve executor member.";
+                }
+                if (!executorMember.permissions.has("Administrator")) {
+                    return "(Error) Executor does not have permission to use this function";
+                }
+
+                if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.trim()) {
+                    return "(Error) Missing imageUrl";
+                }
+
+                let url;
+                try {
+                    url = new URL(imageUrl);
+                } catch {
+                    return "(Error) imageUrl must be a valid URL";
+                }
+
+                if (!["http:", "https:"].includes(url.protocol)) {
+                    return "(Error) imageUrl must be http(s)";
+                }
+
+                // Basic SSRF guard: block localhost and obvious private hostnames.
+                const hostname = (url.hostname || "").toLowerCase();
+                if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+                    return "(Error) imageUrl hostname not allowed";
+                }
+                if (
+                    hostname.endsWith(".local") ||
+                    hostname.endsWith(".internal") ||
+                    hostname.endsWith(".lan")
+                ) {
+                    return "(Error) imageUrl hostname not allowed";
+                }
+
+                let resp;
+                try {
+                    resp = await fetch(url.toString(), { redirect: "follow" });
+                } catch (err) {
+                    return `(Error) Failed to fetch image. ${err?.message || String(err)}`;
+                }
+
+                if (!resp.ok) {
+                    return `(Error) Failed to fetch image (HTTP ${resp.status})`;
+                }
+
+                const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+                if (!contentType.startsWith("image/")) {
+                    return `(Error) URL did not return an image (content-type: ${contentType || "unknown"})`;
+                }
+
+                let arrayBuffer;
+                try {
+                    arrayBuffer = await resp.arrayBuffer();
+                } catch (err) {
+                    return `(Error) Failed reading image body. ${err?.message || String(err)}`;
+                }
+
+                const buffer = Buffer.from(arrayBuffer);
+                // Keep within typical Discord upload limits; 8MB is a safe default.
+                const maxBytes = 8 * 1024 * 1024;
+                if (buffer.length > maxBytes) {
+                    return `(Error) Image too large (${buffer.length} bytes). Max ${maxBytes} bytes.`;
+                }
+
+                const { AttachmentBuilder } = require("discord.js");
+                const extFromType = contentType.split("/")[1]?.split(";")[0]?.trim();
+                const safeExt = extFromType && /^[a-z0-9.+-]+$/i.test(extFromType) ? extFromType : "png";
+                const fileName = `image.${safeExt}`;
+
+                try {
+                    await message.channel.send({
+                        content: (content || "").toString().slice(0, 1900),
+                        files: [new AttachmentBuilder(buffer, { name: fileName })],
+                    });
+                    return "(Success) Sent image message.";
+                } catch (err) {
+                    return `(Error) Failed to send image message. ${err?.message || String(err)}`;
+                }
+            },
         };
 
         const tools = [
@@ -1471,6 +1608,37 @@ client.on("messageCreate", async (message) => {
                         "targetUserID",
                         "reason"
                     ],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "timeout_member",
+                description: "Times out a member (temporarily prevents them from chatting). Admin-only.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        targetUserID: { type: "string", description: "User ID of the person to timeout" },
+                        durationSeconds: { type: "number", description: "Timeout duration in seconds. Use 0 to remove timeout. Max is 2419200 (28 days)." },
+                        reason: { type: "string", description: "Reason for the timeout (can be empty)" },
+                    },
+                    required: ["targetUserID", "durationSeconds", "reason"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "send_image_message",
+                description: "Sends a message with an attached image (fetched from an http(s) URL). Admin-only.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        imageUrl: { type: "string", description: "Direct http(s) URL to an image" },
+                        content: { type: "string", description: "Optional message text to send with the image" },
+                    },
+                    required: ["imageUrl", "content"],
                     additionalProperties: false,
                 },
             },
