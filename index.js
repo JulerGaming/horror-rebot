@@ -1773,7 +1773,8 @@ client.on("messageCreate", async (message) => {
             .replace(/\s{2,}/g, " ")
             .trim();
 
-        replyText = `${actionsMade}${replyText}`;
+        replyText = `-# ${actionsMade}${replyText}`;
+        if (actionsMade === "") { replyText = response.output_text; }
 
         if (!replyText) {
             return message.reply("Sorry, I couldn't get a response.");
