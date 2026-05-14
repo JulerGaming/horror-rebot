@@ -1325,7 +1325,7 @@ client.on("messageCreate", async (message) => {
             },
             package: async () => {
                 console.log("AI read package.json");
-                actionsMade += `Looked up information on the app\n`;
+                actionsMade += `Looked up information on the bot\n`;
                 return package;
             },
             view_user_info: async (args, { message }) => {
