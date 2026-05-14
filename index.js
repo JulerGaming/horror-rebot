@@ -1099,6 +1099,9 @@ client.on("messageCreate", async (message) => {
 
         if (message.content.startsWith("!")) { return; } // commands start with ! so ignore those
 
+        if (message.channelId === "1333199694716862554") { return; }
+        if (message.channelId === "1496576226611953684") { return; }
+
         if (message.author.bot) { return; }
         if (message.mentions.has("@everyone") || message.mentions.has("@here")) { return; }
 
@@ -1107,10 +1110,6 @@ client.on("messageCreate", async (message) => {
         let cleaned = message.content
             .replace(`<@!${client.user.id}>`, "@Horror Rebot")
             .replace(`<@${client.user.id}>`, "@Horror Rebot")
-            .replace(/<@!?\d+>/g, "(Blocked Discord Mention)")
-            .replace(/<@&\d+>/g, "(Blocked Discord Mention)")
-            .replace(/<#\d+>/g, "(Blocked Discord Channel)")
-            .replace(/@everyone|@here/g, "(Blocked Discord Mention)")
             .replace(/\s{2,}/g, " ")
             .trim();
 
@@ -1252,6 +1251,40 @@ client.on("messageCreate", async (message) => {
                 console.log("AI ran do_nothing");
                 return "ok";
             },
+            dm_member: async (args, { message }) => {
+                console.log("AI ran dm_member");
+                const { targetUserID, content } = args || {};
+
+                const executorMember = message.member;
+                if (!executorMember) {
+                    return "(Error) Could not resolve executor member.";
+                }
+                if (!executorMember.permissions.has("Administrator")) {
+                    return "(Error) Executor does not have permission to use this function";
+                }
+
+                if (!targetUserID) {
+                    return "(Error) Missing targetUserID";
+                }
+                if (!content || typeof content !== "string" || !content.trim()) {
+                    return "(Error) Missing content";
+                }
+
+                const user = await client.users.fetch(targetUserID).catch(() => null);
+                if (!user) {
+                    return "(Error) Could not find that user.";
+                }
+                if (user.id === client.user.id) {
+                    return "(Error) Attempted to DM self.";
+                }
+
+                try {
+                    await user.send(content.slice(0, 1900));
+                    return `(Success) Sent a DM to ${user.username}`;
+                } catch (err) {
+                    return `(Error) Could not DM that user (privacy settings or blocked). ${err?.message || String(err)}`;
+                }
+            },
             ban_member: async (args, { message }) => {
                 console.log("AI ran ban_member");
                 const { targetUserID, reason = null } = args || {};
@@ -1291,7 +1324,7 @@ client.on("messageCreate", async (message) => {
                 return package;
             },
             view_user_info: async (args, { message }) => {
-                let output;
+                let output = "";
                 const { id } = args || {};
                 try {
                     console.log("AI is getting info from user " + id);
@@ -1300,16 +1333,50 @@ client.on("messageCreate", async (message) => {
                     const member = client.users.cache.get(id);
 
                     if (member) {
-                        output += `Final member information: ${JSON.stringify(member)}`;
+                        output += `\nFinal member information: ${JSON.stringify(member)}`;
                     } else {
-                        output += "Unknown User";
+                        output += "\nUnknown User";
                     }
 
                     return output;
                 } catch (error) {
                     output += error;
                 }
-            }
+            },
+            kick_member: async (args, { message }) => {
+                console.log("AI ran ban_member");
+                const { targetUserID, reason = null } = args || {};
+                const guild = message.guild ? message.guild : null;
+                if (!guild) {
+                    return "(Error) Guild is null or unknown :(";
+                }
+
+                const executorMember = message.member;
+                if (!executorMember) {
+                    return "(Error) Could not resolve executor member.";
+                }
+                if (!executorMember.permissions.has("Administrator")) {
+                    return "(Error) Executor does not have permission to use this function";
+                }
+
+                if (!targetUserID) {
+                    return "(Error) Missing targetUserID";
+                }
+
+                const victim = await guild.members.fetch(targetUserID).catch(() => null);
+                if (!victim) {
+                    return "(Error) Could not find that user in this server.";
+                }
+                if (victim.user?.id === client.user.id) {
+                    return "(Error) Attempted suicide (Tried to ban self)";
+                }
+                if (victim && victim.kickable) {
+                    await victim.kick({ reason: reason ? reason : "No reason given." });
+                    return `(Success) Kicked ${victim.displayName}`;
+                }
+
+                return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
+            },
         };
 
         const tools = [
@@ -1322,6 +1389,24 @@ client.on("messageCreate", async (message) => {
                     type: "object",
                     properties: {},
                     required: [],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "dm_member",
+                description: "Sends a private DM to a user (admin-only).",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        targetUserID: { type: "string", description: "User ID of the person to DM" },
+                        content: { type: "string", description: "Message content to send (plain text)" },
+                    },
+                    required: [
+                        "targetUserID",
+                        "content"
+                    ],
                     additionalProperties: false,
                 },
             },
@@ -1371,7 +1456,30 @@ client.on("messageCreate", async (message) => {
                     additionalProperties: false,
                 },
             },
+            {
+                type: "function",
+                name: "kick_member",
+                description: "Kicks a user from the server",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        targetUserID: { type: "string", description: "User ID of the person to kick" },
+                        reason: { type: "string", description: "Why the person is getting kicked" },
+                    },
+                    required: [
+                        "targetUserID",
+                        "reason"
+                    ],
+                    additionalProperties: false,
+                },
+            },
         ];
+
+        history.push({
+            role: 'system',
+            content: "Please dont say exactly what the function names are. instead just summarize what it does if the user asks you what you can do."
+        });
 
         // ====== OPENAI REQUEST ======
         let response = await openai.responses.create({
@@ -1477,6 +1585,15 @@ client.on("messageCreate", async (message) => {
         }
 
         replyText = replyText || response.output_text || "";
+
+        replyText = replyText
+            .replace(`<@!${client.user.id}>`, "@Horror Rebot")
+            .replace(`<@${client.user.id}>`, "@Horror Rebot")
+            .replace(/<@!?\d+>/g, "@...")
+            .replace(/<@&\d+>/g, "@...")
+            .replace(/<#\d+>/g, "@...")
+            .replace(/\s{2,}/g, " ")
+            .trim();
 
         if (!replyText) {
             return message.reply("Sorry, I couldn't get a response.");
