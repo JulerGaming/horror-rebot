@@ -1095,6 +1095,8 @@ client.on("messageCreate", async (message) => {
     ) {
         console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
 
+        let actionsMade = "";
+
         if (!configl.chatgptintegration.enabled) { return message.reply("Sorry, Horror ReAI is currently disabled."); }
 
         if (message.content.startsWith("!")) { return; } // commands start with ! so ignore those
@@ -1280,6 +1282,7 @@ client.on("messageCreate", async (message) => {
 
                 try {
                     await user.send(content.slice(0, 1900));
+                    actionsMade += `Sent a DM to ${user.displayName}\n`;
                     return `(Success) Sent a DM to ${user.username}`;
                 } catch (err) {
                     return `(Error) Could not DM that user (privacy settings or blocked). ${err?.message || String(err)}`;
@@ -1314,6 +1317,7 @@ client.on("messageCreate", async (message) => {
                 }
                 if (victim && victim.bannable) {
                     await victim.ban({ reason: reason ? reason : "No reason given." });
+                    actionsMade += `Banned ${victim.displayName}\n`;
                     return `(Success) Banned ${victim.displayName}`;
                 }
 
@@ -1321,6 +1325,7 @@ client.on("messageCreate", async (message) => {
             },
             package: async () => {
                 console.log("AI read package.json");
+                actionsMade += `Looked up information on the app\n`;
                 return package;
             },
             view_user_info: async (args, { message }) => {
@@ -1338,13 +1343,14 @@ client.on("messageCreate", async (message) => {
                         output += "\nUnknown User";
                     }
 
+                    actionsMade += member ? `Got information on user: ${member.displayName}\n` : `Could not fetch user information`;
                     return output;
                 } catch (error) {
                     output += error;
                 }
             },
             kick_member: async (args, { message }) => {
-                console.log("AI ran ban_member");
+                console.log("AI ran kick_member");
                 const { targetUserID, reason = null } = args || {};
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
@@ -1368,10 +1374,11 @@ client.on("messageCreate", async (message) => {
                     return "(Error) Could not find that user in this server.";
                 }
                 if (victim.user?.id === client.user.id) {
-                    return "(Error) Attempted suicide (Tried to ban self)";
+                    return "(Error) Attempted suicide (Tried to kick self)";
                 }
                 if (victim && victim.kickable) {
                     await victim.kick({ reason: reason ? reason : "No reason given." });
+                    actionsMade += `Kicked ${victim.displayName}\n`;
                     return `(Success) Kicked ${victim.displayName}`;
                 }
 
@@ -1422,10 +1429,13 @@ client.on("messageCreate", async (message) => {
                 try {
                     await victim.timeout(durationMs, (reason || "").slice(0, 400));
                     if (durationMs === 0) {
+                        actionsMade += `Removed timeout\n`;
                         return `(Success) Removed timeout for ${victim.displayName}`;
                     }
+                    actionsMade += `Timed out ${victim.displayName}\n`;
                     return `(Success) Timed out ${victim.displayName} for ${clampedSeconds} seconds`;
                 } catch (err) {
+                    actionsMade += `Could not time out user\n`;
                     return `(Error) Failed to timeout user. ${err?.message || String(err)}`;
                 }
             },
@@ -1762,6 +1772,8 @@ client.on("messageCreate", async (message) => {
             .replace(/<#\d+>/g, "@...")
             .replace(/\s{2,}/g, " ")
             .trim();
+
+        replyText = `${actionsMade}${replyText}`;
 
         if (!replyText) {
             return message.reply("Sorry, I couldn't get a response.");
