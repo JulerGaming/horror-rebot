@@ -343,6 +343,8 @@ app.use((req, res) => {
     res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
+let hasSyncRepo = false;
+
 async function syncRepo() {
     if (!cff.GitHub) { return; }
     try {
