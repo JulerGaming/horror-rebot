@@ -267,6 +267,22 @@ const {
     entersState,
     StreamType,
 } = require("@discordjs/voice");
+
+function destroyVoiceConnectionIfNotSpeaking(guildId, expectedPlayer = null) {
+    const connection = getVoiceConnection(guildId);
+    if (!connection) { return; }
+
+    const currentPlayer = connection.state.subscription?.player;
+    if (currentPlayer && expectedPlayer && currentPlayer !== expectedPlayer) { return; }
+    if (currentPlayer && currentPlayer.state.status !== AudioPlayerStatus.Idle) { return; }
+
+    try {
+        connection.destroy();
+    } catch {
+        // ignore, cause its annoying to crash
+    }
+}
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -1525,7 +1541,7 @@ client.on("messageCreate", async (message) => {
                 }
             },
             scan_people_inactive_7days: async () => {
-                console.log("AI scanned for inactive people");
+                console.log("AI scanned for inactive people (7 days)");
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
                     return "(Error) Guild is null or unknown :(";
@@ -1540,9 +1556,18 @@ client.on("messageCreate", async (message) => {
                 const now = Date.now();
                 actionsMade += `-# Scanned for inactive members\n`;
                 const inactiveMembers = guild.members.cache.filter(m => {
-                    const lastActive = m.user?.lastMessage?.createdTimestamp || 0;
+                    if (m.user?.bot) return false;
+                    const lastActive = m.lastMessage?.createdTimestamp || 0;
                     return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
-                })
+                });
+                if (!inactiveMembers.size) {
+                    return "(Success) No inactive members found for 7 days.";
+                }
+                const list = inactiveMembers
+                    .map(m => `${m.user.tag} (${m.id})`)
+                    .sort()
+                    .join("\n");
+                return `(Success) Found ${inactiveMembers.size} inactive member(s) for 7 days:\n${list}`;
             },
             scan_people_inactive_30days: async () => {
                 console.log("AI scanned for inactive people (30 days)");
@@ -1560,9 +1585,18 @@ client.on("messageCreate", async (message) => {
                 actionsMade += `-# Scanned for inactive members (30 days)\n`;
                 const now = Date.now();
                 const inactiveMembers = guild.members.cache.filter(m => {
-                    const lastActive = m.user?.lastMessage?.createdTimestamp || 0;
+                    if (m.user?.bot) return false;
+                    const lastActive = m.lastMessage?.createdTimestamp || 0;
                     return now - lastActive > 30 * 24 * 60 * 60 * 1000; // 30 days
                 });
+                if (!inactiveMembers.size) {
+                    return "(Success) No inactive members found for 30 days.";
+                }
+                const list = inactiveMembers
+                    .map(m => `${m.user.tag} (${m.id})`)
+                    .sort()
+                    .join("\n");
+                return `(Success) Found ${inactiveMembers.size} inactive member(s) for 30 days:\n${list}`;
             }
         };
 
@@ -1876,13 +1910,7 @@ client.on("messageCreate", async (message) => {
 
                 player.on(AudioPlayerStatus.Idle, () => {
                     setTimeout(() => {
-                        if (player.state.status === AudioPlayerStatus.Idle && connection) {
-                            try {
-                                connection.destroy();
-                            } catch {
-                                // ignore, cause its annoying to crash
-                            }
-                        }
+                        destroyVoiceConnectionIfNotSpeaking(memberVoiceChannel.guild.id, player);
                     }, 30000);
                 });
             } else {
@@ -2808,8 +2836,7 @@ client.on("interactionCreate", async (interaction) => {
                 connection.subscribe(player);
 
                 player.on(AudioPlayerStatus.Idle, () => {
-                    const conn = getVoiceConnection(interaction.guild.id);
-                    if (conn) { conn.destroy(); }
+                    destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
                 });
             }
             if (interaction.commandName === "uploadaudioresource") {
@@ -2872,8 +2899,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) { conn.destroy(); }
+                            destroyVoiceConnectionIfNotSpeaking(interaction.guild.id);
                             return;
                         }
 
@@ -2884,15 +2910,13 @@ client.on("interactionCreate", async (interaction) => {
                         connection.subscribe(player);
 
                         player.on(AudioPlayerStatus.Idle, () => {
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) { conn.destroy(); }
+                            destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
                         });
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
-                        const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) { conn.destroy(); }
+                        destroyVoiceConnectionIfNotSpeaking(interaction.guild.id);
                         return;
                     }
 
@@ -2903,8 +2927,7 @@ client.on("interactionCreate", async (interaction) => {
                     connection.subscribe(player);
 
                     player.on(AudioPlayerStatus.Idle, () => {
-                        const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) { conn.destroy(); }
+                        destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
                     });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
@@ -2945,8 +2968,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         if (url.includes("youtube.com") || url.includes("youtu.be")) {
                             interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) { conn.destroy(); }
+                            destroyVoiceConnectionIfNotSpeaking(interaction.guild.id);
                             return;
                         }
 
@@ -2957,15 +2979,13 @@ client.on("interactionCreate", async (interaction) => {
                         connection.subscribe(player);
 
                         player.on(AudioPlayerStatus.Idle, () => {
-                            const conn = getVoiceConnection(interaction.guild.id);
-                            if (conn) { conn.destroy(); }
+                            destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
                         });
                     }
 
                     if (url.includes("youtube.com") || url.includes("youtu.be")) {
                         interaction.followUp({ content: "YouTube streaming is not supported.", ephemeral: true });
-                        const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) { conn.destroy(); }
+                        destroyVoiceConnectionIfNotSpeaking(interaction.guild.id);
                         return;
                     }
 
@@ -2976,8 +2996,7 @@ client.on("interactionCreate", async (interaction) => {
                     connection.subscribe(player);
 
                     player.on(AudioPlayerStatus.Idle, () => {
-                        const conn = getVoiceConnection(interaction.guild.id);
-                        if (conn) { conn.destroy(); }
+                        destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
                     });
 
                     return interaction.followUp({ content: `Streaming audio from URL in ${voiceChannel.name}!`, ephemeral: true });
