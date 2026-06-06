@@ -1956,9 +1956,14 @@ client.on("messageCreate", async (message) => {
                 });
 
                 const audioBuffer = await speakText(replyText);
+                const { Readable } = require("stream");
+                const audioStream = new Readable({ read() {
+                    this.push(audioBuffer);
+                    this.push(null);
+                }});
 
                 const player = createAudioPlayer();
-                const resource = createAudioResource(audioBuffer, { inputType: StreamType.Arbitrary });
+                const resource = createAudioResource(audioStream, { inputType: StreamType.Arbitrary });
 
                 player.play(resource);
                 connection.subscribe(player);
