@@ -1267,10 +1267,12 @@ client.on("messageCreate", async (message) => {
         const serverFunctionHandlers = {
             do_nothing: async () => {
                 console.log("AI ran do_nothing");
+                console.log("[ServerFunction] do_nothing called by", message?.author?.tag || message?.author?.id || "unknown");
                 return "ok";
             },
             dm_member: async (args, { message }) => {
                 console.log("AI ran dm_member");
+                console.log("[ServerFunction] dm_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
                 const { targetUserID, content } = args || {};
 
                 const executorMember = message.member;
@@ -1306,6 +1308,7 @@ client.on("messageCreate", async (message) => {
             },
             ban_member: async (args, { message }) => {
                 console.log("AI ran ban_member");
+                console.log("[ServerFunction] ban_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
                 const { targetUserID, reason = null } = args || {};
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
@@ -1341,6 +1344,7 @@ client.on("messageCreate", async (message) => {
             },
             package: async () => {
                 console.log("AI read package.json");
+                console.log("[ServerFunction] package called by", message?.author?.tag || message?.author?.id || "unknown");
                 actionsMade += `-# Looked up information on the bot\n`;
                 return package;
             },
@@ -1349,6 +1353,7 @@ client.on("messageCreate", async (message) => {
                 const { id } = args || {};
                 try {
                     console.log("AI is getting info from user " + id);
+                    console.log("[ServerFunction] view_user_info called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
 
                     output += "Getting user";
                     const member = client.users.cache.get(id);
@@ -1367,6 +1372,7 @@ client.on("messageCreate", async (message) => {
             },
             kick_member: async (args, { message }) => {
                 console.log("AI ran kick_member");
+                console.log("[ServerFunction] kick_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
                 const { targetUserID, reason = null } = args || {};
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
@@ -1402,6 +1408,7 @@ client.on("messageCreate", async (message) => {
             },
             timeout_member: async (args, { message }) => {
                 console.log("AI ran timeout_member");
+                console.log("[ServerFunction] timeout_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
                 const { targetUserID, durationSeconds, reason = "" } = args || {};
 
                 const guild = message.guild ? message.guild : null;
@@ -1457,6 +1464,7 @@ client.on("messageCreate", async (message) => {
             },
             send_image_message: async (args, { message }) => {
                 console.log("AI ran send_image_message");
+                console.log("[ServerFunction] send_image_message called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { imageUrl: args?.imageUrl });
                 const { imageUrl, content = "" } = args || {};
 
                 const executorMember = message.member;
@@ -1542,6 +1550,7 @@ client.on("messageCreate", async (message) => {
             },
             scan_people_inactive_7days: async () => {
                 console.log("AI scanned for inactive people (7 days)");
+                console.log("[ServerFunction] scan_people_inactive_7days called by", message?.author?.tag || message?.author?.id || "unknown");
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
                     return "(Error) Guild is null or unknown :(";
@@ -1576,6 +1585,7 @@ client.on("messageCreate", async (message) => {
             },
             scan_people_inactive_30days: async () => {
                 console.log("AI scanned for inactive people (30 days)");
+                console.log("[ServerFunction] scan_people_inactive_30days called by", message?.author?.tag || message?.author?.id || "unknown");
                 const guild = message.guild ? message.guild : null;
                 if (!guild) {
                     return "(Error) Guild is null or unknown :(";
@@ -1806,13 +1816,23 @@ client.on("messageCreate", async (message) => {
 
                 const handler = serverFunctionHandlers[item.name];
                 let output;
+                const args = item.arguments ? JSON.parse(item.arguments) : {};
+                const caller = message?.author?.tag || message?.author?.id || "unknown";
                 if (!handler) {
+                    console.log(`[ServerFunction][CALL] Unknown function requested: ${item.name} by ${caller} args:`, args);
                     output = JSON.stringify({ ok: false, error: `Unknown function: ${item.name}` });
                 } else {
+                    console.log(`[ServerFunction][CALL] ${item.name} invoked by ${caller} args:`, args);
+                    const start = Date.now();
                     try {
-                        const args = item.arguments ? JSON.parse(item.arguments) : {};
                         output = await handler(args, { message });
+                        try {
+                            console.log(`[ServerFunction][RESULT] ${item.name} completed by ${caller} in ${Date.now() - start}ms result:`, output);
+                        } catch (e) {
+                            console.log(`[ServerFunction][RESULT] ${item.name} completed by ${caller} in ${Date.now() - start}ms (unserializable result)`);
+                        }
                     } catch (err) {
+                        console.log(`[ServerFunction][ERROR] ${item.name} threw after ${Date.now() - start}ms:`, err);
                         output = JSON.stringify({ ok: false, error: err?.message || String(err) });
                     }
                 }
