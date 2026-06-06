@@ -613,36 +613,35 @@ async function newIssue(message) {
 }
 
 async function speakText(text) {
-    const maxLength = 200;
-    const trimmedText = text.length > maxLength ? text.slice(0, maxLength) : text;
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(trimmedText)}`;
+    const AWS = require('aws-sdk');
+    const region = process.env.AWS_REGION || 'us-east-1';
+    const polly = new AWS.Polly({ apiVersion: '2016-06-10', region });
 
-    console.log("Fetching non-key TTS from", url);
+    const maxLength = 3000;
+    const payload = (typeof text === 'string') ? (text.length > maxLength ? text.slice(0, maxLength) : text) : String(text);
 
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Accept": "audio/mpeg",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    console.log('[TTS][Polly] Synthesizing speech (chars:', payload.length, ')');
+
+    const params = {
+        OutputFormat: 'mp3',
+        Text: payload,
+        VoiceId: process.env.POLLY_VOICE || 'Matthew',
+        TextType: 'text'
+    };
+
+    try {
+        const data = await polly.synthesizeSpeech(params).promise();
+        if (!data || !data.AudioStream) {
+            throw new Error('No audio returned from Polly');
         }
-    });
 
-    if (!response.ok) {
-        let detail = "";
-        try {
-            const body = await response.text();
-            detail = ` Response body: ${body}`;
-        } catch {
-            detail = "";
-        }
-        throw new Error(`Non-key TTS request failed with status ${response.status}.${detail}`);
+        const audioBuffer = Buffer.isBuffer(data.AudioStream) ? data.AudioStream : Buffer.from(data.AudioStream);
+        return audioBuffer;
+    } catch (err) {
+        console.error('[TTS][Polly] Error synthesizing speech:', err);
+        throw err;
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
 }
-
-
 
 const configl = require("./config.json");
 console.log("Config loaded:", configl);
@@ -1602,11 +1601,8 @@ client.on("messageCreate", async (message) => {
                     return "(Success) No inactive members found for 7 days.";
                 }
                 const list = inactiveMembers
-                    .map(m => json.parse(JSON.stringify({
-                        tag: m.user.tag,
-                        id: m.id
-                    })))
-                    .sort((a, b) => a.tag.localeCompare(b.tag))
+                    .map(m => `${m.user.tag} (${m.id})`)
+                    .sort((a, b) => a.localeCompare(b))
                     .join("\n");
                 return `(Success) Found ${inactiveMembers.size} inactive member(s) for 7 days:\n${list}`;
             },
@@ -1637,11 +1633,8 @@ client.on("messageCreate", async (message) => {
                     return "(Success) No inactive members found for 30 days.";
                 }
                 const list = inactiveMembers
-                    .map(m => json.parse(JSON.stringify({
-                        tag: m.user.tag,
-                        id: m.id
-                    })))
-                    .sort((a, b) => a.tag.localeCompare(b.tag))
+                    .map(m => `${m.user.tag} (${m.id})`)
+                    .sort((a, b) => a.localeCompare(b))
                     .join("\n");
                 return `(Success) Found ${inactiveMembers.size} inactive member(s) for 30 days:\n${list}`;
             }
