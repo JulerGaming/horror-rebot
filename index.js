@@ -388,6 +388,27 @@ syncRepo();
 
 setInterval(syncRepo, 1 * 60 * 1000); // every 1 minute
 
+(function checkPackages() {
+    if (!hasSyncRepo) { return; }
+    const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8'));
+    const allDeps = Object.assign({}, pkg.dependencies);
+    const missing = [];
+    for (const [name, version] of Object.entries(allDeps)) {
+        try {
+            require.resolve(name);
+        } catch {
+            missing.push(name);
+        }
+    }
+    const filtered = missing.filter(name => name !== 'save-dev');
+    if (filtered.length > 0) {
+        console.log(`Missing packages: ${filtered.join(', ')}. Running npm install...`);
+        execSync('npm install', { stdio: 'inherit' });
+        console.log('Packages installed. Restarting...');
+        process.exit(0);
+    }
+})();
+
 // </> DO NOT DELETE
 
 const shutdown = async (signal) => {
@@ -590,29 +611,33 @@ async function newIssue(message) {
 }
 
 async function speakText(text) {
-    const { getVoiceList, synthesize } = await import('@echogarden/windows-media-tts');
-    const voices = getVoiceList();
-    console.log("Installed voices:", voices);
+    const maxLength = 200;
+    const trimmedText = text.length > maxLength ? text.slice(0, maxLength) : text;
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(trimmedText)}`;
 
-    // find Microsoft David
-    const david = voices.find(v => v.displayName === "Microsoft David" && v.language === "en-US");
-    if (!david) {
-        throw new Error("Microsoft David voice not found");
-    }
-    const zira = voices.find(v => v.displayName === "Microsoft Zira" && v.language === "en-US");
-    if (!zira) {
-        throw new Error("Microsoft Zira voice not found");
-    }
+    console.log("Fetching non-key TTS from", url);
 
-    const { audioData } = synthesize(text, {
-        voiceName: david.displayName,
-        speakingRate: 1.0,
-        audioPitch: 1.0,
-        enableSsml: false
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Accept": "audio/mpeg",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
     });
 
-    await writeFile("./temp/TEMP_output_david.wav", audioData);
-    console.log("Wrote output_david.wav");
+    if (!response.ok) {
+        let detail = "";
+        try {
+            const body = await response.text();
+            detail = ` Response body: ${body}`;
+        } catch {
+            detail = "";
+        }
+        throw new Error(`Non-key TTS request failed with status ${response.status}.${detail}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
 }
 
 
@@ -1928,12 +1953,10 @@ client.on("messageCreate", async (message) => {
                     adapterCreator: memberVoiceChannel.guild.voiceAdapterCreator,
                 });
 
-                await speakText(replyText);
+                const audioBuffer = await speakText(replyText);
 
                 const player = createAudioPlayer();
-                const resource = createAudioResource('./temp/TEMP_output_david.wav', {
-                    inputType: StreamType.Arbitrary,
-                });
+                const resource = createAudioResource(audioBuffer, { inputType: StreamType.Arbitrary });
 
                 player.play(resource);
                 connection.subscribe(player);
