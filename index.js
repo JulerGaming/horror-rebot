@@ -1542,6 +1542,7 @@ client.on("messageCreate", async (message) => {
                     const lastActive = m.user?.lastMessage?.createdTimestamp || 0;
                     return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
                 })
+                actionsMade += `-# Scanned for inactive members\n`;
             },
         };
 
