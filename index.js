@@ -1626,13 +1626,12 @@ client.on("messageCreate", async (message) => {
                     return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
                 });
                 if (!inactiveMembers.size) {
-                    return "(Success) No inactive members found for 7 days.";
+                    return { count: 0, members: [] };
                 }
-                const list = inactiveMembers
-                    .map(m => `${m.user.tag} (${m.id})`)
-                    .sort((a, b) => a.localeCompare(b))
-                    .join("\n");
-                return `(Success) Found ${inactiveMembers.size} inactive member(s) for 7 days:\n${list}`;
+                const members = inactiveMembers
+                    .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
+                    .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
+                return { count: inactiveMembers.size, members };
             },
             scan_people_inactive_30days: async () => {
                 console.log("AI scanned for inactive people (30 days)");
@@ -1658,13 +1657,12 @@ client.on("messageCreate", async (message) => {
                     return now - lastActive > 30 * 24 * 60 * 60 * 1000; // 30 days
                 });
                 if (!inactiveMembers.size) {
-                    return "(Success) No inactive members found for 30 days.";
+                    return { count: 0, members: [] };
                 }
-                const list = inactiveMembers
-                    .map(m => `${m.user.tag} (${m.id})`)
-                    .sort((a, b) => a.localeCompare(b))
-                    .join("\n");
-                return `(Success) Found ${inactiveMembers.size} inactive member(s) for 30 days:\n${list}`;
+                const members = inactiveMembers
+                    .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
+                    .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
+                return { count: inactiveMembers.size, members };
             }
         };
 
