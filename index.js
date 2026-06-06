@@ -671,6 +671,25 @@ function sanitizeForTTS(text) {
     return out;
 }
 
+// Resolve YouTube direct URL using yt-dlp -g
+async function resolveYouTubeDirectUrl(youtubeUrl) {
+    return new Promise((resolve) => {
+        if (!youtubeUrl) return resolve(null);
+        const safeUrl = youtubeUrl.replace(/"/g, '\\"');
+        const cmd = `yt-dlp -g "${safeUrl}"`;
+        exec(cmd, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+            if (err) {
+                console.error('[yt-dlp] Error resolving URL:', err, stderr);
+                return resolve(null);
+            }
+            const lines = (stdout || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            if (lines.length === 0) return resolve(null);
+            // Use the final non-empty line as the direct URL
+            resolve(lines[lines.length - 1]);
+        });
+    });
+}
+
 const configl = require("./config.json");
 console.log("Config loaded:", configl);
 function modlog(message) {
@@ -2945,6 +2964,16 @@ client.on("interactionCreate", async (interaction) => {
                 const url = interaction.options.getString("url");
                 if (!url) {
                     return interaction.followUp({ content: "No URL provided!", ephemeral: true });
+                }
+
+                // If this is a YouTube URL, try to resolve a direct stream URL via yt-dlp -g
+                if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                    const resolved = await resolveYouTubeDirectUrl(url);
+                    if (!resolved) {
+                        return interaction.followUp({ content: "Failed to resolve YouTube URL via yt-dlp.", ephemeral: true });
+                    }
+                    // overwrite url with the resolved direct media URL for subsequent playback logic
+                    url = resolved;
                 }
 
                 let connection = getVoiceConnection(interaction.guild.id);
