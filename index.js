@@ -1557,6 +1557,8 @@ client.on("messageCreate", async (message) => {
                 actionsMade += `-# Scanned for inactive members\n`;
                 const inactiveMembers = guild.members.cache.filter(m => {
                     if (m.user?.bot) return false;
+                    const isOnline = m.presence?.status && m.presence.status !== "offline";
+                    if (isOnline) return false;
                     const lastActive = m.lastMessage?.createdTimestamp || 0;
                     return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
                 });
@@ -1586,6 +1588,8 @@ client.on("messageCreate", async (message) => {
                 const now = Date.now();
                 const inactiveMembers = guild.members.cache.filter(m => {
                     if (m.user?.bot) return false;
+                    const isOnline = m.presence?.status && m.presence.status !== "offline";
+                    if (isOnline) return false;
                     const lastActive = m.lastMessage?.createdTimestamp || 0;
                     return now - lastActive > 30 * 24 * 60 * 60 * 1000; // 30 days
                 });
