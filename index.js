@@ -1524,6 +1524,25 @@ client.on("messageCreate", async (message) => {
                     return `(Error) Failed to send image message. ${err?.message || String(err)}`;
                 }
             },
+            scan_people_inactive_7days: async () => {
+                console.log("AI scanned for inactive people");
+                const guild = message.guild ? message.guild : null;
+                if (!guild) {
+                    return "(Error) Guild is null or unknown :(";
+                }
+                const executorMember = message.member;
+                if (!executorMember) {
+                    return "(Error) Could not resolve executor member.";
+                }
+                if (!executorMember.permissions.has("Administrator")) {
+                    return "(Error) Executor does not have permission to use this function";
+                }
+                const now = Date.now();
+                const inactiveMembers = guild.members.cache.filter(m => {
+                    const lastActive = m.user?.lastMessage?.createdTimestamp || 0;
+                    return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
+                })
+            },
         };
 
         const tools = [
@@ -1652,6 +1671,18 @@ client.on("messageCreate", async (message) => {
                     additionalProperties: false,
                 },
             },
+            {
+                type: "function",
+                name: "scan_people_inactive_7days",
+                description: "Scans for people who have been inactive for 7 days. Admin-only.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {},
+                    required: [],
+                    additionalProperties: false,
+                },
+            }
         ];
 
         history.push({
