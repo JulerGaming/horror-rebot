@@ -1566,8 +1566,11 @@ client.on("messageCreate", async (message) => {
                     return "(Success) No inactive members found for 7 days.";
                 }
                 const list = inactiveMembers
-                    .map(m => `${m.user.tag} (${m.id})`)
-                    .sort()
+                    .map(m => json.parse(JSON.stringify({
+                        tag: m.user.tag,
+                        id: m.id
+                    })))
+                    .sort((a, b) => a.tag.localeCompare(b.tag))
                     .join("\n");
                 return `(Success) Found ${inactiveMembers.size} inactive member(s) for 7 days:\n${list}`;
             },
@@ -1597,8 +1600,11 @@ client.on("messageCreate", async (message) => {
                     return "(Success) No inactive members found for 30 days.";
                 }
                 const list = inactiveMembers
-                    .map(m => `${m.user.tag} (${m.id})`)
-                    .sort()
+                    .map(m => json.parse(JSON.stringify({
+                        tag: m.user.tag,
+                        id: m.id
+                    })))
+                    .sort((a, b) => a.tag.localeCompare(b.tag))
                     .join("\n");
                 return `(Success) Found ${inactiveMembers.size} inactive member(s) for 30 days:\n${list}`;
             }
