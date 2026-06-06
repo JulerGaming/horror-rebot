@@ -1538,9 +1538,9 @@ client.on("messageCreate", async (message) => {
                     return "(Error) Executor does not have permission to use this function";
                 }
                 const now = Date.now();
+                actionsMade += `-# Scanned for inactive members\n`;
                 const inactiveMembers = guild.members.cache.filter(m => {
                     const lastActive = m.user?.lastMessage?.createdTimestamp || 0;
-                    actionsMade += `-# Scanned for inactive members\n`;
                     return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
                 })
             },
@@ -1557,10 +1557,10 @@ client.on("messageCreate", async (message) => {
                 if (!executorMember.permissions.has("Administrator")) {
                     return "(Error) Executor does not have permission to use this function";
                 }
+                actionsMade += `-# Scanned for inactive members (30 days)\n`;
                 const now = Date.now();
                 const inactiveMembers = guild.members.cache.filter(m => {
                     const lastActive = m.user?.lastMessage?.createdTimestamp || 0;
-                    actionsMade += `-# Scanned for inactive members (30 days)\n`;
                     return now - lastActive > 30 * 24 * 60 * 60 * 1000; // 30 days
                 });
             }
