@@ -2961,7 +2961,7 @@ client.on("interactionCreate", async (interaction) => {
                     return interaction.followUp({ content: "You need to be in a voice channel.", ephemeral: true });
                 }
 
-                const url = interaction.options.getString("url");
+                let url = interaction.options.getString("url");
                 if (!url) {
                     return interaction.followUp({ content: "No URL provided!", ephemeral: true });
                 }
