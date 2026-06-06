@@ -643,6 +643,34 @@ async function speakText(text) {
     }
 }
 
+// Sanitize text for TTS: remove markdown, code blocks, links, and HTML, but KEEP emoji characters
+function sanitizeForTTS(text) {
+    if (!text) return "";
+    let out = String(text);
+    // Remove fenced code blocks
+    out = out.replace(/```[\s\S]*?```/g, " ");
+    // Remove inline code
+    out = out.replace(/`[^`]*`/g, " ");
+    // Replace images ![alt](url) with alt text
+    out = out.replace(/!\[([^\]]*)\]\([^\)]*\)/g, "$1");
+    // Replace links [text](url) with text
+    out = out.replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1");
+    // Remove blockquote and heading markers
+    out = out.replace(/^>+/gm, " ");
+    out = out.replace(/^#{1,6}\s*/gm, " ");
+    // Unwrap bold/italic/strike markers
+    out = out.replace(/(\*\*|__)(.*?)\1/g, "$2");
+    out = out.replace(/(\*|_)(.*?)\1/g, "$2");
+    out = out.replace(/~~(.*?)~~/g, "$1");
+    // Remove any remaining markdown punctuation that isn't emoji
+    out = out.replace(/[\*\_\`]/g, "");
+    // Strip HTML tags
+    out = out.replace(/<[^>]+>/g, "");
+    // Collapse whitespace
+    out = out.replace(/\s{2,}/g, " ").trim();
+    return out;
+}
+
 const configl = require("./config.json");
 console.log("Config loaded:", configl);
 function modlog(message) {
@@ -1948,7 +1976,7 @@ client.on("messageCreate", async (message) => {
                     adapterCreator: memberVoiceChannel.guild.voiceAdapterCreator,
                 });
 
-                const audioBuffer = await speakText(replyText);
+                const audioBuffer = await speakText(sanitizeForTTS(replyText));
                 const { Readable } = require("stream");
                 const audioStream = new Readable({ read() {
                     this.push(audioBuffer);
