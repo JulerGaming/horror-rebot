@@ -2441,16 +2441,26 @@ client.on("messageCreate", async (message) => {
 
 const EmbedBuilder = require("discord.js").EmbedBuilder;
 
+const blockedChannels = [
+    '1399831432259702836',
+    '1339368419325116507'
+]
+
 client.on("interactionCreate", async (interaction) => {
     try {
         if (interaction.isCommand()) {
             if (!configl.basics.vc.enabled) {
                 if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
                     const embed = new EmbedBuilder()
-                        .setTitle("Voice Commands No Longer Work")
-                        .setDescription("Due to recent changes in Discord's API and policies, the voice-related commands no longer work. We apologize for any inconvenience this may cause. If you have any questions or concerns, please contact the server staff.")
+                        .setTitle("Voice Commands Are Disabled")
+                        .setDescription("We apologize for any inconvenience this may cause. If you have any questions or concerns, please contact the server staff.")
                         .setColor(0xFF0000);
                     return interaction.reply({ embeds: [embed] });
+                }
+            }
+            if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
+                if (blockedChannels.has(interaction.channelID)) {
+                    return interaction.reply({ ephemeral: true, content: 'Cannot join this channel!' })
                 }
             }
             if (interaction.commandName === "ping") {
@@ -2462,7 +2472,6 @@ client.on("interactionCreate", async (interaction) => {
                     flags: ["Ephemeral"],
                 });
             }
-
             if (interaction.commandName === "balls") {
                 console.log(
                     `Recieved interaction request for balls by ${interaction.user.displayName}`,
