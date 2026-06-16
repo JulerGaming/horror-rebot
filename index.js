@@ -2459,7 +2459,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
             }
             if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
-                if (blockedChannels.has(interaction.channelID)) {
+                if (blockedChannels.includes(interaction.channelID)) {
                     return interaction.reply({ ephemeral: true, content: 'Cannot join this channel!' })
                 }
             }
