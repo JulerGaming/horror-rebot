@@ -253,6 +253,16 @@ const slashRegister = async () => {
               .setDescription("a description of the video")
               .setRequired(false)
           ),
+        new SlashCommandBuilder()
+          .setName("listentohr")
+          .setDescription("listen to horror radio in the comfort of your voice channel")
+          .setIntegrationTypes(0, 1)
+          .setContexts(0, 1, 2),
+        new SlashCommandBuilder()
+          .setName("leavevoice")
+          .setDescription("leaves the voice channel that i'm in")
+          .setIntegrationTypes(0, 1)
+          .setContexts(0, 1, 2),
       ]
     });
     console.log("Successfully registered the slash commands globally");
@@ -264,5 +274,5 @@ const slashRegister = async () => {
 module.exports = { slashRegister };
 
 if (require.main === module) {
-    slashRegister();
+  slashRegister();
 }

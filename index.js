@@ -1995,10 +1995,12 @@ client.on("messageCreate", async (message) => {
 
                 const audioBuffer = await speakText(sanitizeForTTS(replyText));
                 const { Readable } = require("stream");
-                const audioStream = new Readable({ read() {
-                    this.push(audioBuffer);
-                    this.push(null);
-                }});
+                const audioStream = new Readable({
+                    read() {
+                        this.push(audioBuffer);
+                        this.push(null);
+                    }
+                });
 
                 const player = createAudioPlayer();
                 const resource = createAudioResource(audioStream, { inputType: StreamType.Arbitrary });
@@ -3415,6 +3417,51 @@ client.on("interactionCreate", async (interaction) => {
                     console.error("Submission error:", err);
                     await interaction.followUp({ content: "Error submitting video. Please try again.", ephemeral: true });
                 }
+            }
+            if (interaction.commandName === "listentohr") {
+                console.log("Recieved interaction request for listentohr by " + interaction.user.displayName);
+                const voiceChannel = interaction.member.voice.channel;
+                const connection = getVoiceConnection(interaction.guild.id);
+                if (connection) {
+                    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+
+                    const player = createAudioPlayer();
+                    const resource = createAudioResource("http://localhost:8080", { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                    player.play(resource);
+                    connection.subscribe(player);
+
+                    player.on(AudioPlayerStatus.Idle, () => {
+                        destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
+                    });
+
+                    return interaction.followUp({ content: `Streaming audio from Horror Radio in ${voiceChannel.name}!`, ephemeral: true });
+                } else {
+                    connection = joinVoiceChannel({
+                        channelId: voiceChannel.id,
+                        guildId: voiceChannel.guild.id,
+                        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+                    });
+
+                    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+
+                    const player = createAudioPlayer();
+                    const resource = createAudioResource("http://localhost:8080", { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+
+                    player.play(resource);
+                    connection.subscribe(player);
+
+                    player.on(AudioPlayerStatus.Idle, () => {
+                        destroyVoiceConnectionIfNotSpeaking(interaction.guild.id, player);
+                    });
+
+                    return interaction.followUp({ content: `Streaming audio from Horror Radio in ${voiceChannel.name}!`, ephemeral: true });
+                }
+            }
+            if (interaction.commandName === "leavevoice") {
+                const conn = getVoiceConnection(interaction.guild);
+                if (conn) conn.destroy();
+                else { interaction.reply({ content: `I'm not in a voice channel!`, ephemeral: true })}
             }
         }
     } catch (error) {
