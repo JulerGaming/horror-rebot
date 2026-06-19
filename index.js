@@ -420,28 +420,30 @@ const shutdown = async (signal) => {
 };
 
 async function CleanUp() {
-    client.guilds.cache.forEach((guild) => {
-        if (guild.voiceAdapterCreator) {
-            const voiceConnection = getVoiceConnection(guild.id);
-            if (voiceConnection) {
-                console.log(`Disconnecting from voice channel in guild: ${guild.name}`);
-                voiceConnection.destroy();
-            }
-        }
-    });
-    fs.writeFileSync("./public/main.log", ""); // Clear log file on exit
     try {
-        // for each file in the temp folder, delete it (except if it ends in .keep)
-        const tempDir = path.join(__dirname, "temp");
-        fs.readdirSync(tempDir).forEach(file => {
-            if (file !== ".keep") {
-                fs.unlinkSync(path.join(tempDir, file));
+        client.guilds.cache.forEach((guild) => {
+            if (guild.voiceAdapterCreator) {
+                const voiceConnection = getVoiceConnection(guild.id);
+                if (voiceConnection) {
+                    console.log(`Disconnecting from voice channel in guild: ${guild.name}`);
+                    voiceConnection.destroy();
+                }
             }
         });
-    } catch (err) {
-        console.warn("Failed to clear temp directory!");
-    }
-    await client.destroy();
+        fs.writeFileSync("./public/main.log", ""); // Clear log file on exit
+        try {
+            // for each file in the temp folder, delete it (except if it ends in .keep)
+            const tempDir = path.join(__dirname, "temp");
+            fs.readdirSync(tempDir).forEach(file => {
+                if (file !== ".keep") {
+                    fs.unlinkSync(path.join(tempDir, file));
+                }
+            });
+        } catch (err) {
+            console.warn("Failed to clear temp directory!");
+        }
+        await client.destroy();
+    } catch (err) {}
 }
 
 process.on("SIGINT", shutdown);
@@ -3459,7 +3461,7 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "leavevoice") {
                 const conn = getVoiceConnection(interaction.guild.id);
-                if (conn) { 
+                if (conn) {
                     conn.destroy();
                     interaction.reply({ content: 'Done!', ephemeral: true })
                 }
