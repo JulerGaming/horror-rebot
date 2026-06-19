@@ -3513,5 +3513,5 @@ client.login(process.env.BOT_TOKEN); // I had to expose the token here because i
 async function restart(code) {
     console.log(`Restart requested with code: ${code}`);
     await CleanUp();
-    process.exit(code);
+    process.exit();
 }
