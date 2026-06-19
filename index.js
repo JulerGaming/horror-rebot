@@ -3420,7 +3420,7 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "listentohr") {
                 console.log("Recieved interaction request for listentohr by " + interaction.user.displayName);
-                interaction.deferReply();
+                await interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 let connection = getVoiceConnection(interaction.guild.id);
                 if (connection) {
