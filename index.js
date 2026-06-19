@@ -476,7 +476,7 @@ process.on("unhandledRejection", async (err) => {
             const guild = client.guilds.cache.get("1333194010201952367");
             const julergt = await guild?.members?.fetch?.("804839205309382676").catch(() => null);
             await julergt?.send?.(
-                `<@804839205309382676>\n# Bot Crashed!\n### The bot crashed due to an unhandled rejection.\nHere is the error report:\n\`\`\`\n${err?.stack || err}\n\`\`\``,
+                `<@804839205309382676>\n# Warning!\n### The bot encountered an unhandled rejection.\nHere is the error report:\n\`\`\`\n${err?.stack || err}\n\`\`\``,
             );
         }
     } catch (dmErr) {
@@ -490,8 +490,6 @@ process.on("unhandledRejection", async (err) => {
     console.error("");
     console.error("==============================");
     // make this console line red
-    console.error("\x1b[31m%s\x1b[0m", "[fatal] Bot crashed, HANGING HERE!");
-    restart(err.code); // exit the process to avoid undefined states
 });
 
 const blacklistedTags = {
