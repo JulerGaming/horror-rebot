@@ -3421,7 +3421,7 @@ client.on("interactionCreate", async (interaction) => {
             if (interaction.commandName === "listentohr") {
                 console.log("Recieved interaction request for listentohr by " + interaction.user.displayName);
                 const voiceChannel = interaction.member.voice.channel;
-                const connection = getVoiceConnection(interaction.guild.id);
+                let connection = getVoiceConnection(interaction.guild.id);
                 if (connection) {
                     await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
