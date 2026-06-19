@@ -3459,7 +3459,10 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "leavevoice") {
                 const conn = getVoiceConnection(interaction.guild.id);
-                if (conn) conn.destroy();
+                if (conn) { 
+                    conn.destroy();
+                    interaction.reply({ content: 'Done!', ephemeral: true })
+                }
                 else { interaction.reply({ content: `I'm not in a voice channel!`, ephemeral: true }) }
             }
         }
