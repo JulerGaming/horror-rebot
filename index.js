@@ -3418,6 +3418,7 @@ client.on("interactionCreate", async (interaction) => {
             }
             if (interaction.commandName === "listentohr") {
                 console.log("Recieved interaction request for listentohr by " + interaction.user.displayName);
+                interaction.deferReply();
                 const voiceChannel = interaction.member.voice.channel;
                 let connection = getVoiceConnection(interaction.guild.id);
                 if (connection) {
@@ -3459,7 +3460,7 @@ client.on("interactionCreate", async (interaction) => {
             if (interaction.commandName === "leavevoice") {
                 const conn = getVoiceConnection(interaction.guild.id);
                 if (conn) conn.destroy();
-                else { interaction.reply({ content: `I'm not in a voice channel!`, ephemeral: true })}
+                else { interaction.reply({ content: `I'm not in a voice channel!`, ephemeral: true }) }
             }
         }
     } catch (error) {
