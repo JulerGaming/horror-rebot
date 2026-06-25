@@ -583,9 +583,15 @@ async function checkBirthdays() {
     }
 }
 
-const badWords = fs.readFileSync("bad-words.txt", "utf-8").split("\n");
+const badWords = fs.readFileSync("bad-words.txt", "utf-8")
+    .split(/\r?\n/)
+    .map(w => w.trim().toLowerCase())
+    .filter(Boolean);
 
-const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8").split("\n");
+const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8")
+    .split(/\r?\n/)
+    .map(w => w.trim().toLowerCase())
+    .filter(Boolean);
 
 console.log("Clearing old issues...");
 fs.writeFileSync(path.join(__dirname, "public", "issues.txt"), "", "utf-8");
@@ -1127,7 +1133,7 @@ client.on("messageCreate", async (message) => {
     }
 
     // Bad words filter
-    const words = message.content.split(" ");
+    const words = message.content.split(/\s+/).filter(Boolean);
     for (const word of words) {
         if (badWords.includes(word.toLowerCase())) {
             try {
