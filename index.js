@@ -273,6 +273,10 @@ function destroyVoiceConnectionIfNotSpeaking(guildId, expectedPlayer = null) {
     const connection = getVoiceConnection(guildId);
     if (!connection) { return; }
 
+    // Keep the connection alive while we're actively listening (voice moderation or the
+    // wake-word assistant). The assistant has its own inactivity timer for leaving.
+    if (activeVoiceModeration.has(guildId) || voiceAssistants.has(guildId)) { return; }
+
     const currentPlayer = connection.state.subscription?.player;
     if (currentPlayer && expectedPlayer && currentPlayer !== expectedPlayer) { return; }
     if (currentPlayer && currentPlayer.state.status !== AudioPlayerStatus.Idle) { return; }
@@ -349,38 +353,56 @@ let hasSyncRepo = false;
 async function syncRepo() {
     if (!cff.GitHub) { return; }
     try {
-        console.log("Checking remote changes...");
+        console.log("Syncing repo with GitHub...");
 
         await run("git fetch");
 
-        const local = await run("git rev-parse HEAD");
-        const remote = await run("git rev-parse @{u}");
-
-        if (local !== remote) {
-            console.log("Remote updates found. Pulling...");
-            await run("git pull");
-            restart(0);
-        } else {
-            console.log("Repo already up to date.");
-        }
-
-        console.log("Checking local changes...");
-
+        // 1) Commit any local changes FIRST so the working tree is clean before merging.
         const status = await run("git status --porcelain");
-
         if (status) {
-            console.log("Local changes detected. Committing and pushing...");
-
+            console.log("Local changes detected. Committing...");
             await run("git add .");
             await run(`git commit -m "Auto commit from bot"`);
-            await run("git push");
+        }
 
+        // 2) Merge in remote changes if the remote is actually ahead of us.
+        const head = await run("git rev-parse HEAD");
+        const upstream = await run("git rev-parse @{u}");
+        let mergedRemote = false;
+        if (head !== upstream) {
+            const base = await run("git merge-base HEAD @{u}");
+            if (base !== upstream) { // remote has commits we don't have -> merge them
+                console.log("Remote updates found. Merging...");
+                try {
+                    await run("git merge --no-edit @{u}");
+                    mergedRemote = true;
+                } catch (mergeErr) {
+                    // Conflict (or other merge failure): abort so we stay on a clean tree
+                    // and try again next cycle instead of getting stuck mid-merge.
+                    console.error("Merge failed (likely a conflict). Aborting:", mergeErr);
+                    try { await run("git merge --abort"); } catch { /* ignore */ }
+                    return;
+                }
+            }
+        }
+
+        // 3) Push if we have commits the remote doesn't (local work and/or the merge commit).
+        const ahead = parseInt(await run("git rev-list --count @{u}..HEAD"), 10) || 0;
+        if (ahead > 0) {
+            console.log(`Pushing ${ahead} commit(s) to GitHub...`);
+            await run("git push");
             console.log("Changes pushed to GitHub.");
         } else {
-            console.log("No local changes.");
+            console.log("Nothing to push.");
         }
 
         hasSyncRepo = true;
+
+        // 4) If new remote code was merged in, restart so the bot runs the latest code.
+        if (mergedRemote) {
+            console.log("Remote code merged. Restarting...");
+            restart(0);
+        }
 
     } catch (err) {
         console.error("Git sync error:", err);
@@ -680,49 +702,27 @@ async function transcribePcm(pcm) {
     return (result.text || "").trim();
 }
 
-async function handleVoiceUtterance(member, textChannel, pcm) {
-    if (!pcm || pcm.length < VOICE_MIN_BYTES) { return; }
-    if (pcm.length > VOICE_MAX_BYTES) { pcm = pcm.subarray(0, VOICE_MAX_BYTES); }
-
-    let text;
-    try {
-        text = await transcribePcm(pcm);
-    } catch (err) {
-        console.error("[VoiceMod] Transcription failed:", err?.message || err);
-        return;
-    }
-    if (!text) { return; }
-    console.log(`[VoiceMod] ${member.user.tag}: ${text}`);
-
-    const hit = containsBadWord(text);
-    if (!hit) { return; }
-    console.log(`[VoiceMod] Bad word "${hit}" detected in voice from ${member.user.tag}`);
-
-    try {
-        await member.timeout(600000, "Inappropriate language in voice chat.");
-    } catch (err) {
-        console.error("[VoiceMod] Failed to timeout member:", err?.message || err);
-    }
-    try {
-        if (textChannel?.send) {
-            await textChannel.send(`${member}, please watch your language in voice chat.`);
-        }
-    } catch (err) {
-        console.error("[VoiceMod] Failed to send warning:", err?.message || err);
-    }
-}
-
-function startVoiceModeration(connection, voiceChannel, textChannel) {
+// Ensure a single capture pipeline exists for this guild's connection. Each finished
+// utterance is dispatched to every consumer as { member, voiceChannel, pcm, getTranscript }.
+// getTranscript() transcribes lazily and caches, so N consumers => at most one Whisper call.
+function ensureVoiceCapture(connection, voiceChannel) {
     const guildId = voiceChannel.guild.id;
-    if (activeVoiceModeration.has(guildId)) { return false; }
+    let cap = voiceCaptures.get(guildId);
+    if (cap) {
+        cap.connection = connection;
+        cap.voiceChannel = voiceChannel;
+        return cap;
+    }
 
     const receiver = connection.receiver;
     const recording = new Set(); // userIds currently being captured (avoid double subscriptions)
+    const consumers = new Set();
 
     const onSpeakingStart = (userId) => {
         if (recording.has(userId)) { return; }
+        if (consumers.size === 0) { return; }
         const member = voiceChannel.guild.members.cache.get(userId);
-        if (!member || member.user.bot) { return; }
+        if (!member || member.user.bot) { return; } // never capture the bot's own audio
         recording.add(userId);
 
         const opusStream = receiver.subscribe(userId, {
@@ -746,12 +746,31 @@ function startVoiceModeration(connection, voiceChannel, textChannel) {
         });
         pcmStream.on("end", () => {
             recording.delete(userId);
-            handleVoiceUtterance(member, textChannel, Buffer.concat(chunks))
-                .catch((e) => console.error("[VoiceMod] utterance error:", e?.message || e));
+            const pcm = Buffer.concat(chunks);
+            if (pcm.length < VOICE_MIN_BYTES) { return; } // too short, skip (saves Whisper calls)
+
+            // Transcribe at most once per utterance, shared across all consumers.
+            let transcriptPromise = null;
+            const getTranscript = () => {
+                if (!transcriptPromise) {
+                    const clipped = pcm.length > VOICE_MAX_BYTES ? pcm.subarray(0, VOICE_MAX_BYTES) : pcm;
+                    transcriptPromise = transcribePcm(clipped).catch((e) => {
+                        console.error("[Voice] Transcription failed:", e?.message || e);
+                        return "";
+                    });
+                }
+                return transcriptPromise;
+            };
+
+            for (const consumer of consumers) {
+                Promise.resolve()
+                    .then(() => consumer({ member, voiceChannel: cap.voiceChannel, pcm, getTranscript }))
+                    .catch((e) => console.error("[Voice] consumer error:", e?.message || e));
+            }
         });
         const cleanup = (err) => {
             recording.delete(userId);
-            if (err) { console.error("[VoiceMod] stream error:", err?.message || err); }
+            if (err) { console.error("[Voice] stream error:", err?.message || err); }
         };
         pcmStream.on("error", cleanup);
         opusStream.on("error", cleanup);
@@ -759,24 +778,166 @@ function startVoiceModeration(connection, voiceChannel, textChannel) {
 
     receiver.speaking.on("start", onSpeakingStart);
 
-    // Stop moderating if the connection goes away (e.g. /leavevoice or a disconnect).
-    connection.once(VoiceConnectionStatus.Destroyed, () => stopVoiceModeration(guildId));
-
-    activeVoiceModeration.set(guildId, {
-        receiver,
-        onSpeakingStart,
-        recording,
-        textChannelId: textChannel?.id,
-        voiceChannelId: voiceChannel.id,
+    // Tear everything down if the connection goes away (e.g. /leavevoice or a disconnect).
+    connection.once(VoiceConnectionStatus.Destroyed, () => {
+        try { receiver?.speaking?.off?.("start", onSpeakingStart); } catch { /* ignore */ }
+        voiceCaptures.delete(guildId);
+        activeVoiceModeration.delete(guildId);
+        stopVoiceAssistant(guildId, true);
     });
+
+    cap = { connection, voiceChannel, consumers, recording, onSpeakingStart, receiver };
+    voiceCaptures.set(guildId, cap);
+    return cap;
+}
+
+// Register a consumer; returns an unsubscribe fn that also tears the hub down if it was last.
+function addVoiceConsumer(connection, voiceChannel, consumer) {
+    const cap = ensureVoiceCapture(connection, voiceChannel);
+    cap.consumers.add(consumer);
+    return () => {
+        cap.consumers.delete(consumer);
+        if (cap.consumers.size === 0) {
+            try { cap.receiver?.speaking?.off?.("start", cap.onSpeakingStart); } catch { /* ignore */ }
+            voiceCaptures.delete(voiceChannel.guild.id);
+        }
+    };
+}
+
+// ====== VOICE MODERATION ======
+// Transcribes speech and runs it through the same bad-words filter used for text messages.
+const activeVoiceModeration = new Map(); // guildId -> removeConsumer fn
+
+function startVoiceModeration(connection, voiceChannel, textChannel) {
+    const guildId = voiceChannel.guild.id;
+    if (activeVoiceModeration.has(guildId)) { return false; }
+
+    const consumer = async ({ member, getTranscript }) => {
+        const text = await getTranscript();
+        if (!text) { return; }
+        console.log(`[VoiceMod] ${member.user.tag}: ${text}`);
+
+        const hit = containsBadWord(text);
+        if (!hit) { return; }
+        console.log(`[VoiceMod] Bad word "${hit}" detected in voice from ${member.user.tag}`);
+
+        try {
+            await member.timeout(600000, "Inappropriate language in voice chat.");
+        } catch (err) {
+            console.error("[VoiceMod] Failed to timeout member:", err?.message || err);
+        }
+        try {
+            if (textChannel?.send) {
+                await textChannel.send(`${member}, please watch your language in voice chat.`);
+            }
+        } catch (err) {
+            console.error("[VoiceMod] Failed to send warning:", err?.message || err);
+        }
+    };
+
+    const remove = addVoiceConsumer(connection, voiceChannel, consumer);
+    activeVoiceModeration.set(guildId, remove);
     return true;
 }
 
 function stopVoiceModeration(guildId) {
-    const session = activeVoiceModeration.get(guildId);
-    if (!session) { return false; }
-    try { session.receiver?.speaking?.off?.("start", session.onSpeakingStart); } catch { /* ignore */ }
+    const remove = activeVoiceModeration.get(guildId);
+    if (!remove) { return false; }
+    try { remove(); } catch { /* ignore */ }
     activeVoiceModeration.delete(guildId);
+    return true;
+}
+
+// ====== VOICE ASSISTANT (wake word -> ChatGPT reply) ======
+// While the bot is in a voice channel, listen for a wake word; if heard, send the rest of
+// the utterance to the same ChatGPT pipeline used for @mentions and reply via TTS.
+const voiceAssistants = new Map(); // guildId -> { remove, idleTimer, textChannel }
+const VOICE_ASSISTANT_IDLE_MS = 5 * 60 * 1000; // auto-leave after 5 min with no wake-word activity
+
+// Tolerant of Whisper mis-hearing the name ("rebot"/"reboot"/"robot"/"horror bot").
+const WAKE_WORDS = ["horror rebot", "hey rebot", "ok rebot", "rebot", "reboot", "robot", "ribot", "rebought"];
+
+// Returns the query with the wake word stripped, or null if no wake word was present.
+function extractWakeQuery(text) {
+    const lower = text.toLowerCase();
+    for (const w of WAKE_WORDS) {
+        const idx = lower.indexOf(w);
+        if (idx !== -1) {
+            return text.slice(idx + w.length).replace(/^[\s,.:;!?'"-]+/, "").trim();
+        }
+    }
+    return null;
+}
+
+// Minimal message-like object so runChatGptReply works for voice the same as for text.
+function makeSyntheticMessage(member, voiceChannel, textChannel, content) {
+    return {
+        author: member.user,
+        member,
+        content,
+        guild: member.guild,
+        channel: textChannel,
+        channelId: textChannel?.id,
+        reference: null,
+        mentions: { has: () => false },
+        reply: async (payload) => {
+            try { return await textChannel.send(payload); }
+            catch (e) { console.error("[VoiceChat] reply failed:", e?.message || e); return null; }
+        },
+        _fromVoice: true,
+    };
+}
+
+function bumpAssistantIdle(guildId) {
+    const a = voiceAssistants.get(guildId);
+    if (!a) { return; }
+    if (a.idleTimer) { clearTimeout(a.idleTimer); }
+    a.idleTimer = setTimeout(() => {
+        console.log(`[VoiceChat] Leaving guild ${guildId} after inactivity.`);
+        const conn = getVoiceConnection(guildId);
+        if (conn) { try { conn.destroy(); } catch { /* ignore */ } }
+        stopVoiceAssistant(guildId, true);
+    }, VOICE_ASSISTANT_IDLE_MS);
+    if (a.idleTimer.unref) { a.idleTimer.unref(); }
+}
+
+function startVoiceAssistant(connection, voiceChannel, textChannel) {
+    const guildId = voiceChannel.guild.id;
+    if (voiceAssistants.has(guildId)) {
+        bumpAssistantIdle(guildId);
+        return false;
+    }
+
+    const consumer = async ({ member, getTranscript }) => {
+        const text = await getTranscript();
+        if (!text) { return; }
+        const query = extractWakeQuery(text);
+        if (query === null) { return; } // wake word not spoken; ignore this utterance
+        bumpAssistantIdle(guildId);
+        console.log(`[VoiceChat] ${member.user.tag}: "${query}"`);
+        try {
+            if (textChannel?.send) { await textChannel.send(`🎙️ ${member} said: "${query || "(nothing)"}"`); }
+        } catch { /* ignore */ }
+        const synthetic = makeSyntheticMessage(member, voiceChannel, textChannel, query || "Hello");
+        try {
+            await runChatGptReply(synthetic);
+        } catch (e) {
+            console.error("[VoiceChat] reply pipeline error:", e?.message || e);
+        }
+    };
+
+    const remove = addVoiceConsumer(connection, voiceChannel, consumer);
+    voiceAssistants.set(guildId, { remove, idleTimer: null, textChannel });
+    bumpAssistantIdle(guildId);
+    return true;
+}
+
+function stopVoiceAssistant(guildId, skipRemove = false) {
+    const a = voiceAssistants.get(guildId);
+    if (!a) { return false; }
+    if (a.idleTimer) { clearTimeout(a.idleTimer); }
+    if (!skipRemove) { try { a.remove(); } catch { /* ignore */ } }
+    voiceAssistants.delete(guildId);
     return true;
 }
 
@@ -1362,10 +1523,6 @@ client.on("messageCreate", async (message) => {
     }
 
     // chatgpt mention reply
-
-    // ====== URL REGEX ======
-    const urlRegex = /(https?:\/\/[^\s]+)/gi;
-
     // ====== HANDLER ======
     if (
         message.mentions?.has?.(client.user) ||
@@ -1374,6 +1531,16 @@ client.on("messageCreate", async (message) => {
         message.channel.type === ChannelType.DM &&
         configl.chatgptintegration.enabled
     ) {
+        await runChatGptReply(message);
+    }
+});
+
+// ====== CHATGPT REPLY ======
+// Shared by text @mentions/DMs and the voice assistant, which calls this with a synthetic
+// message built from a transcribed voice utterance (see makeSyntheticMessage).
+async function runChatGptReply(message) {
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+
         console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
 
         let actionsMade = "";
@@ -2183,7 +2350,14 @@ client.on("messageCreate", async (message) => {
                     channelId: memberVoiceChannel.id,
                     guildId: memberVoiceChannel.guild.id,
                     adapterCreator: memberVoiceChannel.guild.voiceAdapterCreator,
+                    selfDeaf: false, // stay undeafened so the wake-word assistant can hear follow-ups
                 });
+
+                // Keep listening for the wake word so the user can continue talking by voice.
+                if (configl.chatgptintegration.enabled) {
+                    try { startVoiceAssistant(connection, memberVoiceChannel, message.channel); }
+                    catch (e) { console.error("[VoiceChat] Failed to start assistant:", e?.message || e); }
+                }
 
                 const audioBuffer = await speakText(sanitizeForTTS(replyText));
                 const { Readable } = require("stream");
@@ -2217,8 +2391,7 @@ client.on("messageCreate", async (message) => {
             console.error("TTS playback failed:", err);
             newIssue(`A TTS playback error occurred at ${new Date().toISOString()}.`);
         }
-    }
-});
+}
 
 // occurs when this member's roles or nickname are updated
 
