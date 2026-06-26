@@ -828,7 +828,7 @@ function startVoiceModeration(connection, voiceChannel, textChannel) {
         }
         try {
             if (textChannel?.send) {
-                await textChannel.send(`${member}, please watch your language in voice chat.`);
+                await textChannel.send(`${member}, please watch your language in voice chat. You said: \`${text}\`, and you also said: \`${hit}\`. Was that correct? Report this to Juler if wrong.`);
             }
         } catch (err) {
             console.error("[VoiceMod] Failed to send warning:", err?.message || err);
