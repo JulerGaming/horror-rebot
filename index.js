@@ -855,7 +855,7 @@ const voiceAssistants = new Map(); // guildId -> { remove, idleTimer, textChanne
 const VOICE_ASSISTANT_IDLE_MS = 5 * 60 * 1000; // auto-leave after 5 min with no wake-word activity
 
 // Tolerant of Whisper mis-hearing the name ("rebot"/"reboot"/"robot"/"horror bot").
-const WAKE_WORDS = ["horror rebot", "hey rebot", "ok rebot", "rebot", "reboot", "robot", "ribot", "rebought"];
+const WAKE_WORDS = ["horror rebot", "hey rebot", "ok rebot", "rebot", "reboot", "robot", "ribot", "rebought", "horribot"];
 
 // Returns the query with the wake word stripped, or null if no wake word was present.
 function extractWakeQuery(text) {
