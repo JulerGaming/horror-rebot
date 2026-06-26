@@ -443,7 +443,7 @@ async function CleanUp() {
             console.warn("Failed to clear temp directory!");
         }
         await client.destroy();
-    } catch (err) {}
+    } catch (err) { }
 }
 
 process.on("SIGINT", shutdown);
@@ -1170,6 +1170,9 @@ client.on("messageCreate", async (message) => {
             try {
                 if (!message.guild) { return null; } // should not happen, but just in case
                 await message.member.timeout(600000, "Using inappropriate language.");
+                message.channel.send(
+                    `${message.author} has been timed out for 10 minutes for using inappropriate language.`,
+                );
             } catch (error) {
                 if (error.code === 50013) {
                     console.log(`Bad word detected: ${word}`);
@@ -1178,10 +1181,6 @@ client.on("messageCreate", async (message) => {
                     );
                     message.channel.send(
                         `${message.author}, your message has been deleted.`,
-                    );
-                } else {
-                    message.channel.send(
-                        `${message.author} has been timed out for 10 minutes for using inappropriate language.`,
                     );
                 }
             }
