@@ -628,12 +628,13 @@ function containsBadWord(text) {
     return null;
 }
 
-// ====== VOICE MODERATION ======
-// Listens to speech in a voice channel, transcribes each utterance with OpenAI Whisper,
-// and runs the transcript through the same bad-words filter used for text messages.
+// ====== VOICE CAPTURE / TRANSCRIPTION ======
+// Shared listener hub. One capture per guild subscribes to each speaker once, decodes
+// Opus->PCM, and dispatches each finished utterance to every registered consumer. This
+// lets voice moderation and the voice assistant share one connection (no double
+// subscriptions) and transcribe each utterance at most once.
 // NOTE: this records and transcribes members' voice audio and costs money per minute of
-// speech (Whisper). It only runs in a guild after a moderator starts it with /voicemod,
-// and it announces itself in the channel for transparency/consent.
+// speech (Whisper). It only runs after a moderator/user opts in, and announces itself.
 const prism = require("prism-media");
 
 // 48kHz, 16-bit, stereo PCM. Skip utterances shorter than ~0.8s to avoid wasting Whisper
@@ -645,7 +646,7 @@ const VOICE_MIN_BYTES = Math.floor(VOICE_PCM_BYTES_PER_SEC * 0.8);
 const VOICE_MAX_BYTES = VOICE_PCM_BYTES_PER_SEC * 30; // hard cap ~30s per utterance
 const VOICE_SILENCE_MS = 1000; // end an utterance after 1s of silence
 
-const activeVoiceModeration = new Map(); // guildId -> { receiver, onSpeakingStart, recording: Set, textChannelId, voiceChannelId }
+const voiceCaptures = new Map(); // guildId -> { connection, voiceChannel, consumers:Set, recording:Set, onSpeakingStart, receiver }
 
 // Wraps raw PCM (s16le) in a minimal WAV container so Whisper can read it.
 function pcmToWav(pcm, sampleRate = VOICE_PCM_SAMPLE_RATE, channels = VOICE_PCM_CHANNELS, bitDepth = 16) {
