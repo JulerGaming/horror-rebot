@@ -659,12 +659,13 @@ function containsBadWord(text) {
 // speech (Whisper). It only runs after a moderator/user opts in, and announces itself.
 const prism = require("prism-media");
 
-// 48kHz, 16-bit, stereo PCM. Skip utterances shorter than ~0.8s to avoid wasting Whisper
+// 48kHz, 16-bit, stereo PCM. Skip utterances shorter than ~0.4s to avoid wasting Whisper
 // calls on coughs/clicks, and cap very long ones so a hot mic can't run up huge bills.
+// (0.4s, not 0.8s, so quiet/short/noise-gated speakers aren't dropped before transcription.)
 const VOICE_PCM_SAMPLE_RATE = 48000;
 const VOICE_PCM_CHANNELS = 2;
 const VOICE_PCM_BYTES_PER_SEC = VOICE_PCM_SAMPLE_RATE * VOICE_PCM_CHANNELS * 2;
-const VOICE_MIN_BYTES = Math.floor(VOICE_PCM_BYTES_PER_SEC * 0.8);
+const VOICE_MIN_BYTES = Math.floor(VOICE_PCM_BYTES_PER_SEC * 0.4);
 const VOICE_MAX_BYTES = VOICE_PCM_BYTES_PER_SEC * 30; // hard cap ~30s per utterance
 const VOICE_SILENCE_MS = 1000; // end an utterance after 1s of silence
 
@@ -718,12 +719,28 @@ function ensureVoiceCapture(connection, voiceChannel) {
     const recording = new Set(); // userIds currently being captured (avoid double subscriptions)
     const consumers = new Set();
 
-    const onSpeakingStart = (userId) => {
-        if (recording.has(userId)) { return; }
+    const startCapture = async (userId) => {
+        if (recording.has(userId)) { return; }       // already capturing this user
         if (consumers.size === 0) { return; }
-        const member = voiceChannel.guild.members.cache.get(userId);
-        if (!member || member.user.bot) { return; } // never capture the bot's own audio
-        recording.add(userId);
+        recording.add(userId); // claim the slot BEFORE any await so we can't double-subscribe
+
+        // Resolve the speaking member. The cache can be missing a user (e.g. they were
+        // already in the channel at connect, or joined without a caching event), which used
+        // to silently drop ALL of their audio — so fall back to fetching them.
+        let member = voiceChannel.guild.members.cache.get(userId);
+        if (!member) {
+            try {
+                member = await voiceChannel.guild.members.fetch(userId);
+            } catch (e) {
+                console.warn(`[Voice] could not resolve member ${userId}:`, e?.message || e);
+                recording.delete(userId);
+                return;
+            }
+        }
+        if (!member || member.user.bot) { recording.delete(userId); return; } // never capture the bot
+        if (consumers.size === 0) { recording.delete(userId); return; } // consumer left during await
+
+        console.log(`[Voice] capturing ${member.user.tag}`);
 
         const opusStream = receiver.subscribe(userId, {
             end: { behavior: EndBehaviorType.AfterSilence, duration: VOICE_SILENCE_MS },
@@ -744,10 +761,26 @@ function ensureVoiceCapture(connection, voiceChannel) {
                 total += chunk.length;
             }
         });
-        pcmStream.on("end", () => {
+
+        // Finalize EXACTLY once, whether the stream ends cleanly, errors, or stalls. On
+        // error we still flush whatever decoded so one bad Opus packet doesn't drop the whole
+        // utterance, and we always release the `recording` slot so a user can't get stuck.
+        let guard;
+        let finalized = false;
+        const finalize = (err) => {
+            if (finalized) { return; }
+            finalized = true;
+            clearTimeout(guard);
             recording.delete(userId);
+            if (err) { console.error("[Voice] stream error:", err?.message || err); }
+            try { opusStream.destroy(); } catch { /* ignore */ }
+            try { decoder.destroy(); } catch { /* ignore */ }
+
             const pcm = Buffer.concat(chunks);
-            if (pcm.length < VOICE_MIN_BYTES) { return; } // too short, skip (saves Whisper calls)
+            if (pcm.length < VOICE_MIN_BYTES) {
+                console.log(`[Voice] dropped short utterance from ${member.user.tag} (${pcm.length} bytes, need ${VOICE_MIN_BYTES})`);
+                return;
+            }
 
             // Transcribe at most once per utterance, shared across all consumers.
             let transcriptPromise = null;
@@ -767,16 +800,49 @@ function ensureVoiceCapture(connection, voiceChannel) {
                     .then(() => consumer({ member, voiceChannel: cap.voiceChannel, pcm, getTranscript }))
                     .catch((e) => console.error("[Voice] consumer error:", e?.message || e));
             }
-        });
-        const cleanup = (err) => {
-            recording.delete(userId);
-            if (err) { console.error("[Voice] stream error:", err?.message || err); }
         };
-        pcmStream.on("error", cleanup);
-        opusStream.on("error", cleanup);
+
+        // Safety net: if the stream never emits end/close/error, force-release so the user
+        // isn't permanently stuck in `recording` (which would silence them forever).
+        const guardMs = Math.ceil((VOICE_MAX_BYTES / VOICE_PCM_BYTES_PER_SEC) * 1000) + 5000;
+        guard = setTimeout(() => {
+            console.error(`[Voice] capture stall for ${member.user.tag}, force-releasing`);
+            finalize();
+        }, guardMs);
+        if (guard.unref) { guard.unref(); }
+
+        pcmStream.on("end", () => finalize());
+        pcmStream.on("error", (e) => finalize(e));
+        opusStream.on("end", () => finalize());
+        opusStream.on("close", () => finalize());
+        opusStream.on("error", (e) => finalize(e));
+    };
+
+    // Event listeners can't be awaited, so wrap the async capture and swallow rejections
+    // (a failed capture must never crash the speaking handler).
+    const onSpeakingStart = (userId) => {
+        startCapture(userId).catch((e) => console.error("[Voice] capture error:", e?.message || e));
     };
 
     receiver.speaking.on("start", onSpeakingStart);
+
+    // Some users may already be transmitting when we start listening, so no fresh "start"
+    // event ever fires for them. Seed capture from the receiver's SSRC map (the authoritative
+    // list of known speakers) and whenever a new SSRC appears. Guarded because ssrcMap is a
+    // semi-internal API; capture is idempotent (recording-set guard) so re-seeding is safe.
+    const seedExistingSpeakers = () => {
+        try {
+            const map = receiver.ssrcMap?.map;
+            if (map?.values) {
+                for (const data of map.values()) {
+                    if (data?.userId) { onSpeakingStart(data.userId); }
+                }
+            }
+        } catch (e) { console.error("[Voice] seed failed:", e?.message || e); }
+    };
+    try {
+        receiver.ssrcMap?.on?.("create", (d) => { if (d?.userId) { onSpeakingStart(d.userId); } });
+    } catch { /* ignore */ }
 
     // Tear everything down if the connection goes away (e.g. /leavevoice or a disconnect).
     connection.once(VoiceConnectionStatus.Destroyed, () => {
@@ -786,7 +852,7 @@ function ensureVoiceCapture(connection, voiceChannel) {
         stopVoiceAssistant(guildId, true);
     });
 
-    cap = { connection, voiceChannel, consumers, recording, onSpeakingStart, receiver };
+    cap = { connection, voiceChannel, consumers, recording, onSpeakingStart, receiver, seedExistingSpeakers };
     voiceCaptures.set(guildId, cap);
     return cap;
 }
@@ -795,6 +861,8 @@ function ensureVoiceCapture(connection, voiceChannel) {
 function addVoiceConsumer(connection, voiceChannel, consumer) {
     const cap = ensureVoiceCapture(connection, voiceChannel);
     cap.consumers.add(consumer);
+    // Pick up anyone already talking now that there's a consumer to receive their audio.
+    try { cap.seedExistingSpeakers?.(); } catch { /* ignore */ }
     return () => {
         cap.consumers.delete(consumer);
         if (cap.consumers.size === 0) {
@@ -855,7 +923,7 @@ const voiceAssistants = new Map(); // guildId -> { remove, idleTimer, textChanne
 const VOICE_ASSISTANT_IDLE_MS = 5 * 60 * 1000; // auto-leave after 5 min with no wake-word activity
 
 // Tolerant of Whisper mis-hearing the name ("rebot"/"reboot"/"robot"/"horror bot").
-const WAKE_WORDS = ["horror rebot", "hey rebot", "ok rebot", "rebot", "reboot", "robot", "ribot", "rebought", "horribot", "horror robot", "horror bot", "poor robot", "horarybot"];
+const WAKE_WORDS = ["horror rebot", "hey rebot", "ok rebot", "rebot", "reboot", "robot", "ribot", "rebought", "horribot", "horror robot", "horror bot", "poor robot", "horarybot", "horribot"];
 
 // Returns the query with the wake word stripped, or null if no wake word was present.
 function extractWakeQuery(text) {
@@ -912,7 +980,12 @@ function startVoiceAssistant(connection, voiceChannel, textChannel) {
         const text = await getTranscript();
         if (!text) { return; }
         const query = extractWakeQuery(text);
-        if (query === null) { return; } // wake word not spoken; ignore this utterance
+        if (query === null) {
+            // Heard and transcribed, but no wake word — log it so "the bot ignored me" is
+            // distinguishable from "the bot never heard me" (no [Voice] capturing line).
+            console.log(`[VoiceChat] heard (no wake word) from ${member.user.tag}: ${text}`);
+            return;
+        }
         bumpAssistantIdle(guildId);
         console.log(`[VoiceChat] ${member.user.tag}: "${query}"`);
         try {
