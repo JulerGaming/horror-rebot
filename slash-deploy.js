@@ -263,6 +263,16 @@ const slashRegister = async () => {
           .setDescription("leaves the voice channel that i'm in")
           .setIntegrationTypes(0, 1)
           .setContexts(0, 1, 2),
+        new SlashCommandBuilder()
+          .setName("voicemod")
+          .setDescription("moderates your voice channel: transcribes speech and enforces the bad-words filter")
+          .setIntegrationTypes(0)
+          .setContexts(0), // Servers only
+        new SlashCommandBuilder()
+          .setName("stopvoicemod")
+          .setDescription("stops voice chat moderation and leaves the voice channel")
+          .setIntegrationTypes(0)
+          .setContexts(0), // Servers only
       ]
     });
     console.log("Successfully registered the slash commands globally");

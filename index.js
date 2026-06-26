@@ -266,6 +266,7 @@ const {
     getVoiceConnection,
     entersState,
     StreamType,
+    EndBehaviorType,
 } = require("@discordjs/voice");
 
 function destroyVoiceConnectionIfNotSpeaking(guildId, expectedPlayer = null) {
@@ -615,6 +616,167 @@ function isBadWord(token) {
     if (badWords.includes(clean)) { return true; } // punctuation-wrapped, e.g. "fuck!" -> "fuck"
     if (mergedRegex && mergedRegex.test(clean)) { return true; } // merged, e.g. "fuckyou" contains "fuck"
     return false;
+}
+
+// Returns the first offending word found in a block of text, or null. Used by both the
+// text message filter and the voice (transcription) filter.
+function containsBadWord(text) {
+    if (!text) { return null; }
+    for (const word of text.split(/\s+/).filter(Boolean)) {
+        if (isBadWord(word)) { return word; }
+    }
+    return null;
+}
+
+// ====== VOICE MODERATION ======
+// Listens to speech in a voice channel, transcribes each utterance with OpenAI Whisper,
+// and runs the transcript through the same bad-words filter used for text messages.
+// NOTE: this records and transcribes members' voice audio and costs money per minute of
+// speech (Whisper). It only runs in a guild after a moderator starts it with /voicemod,
+// and it announces itself in the channel for transparency/consent.
+const prism = require("prism-media");
+
+// 48kHz, 16-bit, stereo PCM. Skip utterances shorter than ~0.8s to avoid wasting Whisper
+// calls on coughs/clicks, and cap very long ones so a hot mic can't run up huge bills.
+const VOICE_PCM_SAMPLE_RATE = 48000;
+const VOICE_PCM_CHANNELS = 2;
+const VOICE_PCM_BYTES_PER_SEC = VOICE_PCM_SAMPLE_RATE * VOICE_PCM_CHANNELS * 2;
+const VOICE_MIN_BYTES = Math.floor(VOICE_PCM_BYTES_PER_SEC * 0.8);
+const VOICE_MAX_BYTES = VOICE_PCM_BYTES_PER_SEC * 30; // hard cap ~30s per utterance
+const VOICE_SILENCE_MS = 1000; // end an utterance after 1s of silence
+
+const activeVoiceModeration = new Map(); // guildId -> { receiver, onSpeakingStart, recording: Set, textChannelId, voiceChannelId }
+
+// Wraps raw PCM (s16le) in a minimal WAV container so Whisper can read it.
+function pcmToWav(pcm, sampleRate = VOICE_PCM_SAMPLE_RATE, channels = VOICE_PCM_CHANNELS, bitDepth = 16) {
+    const blockAlign = channels * bitDepth / 8;
+    const byteRate = sampleRate * blockAlign;
+    const header = Buffer.alloc(44);
+    header.write("RIFF", 0);
+    header.writeUInt32LE(36 + pcm.length, 4);
+    header.write("WAVE", 8);
+    header.write("fmt ", 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20); // PCM
+    header.writeUInt16LE(channels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitDepth, 34);
+    header.write("data", 36);
+    header.writeUInt32LE(pcm.length, 40);
+    return Buffer.concat([header, pcm]);
+}
+
+async function transcribePcm(pcm) {
+    const wav = pcmToWav(pcm);
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const file = await OpenAI.toFile(wav, "speech.wav", { type: "audio/wav" });
+    const result = await openai.audio.transcriptions.create({
+        file,
+        model: "whisper-1",
+    });
+    return (result.text || "").trim();
+}
+
+async function handleVoiceUtterance(member, textChannel, pcm) {
+    if (!pcm || pcm.length < VOICE_MIN_BYTES) { return; }
+    if (pcm.length > VOICE_MAX_BYTES) { pcm = pcm.subarray(0, VOICE_MAX_BYTES); }
+
+    let text;
+    try {
+        text = await transcribePcm(pcm);
+    } catch (err) {
+        console.error("[VoiceMod] Transcription failed:", err?.message || err);
+        return;
+    }
+    if (!text) { return; }
+    console.log(`[VoiceMod] ${member.user.tag}: ${text}`);
+
+    const hit = containsBadWord(text);
+    if (!hit) { return; }
+    console.log(`[VoiceMod] Bad word "${hit}" detected in voice from ${member.user.tag}`);
+
+    try {
+        await member.timeout(600000, "Inappropriate language in voice chat.");
+    } catch (err) {
+        console.error("[VoiceMod] Failed to timeout member:", err?.message || err);
+    }
+    try {
+        if (textChannel?.send) {
+            await textChannel.send(`${member}, please watch your language in voice chat.`);
+        }
+    } catch (err) {
+        console.error("[VoiceMod] Failed to send warning:", err?.message || err);
+    }
+}
+
+function startVoiceModeration(connection, voiceChannel, textChannel) {
+    const guildId = voiceChannel.guild.id;
+    if (activeVoiceModeration.has(guildId)) { return false; }
+
+    const receiver = connection.receiver;
+    const recording = new Set(); // userIds currently being captured (avoid double subscriptions)
+
+    const onSpeakingStart = (userId) => {
+        if (recording.has(userId)) { return; }
+        const member = voiceChannel.guild.members.cache.get(userId);
+        if (!member || member.user.bot) { return; }
+        recording.add(userId);
+
+        const opusStream = receiver.subscribe(userId, {
+            end: { behavior: EndBehaviorType.AfterSilence, duration: VOICE_SILENCE_MS },
+        });
+        const decoder = new prism.opus.Decoder({
+            rate: VOICE_PCM_SAMPLE_RATE,
+            channels: VOICE_PCM_CHANNELS,
+            frameSize: 960,
+        });
+
+        const chunks = [];
+        let total = 0;
+        const pcmStream = opusStream.pipe(decoder);
+
+        pcmStream.on("data", (chunk) => {
+            if (total < VOICE_MAX_BYTES) {
+                chunks.push(chunk);
+                total += chunk.length;
+            }
+        });
+        pcmStream.on("end", () => {
+            recording.delete(userId);
+            handleVoiceUtterance(member, textChannel, Buffer.concat(chunks))
+                .catch((e) => console.error("[VoiceMod] utterance error:", e?.message || e));
+        });
+        const cleanup = (err) => {
+            recording.delete(userId);
+            if (err) { console.error("[VoiceMod] stream error:", err?.message || err); }
+        };
+        pcmStream.on("error", cleanup);
+        opusStream.on("error", cleanup);
+    };
+
+    receiver.speaking.on("start", onSpeakingStart);
+
+    // Stop moderating if the connection goes away (e.g. /leavevoice or a disconnect).
+    connection.once(VoiceConnectionStatus.Destroyed, () => stopVoiceModeration(guildId));
+
+    activeVoiceModeration.set(guildId, {
+        receiver,
+        onSpeakingStart,
+        recording,
+        textChannelId: textChannel?.id,
+        voiceChannelId: voiceChannel.id,
+    });
+    return true;
+}
+
+function stopVoiceModeration(guildId) {
+    const session = activeVoiceModeration.get(guildId);
+    if (!session) { return false; }
+    try { session.receiver?.speaking?.off?.("start", session.onSpeakingStart); } catch { /* ignore */ }
+    activeVoiceModeration.delete(guildId);
+    return true;
 }
 
 console.log("Clearing old issues...");
@@ -2490,7 +2652,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
             }
             if (interaction.commandName.includes("voice") || interaction.commandName.includes("join") || interaction.commandName.includes("openurlstream")) {
-                if (blockedChannels.includes(interaction.member.voice.channel.id)) {
+                if (interaction.member.voice.channel && blockedChannels.includes(interaction.member.voice.channel.id)) {
                     return interaction.reply({ ephemeral: true, content: 'Cannot join this channel!' })
                 }
             }
@@ -3489,12 +3651,76 @@ client.on("interactionCreate", async (interaction) => {
                 }
             }
             if (interaction.commandName === "leavevoice") {
+                stopVoiceModeration(interaction.guild.id);
                 const conn = getVoiceConnection(interaction.guild.id);
                 if (conn) {
                     conn.destroy();
                     interaction.reply({ content: 'Done!', ephemeral: true })
                 }
                 else { interaction.reply({ content: `I'm not in a voice channel!`, ephemeral: true }) }
+            }
+            if (interaction.commandName === "voicemod") {
+                await interaction.deferReply({ ephemeral: true });
+
+                if (!interaction.memberPermissions?.has("ModerateMembers")) {
+                    return interaction.followUp({ content: "You need the **Timeout Members** permission to use this.", ephemeral: true });
+                }
+
+                const voiceChannel = interaction.member.voice.channel;
+                if (!voiceChannel) {
+                    return interaction.followUp({ content: "You need to be in a voice channel.", ephemeral: true });
+                }
+                if (!process.env.OPENAI_API_KEY) {
+                    return interaction.followUp({ content: "Voice moderation needs an OpenAI API key, which isn't configured.", ephemeral: true });
+                }
+                if (activeVoiceModeration.has(interaction.guild.id)) {
+                    return interaction.followUp({ content: "Voice moderation is already running in this server. Use `/stopvoicemod` to stop it.", ephemeral: true });
+                }
+
+                let connection = getVoiceConnection(interaction.guild.id);
+                if (connection) {
+                    // The bot may already be connected (e.g. for TTS) with selfDeaf=true,
+                    // which blocks audio receive — rejoin undeafened so we can hear.
+                    try { connection.rejoin({ selfDeaf: false, selfMute: false }); } catch { /* ignore */ }
+                } else {
+                    connection = joinVoiceChannel({
+                        channelId: voiceChannel.id,
+                        guildId: voiceChannel.guild.id,
+                        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+                        selfDeaf: false, // MUST be false to receive audio
+                    });
+                    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+                }
+
+                const started = startVoiceModeration(connection, voiceChannel, interaction.channel);
+
+                // Transparency / consent: tell the channel that voice is being moderated.
+                try {
+                    await interaction.channel.send(`🎙️ Voice moderation is now active in **${voiceChannel.name}**. Speech is transcribed to enforce the server's language filter.`);
+                } catch { /* ignore */ }
+
+                return interaction.followUp({
+                    content: started
+                        ? `Voice moderation started in **${voiceChannel.name}**. Use \`/stopvoicemod\` to stop.`
+                        : "Voice moderation was already active.",
+                    ephemeral: true,
+                });
+            }
+            if (interaction.commandName === "stopvoicemod") {
+                await interaction.deferReply({ ephemeral: true });
+
+                if (!interaction.memberPermissions?.has("ModerateMembers")) {
+                    return interaction.followUp({ content: "You need the **Timeout Members** permission to use this.", ephemeral: true });
+                }
+
+                const stopped = stopVoiceModeration(interaction.guild.id);
+                const conn = getVoiceConnection(interaction.guild.id);
+                if (conn) { try { conn.destroy(); } catch { /* ignore */ } }
+
+                return interaction.followUp({
+                    content: stopped ? "Voice moderation stopped." : "Voice moderation wasn't running.",
+                    ephemeral: true,
+                });
             }
         }
     } catch (error) {
