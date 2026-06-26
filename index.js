@@ -583,15 +583,39 @@ async function checkBirthdays() {
     }
 }
 
-const badWords = fs.readFileSync("bad-words.txt", "utf-8")
-    .split(/\r?\n/)
-    .map(w => w.trim().toLowerCase())
-    .filter(Boolean);
+function loadWordList(file) {
+    return fs.readFileSync(file, "utf-8")
+        .split(/\r?\n/)
+        .map(w => w.trim().toLowerCase())
+        .filter(Boolean);
+}
 
-const cheatsWords = fs.readFileSync("cheat-words.txt", "utf-8")
-    .split(/\r?\n/)
-    .map(w => w.trim().toLowerCase())
-    .filter(Boolean);
+const badWords = loadWordList("bad-words.txt");
+
+const cheatsWords = loadWordList("cheat-words.txt");
+
+// Merged-word detection (e.g. "fuckyou"). Only "distinctive" words are matched as a
+// substring inside another word. Short/ambiguous words (ass, sex, hell, cock, cum...) are
+// left as whole-word-only so we don't flag innocent words like "class" or "Uranus".
+const SEVERE_SHORT = new Set(["fuck", "shit", "cunt", "slut", "wank"]); // short but safe to substring-match
+const EXCLUDE_FROM_MERGED = new Set(["screw", "hells", "kraut"]);       // 5+ letters but hide in innocent words (screwdriver, shells, sauerkraut)
+const mergedWords = badWords.filter(w =>
+    /^[a-z0-9]+$/.test(w) &&
+    !EXCLUDE_FROM_MERGED.has(w) &&
+    (w.length >= 5 || SEVERE_SHORT.has(w)),
+);
+const mergedRegex = mergedWords.length ? new RegExp(mergedWords.join("|")) : null;
+
+// Returns true if a single token is a bad word (raw, punctuation-wrapped, or merged).
+function isBadWord(token) {
+    const lower = token.toLowerCase();
+    if (badWords.includes(lower)) { return true; } // raw token, covers special chars like "@$$"
+    const clean = lower.replace(/[^a-z0-9]/g, "");
+    if (!clean) { return false; }
+    if (badWords.includes(clean)) { return true; } // punctuation-wrapped, e.g. "fuck!" -> "fuck"
+    if (mergedRegex && mergedRegex.test(clean)) { return true; } // merged, e.g. "fuckyou" contains "fuck"
+    return false;
+}
 
 console.log("Clearing old issues...");
 fs.writeFileSync(path.join(__dirname, "public", "issues.txt"), "", "utf-8");
@@ -1135,7 +1159,7 @@ client.on("messageCreate", async (message) => {
     // Bad words filter
     const words = message.content.split(/\s+/).filter(Boolean);
     for (const word of words) {
-        if (badWords.includes(word.toLowerCase())) {
+        if (isBadWord(word)) {
             try {
                 if (message.channel.type === ChannelType.DM) { continue; } // skip bad word filter for DMs
                 message.delete();
