@@ -370,9 +370,14 @@ app.use((req, res) => {
 });
 
 let hasSyncRepo = false;
+// Guard so a manually-triggered sync can't overlap the 1-minute interval run (concurrent
+// git operations on the same repo can fail or leave a half-finished state).
+let syncInProgress = false;
 
 async function syncRepo() {
-    if (!cff.GitHub) { return; }
+    if (!cff.GitHub) { return { ok: false, reason: "GitHub sync is disabled in config (cff.GitHub is falsy)." }; }
+    if (syncInProgress) { return { ok: false, reason: "A git sync is already in progress." }; }
+    syncInProgress = true;
     try {
         console.log("Syncing repo with GitHub...");
 
@@ -380,10 +385,12 @@ async function syncRepo() {
 
         // 1) Commit any local changes FIRST so the working tree is clean before merging.
         const status = await run("git status --porcelain");
+        let committed = false;
         if (status) {
             console.log("Local changes detected. Committing...");
             await run("git add .");
             await run(`git commit -m "Auto commit from bot"`);
+            committed = true;
         }
 
         // 2) Merge in remote changes if the remote is actually ahead of us.
@@ -402,16 +409,18 @@ async function syncRepo() {
                     // and try again next cycle instead of getting stuck mid-merge.
                     console.error("Merge failed (likely a conflict). Aborting:", mergeErr);
                     try { await run("git merge --abort"); } catch { /* ignore */ }
-                    return;
+                    return { ok: false, committed, reason: "Merge failed (likely a conflict); aborted to keep a clean tree." };
                 }
             }
         }
 
         // 3) Push if we have commits the remote doesn't (local work and/or the merge commit).
         const ahead = parseInt(await run("git rev-list --count @{u}..HEAD"), 10) || 0;
+        let pushed = 0;
         if (ahead > 0) {
             console.log(`Pushing ${ahead} commit(s) to GitHub...`);
             await run("git push");
+            pushed = ahead;
             console.log("Changes pushed to GitHub.");
         } else {
             console.log("Nothing to push.");
@@ -425,8 +434,13 @@ async function syncRepo() {
             restart(0);
         }
 
+        return { ok: true, committed, mergedRemote, pushed, willRestart: mergedRemote };
+
     } catch (err) {
         console.error("Git sync error:", err);
+        return { ok: false, reason: `Git sync error: ${err?.message || String(err)}` };
+    } finally {
+        syncInProgress = false;
     }
 }
 
@@ -1927,6 +1941,31 @@ async function runChatGptReply(message) {
                 actionsMade += `-# Proposed an edit to \`${filePath}\` (awaiting owner approval)\n`;
                 return "(Pending) The proposed edit was sent to the owner for approval and will only be applied if they accept.";
             },
+            git_sync: async (args, { message }) => {
+                console.log("AI ran git_sync");
+                console.log("[ServerFunction] git_sync called by", message?.author?.tag || message?.author?.id || "unknown");
+
+                // Owner-only: a sync commits + pushes to the public repo and can restart the bot.
+                if (message?.author?.id !== CODE_EDIT_OWNER_ID) {
+                    return "(Error) Only the bot owner can manually trigger a git sync.";
+                }
+
+                actionsMade += `-# Triggered a git sync\n`;
+                const result = await syncRepo();
+
+                if (!result || !result.ok) {
+                    return `(Error) ${result?.reason || "Git sync did not complete."}`;
+                }
+                if (result.willRestart) {
+                    // restart() was kicked off inside syncRepo; the bot may exit before this reply sends.
+                    return "(Success) Pulled new remote code and merged it. Restarting to run the latest version...";
+                }
+                const parts = [];
+                if (result.committed) { parts.push("committed local changes"); }
+                if (result.pushed) { parts.push(`pushed ${result.pushed} commit(s)`); }
+                if (parts.length === 0) { parts.push("already up to date, nothing to commit or push"); }
+                return `(Success) Git sync complete: ${parts.join(", ")}.`;
+            },
             dm_member: async (args, { message }) => {
                 console.log("AI ran dm_member");
                 console.log("[ServerFunction] dm_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
@@ -2309,6 +2348,18 @@ async function runChatGptReply(message) {
                         newString: { type: "string", description: "The replacement text (or the new/appended content when oldString is empty)." },
                     },
                     required: ["filePath", "oldString", "newString"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "git_sync",
+                description: "Manually trigger a git sync now (the bot also does this automatically every minute). Owner-only. Commits any local changes, pulls/merges remote changes, and pushes to GitHub. If new remote code is merged in, the bot restarts to run the latest version.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {},
+                    required: [],
                     additionalProperties: false,
                 },
             },
