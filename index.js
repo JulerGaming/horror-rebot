@@ -565,6 +565,60 @@ const blacklistedTags = {
 const warnedUsers = new Set();
 const EMPTY_VOICE_CHAT_CHANNEL_ID = "1459962391830724741";
 const clearingVoiceChatChannels = new Set();
+const FOURTEEN_DAYS_IN_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function clearVoiceChannelMessagesIfEmpty(voiceChannel) {
+    if (!voiceChannel || voiceChannel.id !== EMPTY_VOICE_CHAT_CHANNEL_ID) { return; }
+    if (!voiceChannel.messages?.fetch) { return; }
+    if (voiceChannel.members?.size > 0) { return; }
+    if (clearingVoiceChatChannels.has(voiceChannel.id)) { return; }
+
+    clearingVoiceChatChannels.add(voiceChannel.id);
+
+    try {
+        let before;
+        let deletedCount = 0;
+
+        while (true) {
+            const messages = await voiceChannel.messages.fetch({
+                limit: 100,
+                ...(before ? { before } : {}),
+            });
+
+            if (!messages.size) { break; }
+
+            before = messages.last().id;
+
+            const recentMessages = messages.filter((message) => Date.now() - message.createdTimestamp < FOURTEEN_DAYS_IN_MS);
+            const oldMessages = messages.filter((message) => Date.now() - message.createdTimestamp >= FOURTEEN_DAYS_IN_MS);
+
+            if (recentMessages.size > 0) {
+                const deleted = await voiceChannel.bulkDelete(recentMessages, true).catch((err) => {
+                    console.error(`Failed to bulk delete messages in voice channel ${voiceChannel.id}:`, err);
+                    return null;
+                });
+                deletedCount += deleted?.size || 0;
+            }
+
+            for (const message of oldMessages.values()) {
+                try {
+                    await message.delete();
+                    deletedCount += 1;
+                } catch (err) {
+                    console.error(`Failed to delete old message ${message.id} in voice channel ${voiceChannel.id}:`, err);
+                }
+            }
+
+            if (messages.size < 100) { break; }
+        }
+
+        if (deletedCount > 0) {
+            console.log(`Cleared ${deletedCount} messages from voice channel ${voiceChannel.id} because it became empty.`);
+        }
+    } finally {
+        clearingVoiceChatChannels.delete(voiceChannel.id);
+    }
+}
 
 client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
@@ -574,6 +628,21 @@ client.once(Events.ClientReady, async () => {
     const guild = client.guilds.cache.get("1333194010201952367");
     client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
     console.log("Update status!");
+
+    const emptyVoiceChatChannel = await guild?.channels?.fetch?.(EMPTY_VOICE_CHAT_CHANNEL_ID).catch(() => null);
+    await clearVoiceChannelMessagesIfEmpty(emptyVoiceChatChannel);
+});
+
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    if (oldState.channelId !== EMPTY_VOICE_CHAT_CHANNEL_ID && newState.channelId !== EMPTY_VOICE_CHAT_CHANNEL_ID) { return; }
+
+    try {
+        const guild = newState.guild || oldState.guild;
+        const emptyVoiceChatChannel = await guild?.channels?.fetch?.(EMPTY_VOICE_CHAT_CHANNEL_ID).catch(() => null);
+        await clearVoiceChannelMessagesIfEmpty(emptyVoiceChatChannel);
+    } catch (err) {
+        console.error(`Failed to clear messages for empty voice channel ${EMPTY_VOICE_CHAT_CHANNEL_ID}:`, err);
+    }
 });
 
 client.on(Events.ClientReady, async () => {
