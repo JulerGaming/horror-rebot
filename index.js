@@ -2681,7 +2681,7 @@ async function runChatGptReply(message) {
         let response = await openai.responses.create({
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "23"
+                "version": "24"
             },
             input: history,
             tools: tools,
