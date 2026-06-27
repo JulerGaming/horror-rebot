@@ -2678,12 +2678,13 @@ async function runChatGptReply(message) {
         });
 
         // ====== OPENAI REQUEST ======
-        let response = await openai.responses.create({
+        // Shared request options so every round (initial + every tool follow-up) uses the
+        // same prompt version, tools and settings.
+        const baseRequest = {
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "24"
+                "version": "25"
             },
-            input: history,
             tools: tools,
             text: {
                 "format": {
@@ -2694,16 +2695,25 @@ async function runChatGptReply(message) {
             max_output_tokens: 2048,
             store: true,
             include: ["web_search_call.action.sources"]
-        });
+        };
 
-        // ====== EXECUTE TOOL CALLS (IF ANY) ======
-        if (Array.isArray(response.output)) {
-            const toolInput = [...history];
+        let response = await openai.responses.create({ ...baseRequest, input: history });
+
+        // ====== EXECUTE TOOL CALLS (LOOP UNTIL THE MODEL STOPS REQUESTING TOOLS) ======
+        // The model often needs several sequential rounds (e.g. list files -> read lines ->
+        // edit). A single pass would only run the first round and then ignore later tool
+        // calls, so we keep feeding tool outputs back until it returns a final text answer.
+        const MAX_TOOL_ROUNDS = 8;
+        const conversation = [...history];
+
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+            if (!Array.isArray(response.output)) { break; }
+
             let executedAnyTool = false;
 
             for (const item of response.output) {
                 if (item?.type === "reasoning") {
-                    toolInput.push(item);
+                    conversation.push(item);
                     continue;
                 }
 
@@ -2712,17 +2722,18 @@ async function runChatGptReply(message) {
 
                 // IMPORTANT: include the function_call item itself in the next request,
                 // otherwise the API will reject the corresponding function_call_output.
-                toolInput.push(item);
+                conversation.push(item);
 
                 const handler = serverFunctionHandlers[item.name];
                 let output;
-                const args = item.arguments ? JSON.parse(item.arguments) : {};
+                let args = {};
+                try { args = item.arguments ? JSON.parse(item.arguments) : {}; } catch { args = {}; }
                 const caller = message?.author?.tag || message?.author?.id || "unknown";
                 if (!handler) {
                     console.log(`[ServerFunction][CALL] Unknown function requested: ${item.name} by ${caller} args:`, args);
                     output = JSON.stringify({ ok: false, error: `Unknown function: ${item.name}` });
                 } else {
-                    console.log(`[ServerFunction][CALL] ${item.name} invoked by ${caller} args:`, args);
+                    console.log(`[ServerFunction][CALL] ${item.name} invoked by ${caller} (round ${round + 1}) args:`, args);
                     const start = Date.now();
                     try {
                         output = await handler(args, { message });
@@ -2748,32 +2759,22 @@ async function runChatGptReply(message) {
                     }
                 }
 
-                toolInput.push({
+                conversation.push({
                     type: "function_call_output",
                     call_id: item.call_id,
                     output: toolOutput,
                 });
             }
 
-            if (executedAnyTool) {
-                response = await openai.responses.create({
-                    prompt: {
-                        "id": process.env.OPENAI_ASSISTANT_ID,
-                        "version": "22"
-                    },
-                    input: toolInput,
-                    tools,
-                    text: {
-                        "format": {
-                            "type": "text"
-                        }
-                    },
-                    reasoning: {},
-                    max_output_tokens: 2048,
-                    store: true,
-                    include: ["web_search_call.action.sources"]
-                });
+            // No tools this round means the model produced its final answer — we're done.
+            if (!executedAnyTool) { break; }
+
+            if (round === MAX_TOOL_ROUNDS - 1) {
+                console.warn(`[ServerFunction] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}); stopping the tool loop.`);
             }
+
+            // Feed the tool outputs back so the model can decide its next step (or answer).
+            response = await openai.responses.create({ ...baseRequest, input: conversation });
         }
 
         // ====== EXTRACT REPLY ======
