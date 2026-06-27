@@ -1920,6 +1920,50 @@ async function runChatGptReply(message) {
                 const header = `(File: ${filePath}, lines ${from}-${to} of ${lines.length}${truncated ? `, truncated to ${MAX_LINES} lines` : ""})`;
                 return `${header}\n${slice}`;
             },
+            list_server_files: async (args, { message }) => {
+                console.log("AI ran list_server_files");
+                console.log("[ServerFunction] list_server_files called by", message?.author?.tag || message?.author?.id || "unknown");
+
+                // Open to everyone. Recursively lists every file in the project, skipping the
+                // dependency/VCS dirs (node_modules, .git) since those aren't "the app".
+                const root = path.resolve(__dirname);
+                const SKIP_DIRS = new Set(["node_modules", ".git"]);
+                const MAX_FILES = 2000;
+                const results = [];
+                let truncated = false;
+
+                const walk = (dir) => {
+                    if (results.length >= MAX_FILES) { truncated = true; return; }
+                    let entries;
+                    try {
+                        entries = fs.readdirSync(dir, { withFileTypes: true });
+                    } catch {
+                        return; // unreadable dir, skip it
+                    }
+                    entries.sort((a, b) => a.name.localeCompare(b.name));
+                    for (const e of entries) {
+                        if (results.length >= MAX_FILES) { truncated = true; return; }
+                        // isDirectory() is false for symlinks, so symlinked dirs aren't followed (no loops).
+                        if (e.isDirectory()) {
+                            if (SKIP_DIRS.has(e.name)) { continue; }
+                            walk(path.join(dir, e.name));
+                        } else if (e.isFile()) {
+                            results.push(path.relative(root, path.join(dir, e.name)).replace(/\\/g, "/"));
+                        }
+                    }
+                };
+                walk(root);
+
+                actionsMade += `-# Listed all project files\n`;
+                let body = results.join("\n");
+                const MAX_CHARS = 12000;
+                if (body.length > MAX_CHARS) {
+                    body = body.slice(0, MAX_CHARS) + "\n... (more files omitted)";
+                    truncated = true;
+                }
+                const header = `(Project files: ${results.length}${truncated ? `, truncated` : ""}; node_modules and .git are excluded)`;
+                return `${header}\n${body}`;
+            },
             edit_server_code: async (args, { message }) => {
                 console.log("AI ran edit_server_code");
                 console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
@@ -2434,6 +2478,18 @@ async function runChatGptReply(message) {
                         endLine: { type: "number", description: "Last line to read (1-based, inclusive). Must be >= startLine." },
                     },
                     required: ["filePath", "startLine", "endLine"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "list_server_files",
+                description: "List every file in the app (the project), recursively, as paths relative to the project root. Available to anyone. The dependency and version-control folders (node_modules, .git) are excluded since they aren't part of the app. Use this to discover what files exist before reading or editing them.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {},
+                    required: [],
                     additionalProperties: false,
                 },
             },
