@@ -1976,6 +1976,69 @@ async function runChatGptReply(message) {
                 const header = `(Project files: ${results.length}${truncated ? `, truncated` : ""}; node_modules and .git are excluded)`;
                 return `${header}\n${body}`;
             },
+            search_server_code: async (args, { message }) => {
+                console.log("AI ran search_server_code");
+                console.log("[ServerFunction] search_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { query: args?.query });
+
+                // Open to everyone. Case-insensitive substring search across the app so the AI can
+                // jump straight to the relevant lines instead of reading whole files chunk by chunk.
+                const { query } = args || {};
+                if (!query || typeof query !== "string" || !query.trim()) {
+                    return "(Error) Missing query";
+                }
+                const needle = query.toLowerCase();
+
+                const root = path.resolve(__dirname);
+                const SKIP_DIRS = new Set(["node_modules", ".git"]);
+                const MAX_FILES_SCANNED = 2000;
+                const MAX_MATCHES = 60;
+                const matches = [];
+                let scanned = 0;
+                let truncated = false;
+
+                const walk = (dir) => {
+                    if (matches.length >= MAX_MATCHES || scanned >= MAX_FILES_SCANNED) { truncated = true; return; }
+                    let entries;
+                    try {
+                        entries = fs.readdirSync(dir, { withFileTypes: true });
+                    } catch {
+                        return;
+                    }
+                    entries.sort((a, b) => a.name.localeCompare(b.name));
+                    for (const e of entries) {
+                        if (matches.length >= MAX_MATCHES || scanned >= MAX_FILES_SCANNED) { truncated = true; return; }
+                        if (e.isDirectory()) {
+                            if (SKIP_DIRS.has(e.name)) { continue; }
+                            walk(path.join(dir, e.name));
+                        } else if (e.isFile()) {
+                            const abs = path.join(dir, e.name);
+                            const relFile = path.relative(root, abs).replace(/\\/g, "/");
+                            if (isProtectedSecretFile(relFile.toLowerCase())) { continue; } // never search secret env files
+                            let stat;
+                            try { stat = fs.statSync(abs); } catch { continue; }
+                            if (stat.size > 2 * 1024 * 1024) { continue; } // skip very large/binary files
+                            let content;
+                            try { content = fs.readFileSync(abs, "utf-8"); } catch { continue; }
+                            scanned++;
+                            const lines = content.split("\n");
+                            for (let i = 0; i < lines.length; i++) {
+                                if (lines[i].toLowerCase().includes(needle)) {
+                                    matches.push(`${relFile}:${i + 1}: ${lines[i].trim().slice(0, 200)}`);
+                                    if (matches.length >= MAX_MATCHES) { truncated = true; break; }
+                                }
+                            }
+                        }
+                    }
+                };
+                walk(root);
+
+                actionsMade += `-# Searched the code for "${query.slice(0, 60)}"\n`;
+                if (matches.length === 0) {
+                    return `(No matches for "${query}". Try a shorter or different snippet.)`;
+                }
+                const header = `(${matches.length}${truncated ? "+" : ""} match(es) for "${query}" — use read_server_code_lines on a path:line to see context)`;
+                return `${header}\n${matches.join("\n")}`;
+            },
             edit_server_code: async (args, { message }) => {
                 console.log("AI ran edit_server_code");
                 console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
@@ -2507,6 +2570,20 @@ async function runChatGptReply(message) {
             },
             {
                 type: "function",
+                name: "search_server_code",
+                description: "Search the app's source code for a text snippet (case-insensitive substring). Available to anyone. Returns matching 'path:line: text' results so you can jump straight to the relevant code instead of reading whole files. PREFER this to locate code (a function name, a string, a variable) before reading a line range or proposing an edit — index.js is very large, so do NOT scan it chunk by chunk. Excludes node_modules, .git and secret env files.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Plain text to search for, case-insensitive. E.g. 'function restart', 'syncRepo', or a unique string from the code." },
+                    },
+                    required: ["query"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
                 name: "edit_server_code",
                 description: "Propose an edit to the bot's own source code. Anyone can propose, but the edit is NOT applied immediately: the bot owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Read the file first with read_server_code so oldString is an exact, unique snippet. To create a new file or append, pass an empty oldString and put the content in newString.",
                 strict: true,
@@ -2683,7 +2760,7 @@ async function runChatGptReply(message) {
         const baseRequest = {
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "25"
+                "version": "26"
             },
             tools: tools,
             text: {
@@ -2703,7 +2780,7 @@ async function runChatGptReply(message) {
         // The model often needs several sequential rounds (e.g. list files -> read lines ->
         // edit). A single pass would only run the first round and then ignore later tool
         // calls, so we keep feeding tool outputs back until it returns a final text answer.
-        const MAX_TOOL_ROUNDS = 8;
+        const MAX_TOOL_ROUNDS = 12;
         const conversation = [...history];
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
