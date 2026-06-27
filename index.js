@@ -2780,8 +2780,9 @@ async function runChatGptReply(message) {
         // The model often needs several sequential rounds (e.g. list files -> read lines ->
         // edit). A single pass would only run the first round and then ignore later tool
         // calls, so we keep feeding tool outputs back until it returns a final text answer.
-        const MAX_TOOL_ROUNDS = 12;
+        const MAX_TOOL_ROUNDS = 18;
         const conversation = [...history];
+        let nudgedToWrapUp = false;
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
             if (!Array.isArray(response.output)) { break; }
@@ -2846,8 +2847,24 @@ async function runChatGptReply(message) {
             // No tools this round means the model produced its final answer — we're done.
             if (!executedAnyTool) { break; }
 
-            if (round === MAX_TOOL_ROUNDS - 1) {
-                console.warn(`[ServerFunction] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}); stopping the tool loop.`);
+            const isLastRound = round === MAX_TOOL_ROUNDS - 1;
+
+            // A few rounds before the limit, tell the model to stop browsing and commit: make
+            // the edit now (or answer). Without this it can keep exploring until it runs out.
+            if (!nudgedToWrapUp && round >= MAX_TOOL_ROUNDS - 4) {
+                nudgedToWrapUp = true;
+                conversation.push({
+                    role: "system",
+                    content: "You are running low on tool calls. Stop searching/reading now. If you intend to edit code, propose the edit on your next step; otherwise give your final answer to the user.",
+                });
+            }
+
+            if (isLastRound) {
+                // Out of tool budget: force a plain text answer so the user never gets an empty
+                // reply just because the model still wanted to call another tool.
+                console.warn(`[ServerFunction] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}); forcing a final text answer.`);
+                response = await openai.responses.create({ ...baseRequest, input: conversation, tool_choice: "none" });
+                break;
             }
 
             // Feed the tool outputs back so the model can decide its next step (or answer).
