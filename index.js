@@ -12,6 +12,14 @@ const chatMemory = new Map();
 // manual git sync). Edits are never written to disk until they click "Yes" on the DM.
 const CODE_EDIT_OWNER_ID = "804839205309382676";
 
+// Secret env files the AI must NEVER read, edit, or even list — anywhere in the tree.
+// Matches ".env" and every variant (".env.local", ".env.production", etc.) by basename.
+// `relPathLower` is a lowercased, forward-slash project-relative path.
+function isProtectedSecretFile(relPathLower) {
+    const base = (relPathLower || "").split("/").pop() || "";
+    return base === ".env" || base.startsWith(".env.");
+}
+
 // Build a readable diff-style preview of a proposed edit for the approval DM. Rendered
 // inside a ```diff code block, so removed lines show red and added lines show green.
 function buildEditPreview(filePath, oldString, newString) {
@@ -1825,7 +1833,7 @@ async function runChatGptReply(message) {
                     return "(Error) filePath escapes the project directory.";
                 }
                 const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
-                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || rel === ".env" || rel.endsWith("/.env")) {
+                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
                     return "(Error) Reading that file is not allowed.";
                 }
 
@@ -1834,7 +1842,9 @@ async function runChatGptReply(message) {
                 }
                 if (fs.statSync(absPath).isDirectory()) {
                     // List directory contents instead of trying to read it as a file.
+                    // Hide secret env files so they aren't even visible.
                     const entries = fs.readdirSync(absPath, { withFileTypes: true })
+                        .filter((e) => !isProtectedSecretFile(e.name.toLowerCase()))
                         .map((e) => (e.isDirectory() ? `${e.name}/` : e.name));
                     return `(Directory) ${filePath}\n${entries.join("\n")}`;
                 }
@@ -1881,7 +1891,7 @@ async function runChatGptReply(message) {
                     return "(Error) filePath escapes the project directory.";
                 }
                 const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
-                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || rel === ".env" || rel.endsWith("/.env")) {
+                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
                     return "(Error) Reading that file is not allowed.";
                 }
 
@@ -1948,7 +1958,9 @@ async function runChatGptReply(message) {
                             if (SKIP_DIRS.has(e.name)) { continue; }
                             walk(path.join(dir, e.name));
                         } else if (e.isFile()) {
-                            results.push(path.relative(root, path.join(dir, e.name)).replace(/\\/g, "/"));
+                            const relFile = path.relative(root, path.join(dir, e.name)).replace(/\\/g, "/");
+                            if (isProtectedSecretFile(relFile.toLowerCase())) { continue; } // never expose secret env files
+                            results.push(relFile);
                         }
                     }
                 };
@@ -1989,7 +2001,7 @@ async function runChatGptReply(message) {
                     return "(Error) filePath escapes the project directory.";
                 }
                 const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
-                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || rel === ".env" || rel.endsWith("/.env")) {
+                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
                     return "(Error) Editing that file is not allowed.";
                 }
 
