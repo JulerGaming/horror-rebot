@@ -1418,7 +1418,7 @@ client.on(Events.ClientReady, async () => {
                         ]
                     }
                 ],
-                max_tokens: 100
+                max_completion_tokens: 100
             });
             const aiReply = response.choices?.[0]?.message?.content || "";
             console.log(`Checked avatar for ${member.user.username}, AI response: ${aiReply}`);
@@ -1550,7 +1550,7 @@ client.on("guildMemberAdd", async (member) => {
                     ]
                 }
             ],
-            max_tokens: 100
+            max_completion_tokens: 100
         });
         const aiReply = response.choices?.[0]?.message?.content || "";
         console.log(`Checked avatar for ${member.user.username}, AI response: ${aiReply}`);
@@ -3253,7 +3253,7 @@ client.on("messageCreate", async (message) => {
                                 ]
                             }
                         ],
-                        max_tokens: 100
+                        max_completion_tokens: 100
                     });
                     const aiReply = response.choices?.[0]?.message?.content || "";
                     console.log(`Checked image attachment from ${message.author.username}, AI response: ${aiReply}`);
@@ -4248,7 +4248,7 @@ client.on("interactionCreate", async (interaction) => {
                                     ]
                                 }
                             ],
-                            max_tokens: 100
+                            max_completion_tokens: 100
                         });
                         const aiReply = response.choices?.[0]?.message?.content || "";
                         console.log(`Checked avatar for ${member.user.username}, AI response: ${aiReply}`);
