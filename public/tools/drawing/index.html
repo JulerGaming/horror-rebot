@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Horror Rebot - Drawing</title>
+    <link rel="icon" href="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=128" sizes="128x128" type="image/webp">
+    <meta name="theme-color" content="#222">
+    <style>
+        body { margin: 0; min-height: 100vh; font-family: Arial, sans-serif; background: linear-gradient(135deg, #141414, #242424); color: #fff; }
+        .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; background: rgba(0, 0, 0, 0.35); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+        .top img { width: 24px; height: 24px; }
+        .redirect-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+        button { background: #5865f2; border: none; color: #fff; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        button:hover { background: #4752c4; }
+        .body { max-width: 960px; margin: 0 auto; padding: 32px 20px 48px; }
+        .subtitle { color: rgba(255, 255, 255, 0.75); margin-bottom: 20px; }
+        .card { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 20px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25); }
+        .canvas-placeholder { display: flex; align-items: center; justify-content: center; min-height: 360px; margin-top: 18px; border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 14px; text-align: center; color: rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.03); }
+        ul { line-height: 1.7; }
+    </style>
+</head>
+<body>
+    <div class="top">
+        <img src="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=128" alt="Horror Rebot Logo">
+        <span>Horror Rebot - Drawing</span>
+        <div class="redirect-buttons">
+            <button onclick="window.location.href='/'">Home</button>
+            <button onclick="window.location.href='/announcements/send/'">Send Announcement</button>
+            <button onclick="window.location.href='/tools/'">Tools</button>
+            <button onclick="window.location.href='/tools/birthdays/'">Birthdays</button>
+            <button onclick="window.location.href='/tools/drawing/'">Drawing</button>
+        </div>
+    </div>
+    <div class="body">
+        <h1>Drawing</h1>
+        <p class="subtitle">Phase 1 of the drawing feature is now a real page. The advanced tools can be added in the next phase.</p>
+        <div class="card">
+            <h2>Phase 1 setup</h2>
+            <ul>
+                <li>Drawing section created under the tools area.</li>
+                <li>Reserved space for the future canvas and controls.</li>
+                <li>Ready for phase 2 features like brush, eraser, shapes, undo, and save/export.</li>
+            </ul>
+            <div class="canvas-placeholder">
+                <div>
+                    <strong>Canvas placeholder</strong><br>
+                    The interactive drawing tools can be added next.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
