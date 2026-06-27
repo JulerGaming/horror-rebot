@@ -7,6 +7,27 @@ const puppeteer = require('puppeteer');
 // Simple in-memory chat history
 const chatMemory = new Map();
 // key = channelId OR userId (for DMs)
+
+// Only this user (the bot owner) may have the AI edit the bot's own source code.
+const CODE_EDIT_OWNER_ID = "804839205309382676";
+// Edits proposed by the AI are NOT applied immediately. They are parked here and only
+// written to disk once the owner approves them via the Yes/No buttons in their DMs.
+// key = editId, value = { filePath, absPath, oldString, newString, requestedBy, createdAt }
+const pendingCodeEdits = new Map();
+
+// Build a readable diff-style preview of a proposed edit for the approval DM. Rendered
+// inside a ```diff code block, so removed lines show red and added lines show green.
+function buildEditPreview(filePath, oldString, newString) {
+    const sanitize = (s) => String(s).replace(/```/g, "ʼʼʼ"); // don't let content break out of the code block
+    const minus = oldString === "" ? "(new file / appended content)" : sanitize(oldString);
+    const plus = newString === "" ? "(content removed)" : sanitize(newString);
+    const body =
+        `# ${filePath}\n` +
+        minus.split("\n").map((l) => `- ${l}`).join("\n") + "\n" +
+        plus.split("\n").map((l) => `+ ${l}`).join("\n");
+    const MAX = 1800; // leave room for the surrounding ```diff fences inside the 2000-char limit
+    return body.length > MAX ? body.slice(0, MAX) + "\n... (truncated)" : body;
+}
 /*Function to execute functions executed on the website (accessible by this pc's ip followed with :3000)*/
 
 // Import environment variables
@@ -253,7 +274,7 @@ const updatedAt = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getDa
 package["updated-at"] = updatedAt;
 fs.writeFileSync("./package.json", JSON.stringify(package, null, 2));;
 
-const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials, Events } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials, Events, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require("discord.js");
 
 const upDate = package["updated-at"] || "January 1, 1970 at 12:00 AM UTC";
 
@@ -1775,6 +1796,91 @@ async function runChatGptReply(message) {
                 console.log("[ServerFunction] do_nothing called by", message?.author?.tag || message?.author?.id || "unknown");
                 return "ok";
             },
+            edit_server_code: async (args, { message }) => {
+                console.log("AI ran edit_server_code");
+                console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
+
+                // Restricted to the bot owner ONLY (not just any admin).
+                if (message?.author?.id !== CODE_EDIT_OWNER_ID) {
+                    return "(Error) Only the bot owner is allowed to edit server code.";
+                }
+
+                const { filePath, oldString, newString } = args || {};
+                if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
+                    return "(Error) Missing filePath";
+                }
+                if (typeof oldString !== "string" || typeof newString !== "string") {
+                    return "(Error) oldString and newString must both be strings (use an empty oldString to create/append).";
+                }
+                if (oldString === "" && newString === "") {
+                    return "(Error) Nothing to change (both oldString and newString are empty).";
+                }
+
+                // Keep the edit inside the project directory and away from secrets/internals.
+                const root = path.resolve(__dirname);
+                const absPath = path.resolve(root, filePath);
+                if (absPath !== root && !absPath.startsWith(root + path.sep)) {
+                    return "(Error) filePath escapes the project directory.";
+                }
+                const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
+                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || rel === ".env" || rel.endsWith("/.env")) {
+                    return "(Error) Editing that file is not allowed.";
+                }
+
+                // Validate the replacement target up front so we can give the AI a useful error.
+                const exists = fs.existsSync(absPath);
+                if (oldString !== "") {
+                    if (!exists) {
+                        return "(Error) File does not exist. To create it, pass an empty oldString and put the file contents in newString.";
+                    }
+                    const current = fs.readFileSync(absPath, "utf-8");
+                    const occurrences = current.split(oldString).length - 1;
+                    if (occurrences === 0) {
+                        return "(Error) oldString was not found in the file. Provide an exact snippet to replace.";
+                    }
+                    if (occurrences > 1) {
+                        return "(Error) oldString appears multiple times; include more surrounding context so it is unique.";
+                    }
+                }
+
+                // Park the edit and ask the owner to approve it via DM buttons.
+                const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+                pendingCodeEdits.set(editId, {
+                    filePath,
+                    absPath,
+                    oldString,
+                    newString,
+                    requestedBy: message.author.id,
+                    createdAt: Date.now(),
+                });
+                const expiry = setTimeout(() => pendingCodeEdits.delete(editId), 10 * 60 * 1000);
+                if (expiry.unref) { expiry.unref(); }
+
+                const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
+                if (!owner) {
+                    pendingCodeEdits.delete(editId);
+                    return "(Error) Could not reach the bot owner to request approval.";
+                }
+
+                const whatchanged = buildEditPreview(filePath, oldString, newString);
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`editcode_accept_${editId}`).setLabel("Yes").setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(`editcode_reject_${editId}`).setLabel("No").setStyle(ButtonStyle.Danger),
+                );
+
+                try {
+                    await owner.send({
+                        content: `Do you accept the edits?\n\`\`\`diff\n${whatchanged}\n\`\`\``,
+                        components: [row],
+                    });
+                } catch (err) {
+                    pendingCodeEdits.delete(editId);
+                    return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
+                }
+
+                actionsMade += `-# Proposed an edit to \`${filePath}\` (awaiting owner approval)\n`;
+                return "(Pending) The proposed edit was sent to the owner for approval and will only be applied if they accept.";
+            },
             dm_member: async (args, { message }) => {
                 console.log("AI ran dm_member");
                 console.log("[ServerFunction] dm_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
@@ -2127,6 +2233,22 @@ async function runChatGptReply(message) {
                     type: "object",
                     properties: {},
                     required: [],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "edit_server_code",
+                description: "Propose an edit to the bot's own source code. OWNER-ONLY (restricted to the bot owner). The edit is NOT applied immediately: the owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Use an exact, unique snippet for oldString. To create a new file or append, pass an empty oldString and put the content in newString.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        filePath: { type: "string", description: "Path to the file to edit, relative to the project root (e.g. 'index.js')" },
+                        oldString: { type: "string", description: "Exact, unique snippet of existing text to replace. Use an empty string to create a new file or append to an existing one." },
+                        newString: { type: "string", description: "The replacement text (or the new/appended content when oldString is empty)." },
+                    },
+                    required: ["filePath", "oldString", "newString"],
                     additionalProperties: false,
                 },
             },
@@ -2874,6 +2996,55 @@ client.on("messageCreate", async (message) => {
     if (message.content.startsWith("!crash")) {
         if (message.author.id !== "804839205309382676") { return message.react("💔"); }
         throw new Error("Intentional crash triggered by !crash command");
+    }
+});
+
+// Handle the Yes/No buttons on AI-proposed code edits. The change is applied to disk only
+// when the owner clicks "Yes"; "No" (or expiry) discards it.
+client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) { return; }
+    const id = interaction.customId || "";
+    if (!id.startsWith("editcode_accept_") && !id.startsWith("editcode_reject_")) { return; }
+
+    if (interaction.user.id !== CODE_EDIT_OWNER_ID) {
+        return interaction.reply({ content: "You are not allowed to respond to this.", flags: ["Ephemeral"] }).catch(() => { });
+    }
+
+    const accept = id.startsWith("editcode_accept_");
+    const editId = id.replace(/^editcode_(accept|reject)_/, "");
+    const pending = pendingCodeEdits.get(editId);
+    if (!pending) {
+        return interaction.update({ content: "This edit request has expired or was already handled.", components: [] }).catch(() => { });
+    }
+    pendingCodeEdits.delete(editId);
+
+    if (!accept) {
+        return interaction.update({ content: `❌ Edit to \`${pending.filePath}\` rejected.`, components: [] }).catch(() => { });
+    }
+
+    try {
+        const exists = fs.existsSync(pending.absPath);
+        let updated;
+        if (pending.oldString === "") {
+            const current = exists ? fs.readFileSync(pending.absPath, "utf-8") : "";
+            updated = current ? current + pending.newString : pending.newString;
+        } else {
+            if (!exists) {
+                return interaction.update({ content: `⚠️ Could not apply: \`${pending.filePath}\` no longer exists.`, components: [] }).catch(() => { });
+            }
+            const current = fs.readFileSync(pending.absPath, "utf-8");
+            if (!current.includes(pending.oldString)) {
+                return interaction.update({ content: `⚠️ Could not apply: the original text in \`${pending.filePath}\` changed since the proposal.`, components: [] }).catch(() => { });
+            }
+            updated = current.replace(pending.oldString, pending.newString);
+        }
+        fs.mkdirSync(path.dirname(pending.absPath), { recursive: true });
+        fs.writeFileSync(pending.absPath, updated, "utf-8");
+        console.log(`[CodeEdit] Owner applied edit to ${pending.filePath}`);
+        return interaction.update({ content: `✅ Applied edit to \`${pending.filePath}\`.`, components: [] }).catch(() => { });
+    } catch (err) {
+        console.error("[CodeEdit] Failed to apply edit:", err);
+        return interaction.update({ content: `⚠️ Failed to apply edit to \`${pending.filePath}\`: ${err?.message || String(err)}`, components: [] }).catch(() => { });
     }
 });
 
