@@ -563,6 +563,8 @@ const blacklistedTags = {
 };
 
 const warnedUsers = new Set();
+const EMPTY_VOICE_CHAT_CHANNEL_ID = "1459962391830724741";
+const clearingVoiceChatChannels = new Set();
 
 client.once(Events.ClientReady, async () => {
     console.log(`Logged in as ${client.user.username}`);
