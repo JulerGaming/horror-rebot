@@ -628,6 +628,21 @@ client.once(Events.ClientReady, async () => {
     const guild = client.guilds.cache.get("1333194010201952367");
     client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
     console.log("Update status!");
+
+    const emptyVoiceChatChannel = await guild?.channels?.fetch?.(EMPTY_VOICE_CHAT_CHANNEL_ID).catch(() => null);
+    await clearVoiceChannelMessagesIfEmpty(emptyVoiceChatChannel);
+});
+
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    if (oldState.channelId !== EMPTY_VOICE_CHAT_CHANNEL_ID && newState.channelId !== EMPTY_VOICE_CHAT_CHANNEL_ID) { return; }
+
+    try {
+        const guild = newState.guild || oldState.guild;
+        const emptyVoiceChatChannel = await guild?.channels?.fetch?.(EMPTY_VOICE_CHAT_CHANNEL_ID).catch(() => null);
+        await clearVoiceChannelMessagesIfEmpty(emptyVoiceChatChannel);
+    } catch (err) {
+        console.error(`Failed to clear messages for empty voice channel ${EMPTY_VOICE_CHAT_CHANNEL_ID}:`, err);
+    }
 });
 
 client.on(Events.ClientReady, async () => {
