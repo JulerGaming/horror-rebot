@@ -1796,15 +1796,61 @@ async function runChatGptReply(message) {
                 console.log("[ServerFunction] do_nothing called by", message?.author?.tag || message?.author?.id || "unknown");
                 return "ok";
             },
+            read_server_code: async (args, { message }) => {
+                console.log("AI ran read_server_code");
+                console.log("[ServerFunction] read_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
+
+                // Reading is open to everyone (no permission required). The .env/.git/node_modules
+                // block below still applies so secrets/internals are never exposed.
+                const { filePath } = args || {};
+                if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
+                    return "(Error) Missing filePath";
+                }
+
+                // Keep reads inside the project directory and away from secrets/internals.
+                const root = path.resolve(__dirname);
+                const absPath = path.resolve(root, filePath);
+                if (absPath !== root && !absPath.startsWith(root + path.sep)) {
+                    return "(Error) filePath escapes the project directory.";
+                }
+                const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
+                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || rel === ".env" || rel.endsWith("/.env")) {
+                    return "(Error) Reading that file is not allowed.";
+                }
+
+                if (!fs.existsSync(absPath)) {
+                    return "(Error) File does not exist.";
+                }
+                if (fs.statSync(absPath).isDirectory()) {
+                    // List directory contents instead of trying to read it as a file.
+                    const entries = fs.readdirSync(absPath, { withFileTypes: true })
+                        .map((e) => (e.isDirectory() ? `${e.name}/` : e.name));
+                    return `(Directory) ${filePath}\n${entries.join("\n")}`;
+                }
+
+                let content;
+                try {
+                    content = fs.readFileSync(absPath, "utf-8");
+                } catch (err) {
+                    return `(Error) Could not read file. ${err?.message || String(err)}`;
+                }
+
+                // Cap the returned content so a huge file can't blow up the token budget. The AI
+                // can ask for a specific snippet to edit even from a partial view.
+                const MAX_CHARS = 12000;
+                actionsMade += `-# Read \`${filePath}\`\n`;
+                if (content.length > MAX_CHARS) {
+                    return `(File: ${filePath}, truncated to first ${MAX_CHARS} of ${content.length} chars)\n${content.slice(0, MAX_CHARS)}`;
+                }
+                return `(File: ${filePath})\n${content}`;
+            },
             edit_server_code: async (args, { message }) => {
                 console.log("AI ran edit_server_code");
                 console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
 
-                // Restricted to the bot owner ONLY (not just any admin).
-                if (message?.author?.id !== CODE_EDIT_OWNER_ID) {
-                    return "(Error) Only the bot owner is allowed to edit server code.";
-                }
-
+                // Anyone may PROPOSE an edit, but it is never applied without owner approval:
+                // the change is parked and only written to disk when the owner clicks "Yes" on
+                // the DM below (and the buttons are gated to the owner).
                 const { filePath, oldString, newString } = args || {};
                 if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
                     return "(Error) Missing filePath";
@@ -2238,8 +2284,22 @@ async function runChatGptReply(message) {
             },
             {
                 type: "function",
+                name: "read_server_code",
+                description: "Read one of the bot's own source files (or list a directory). Available to anyone. Returns the file contents (truncated if very large). Use this to inspect a file before proposing an edit with edit_server_code. Path is relative to the project root; secrets and internals (.env, .git, node_modules) are not readable.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        filePath: { type: "string", description: "Path to the file or directory to read, relative to the project root (e.g. 'index.js' or 'public')" },
+                    },
+                    required: ["filePath"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
                 name: "edit_server_code",
-                description: "Propose an edit to the bot's own source code. OWNER-ONLY (restricted to the bot owner). The edit is NOT applied immediately: the owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Use an exact, unique snippet for oldString. To create a new file or append, pass an empty oldString and put the content in newString.",
+                description: "Propose an edit to the bot's own source code. Anyone can propose, but the edit is NOT applied immediately: the bot owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Read the file first with read_server_code so oldString is an exact, unique snippet. To create a new file or append, pass an empty oldString and put the content in newString.",
                 strict: true,
                 parameters: {
                     type: "object",
