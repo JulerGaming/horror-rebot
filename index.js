@@ -8,12 +8,9 @@ const puppeteer = require('puppeteer');
 const chatMemory = new Map();
 // key = channelId OR userId (for DMs)
 
-// Only this user (the bot owner) may have the AI edit the bot's own source code.
+// The bot owner — the only user who can approve AI-proposed code edits (and trigger a
+// manual git sync). Edits are never written to disk until they click "Yes" on the DM.
 const CODE_EDIT_OWNER_ID = "804839205309382676";
-// Edits proposed by the AI are NOT applied immediately. They are parked here and only
-// written to disk once the owner approves them via the Yes/No buttons in their DMs.
-// key = editId, value = { filePath, absPath, oldString, newString, requestedBy, createdAt }
-const pendingCodeEdits = new Map();
 
 // Build a readable diff-style preview of a proposed edit for the approval DM. Rendered
 // inside a ```diff code block, so removed lines show red and added lines show green.
@@ -1903,43 +1900,81 @@ async function runChatGptReply(message) {
                     }
                 }
 
-                // Park the edit and ask the owner to approve it via DM buttons.
-                const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-                pendingCodeEdits.set(editId, {
-                    filePath,
-                    absPath,
-                    oldString,
-                    newString,
-                    requestedBy: message.author.id,
-                    createdAt: Date.now(),
-                });
-                const expiry = setTimeout(() => pendingCodeEdits.delete(editId), 10 * 60 * 1000);
-                if (expiry.unref) { expiry.unref(); }
-
+                // Ask the owner to approve it via DM buttons.
                 const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
                 if (!owner) {
-                    pendingCodeEdits.delete(editId);
                     return "(Error) Could not reach the bot owner to request approval.";
                 }
 
+                const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+                const acceptId = `editcode_accept_${editId}`;
+                const rejectId = `editcode_reject_${editId}`;
                 const whatchanged = buildEditPreview(filePath, oldString, newString);
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`editcode_accept_${editId}`).setLabel("Yes").setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(`editcode_reject_${editId}`).setLabel("No").setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId(acceptId).setLabel("Yes").setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(rejectId).setLabel("No").setStyle(ButtonStyle.Danger),
                 );
 
+                let sent;
                 try {
-                    await owner.send({
+                    sent = await owner.send({
                         content: `Do you accept the edits?\n\`\`\`diff\n${whatchanged}\n\`\`\``,
                         components: [row],
                     });
                 } catch (err) {
-                    pendingCodeEdits.delete(editId);
                     return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
                 }
 
                 actionsMade += `-# Proposed an edit to \`${filePath}\` (awaiting owner approval)\n`;
-                return "(Pending) The proposed edit was sent to the owner for approval and will only be applied if they accept.";
+
+                // Block until the owner clicks Yes/No (or it times out), then continue with the outcome.
+                const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
+                let interaction;
+                try {
+                    interaction = await sent.awaitMessageComponent({
+                        filter: (i) => i.user.id === CODE_EDIT_OWNER_ID && (i.customId === acceptId || i.customId === rejectId),
+                        time: APPROVAL_TIMEOUT_MS,
+                    });
+                } catch {
+                    // No response within the window.
+                    try { await sent.edit({ content: `⌛ Edit to \`${filePath}\` timed out (no response).`, components: [] }); } catch { /* ignore */ }
+                    return "(Denied) The owner did not respond in time, so the edit was NOT applied.";
+                }
+
+                if (interaction.customId === rejectId) {
+                    await interaction.update({ content: `❌ Edit to \`${filePath}\` rejected.`, components: [] }).catch(() => { });
+                    return "(Denied) The owner rejected the edit; nothing was changed.";
+                }
+
+                // Approved -> apply the change to disk now.
+                try {
+                    const stillExists = fs.existsSync(absPath);
+                    let updated;
+                    if (oldString === "") {
+                        const current = stillExists ? fs.readFileSync(absPath, "utf-8") : "";
+                        updated = current ? current + newString : newString;
+                    } else {
+                        if (!stillExists) {
+                            await interaction.update({ content: `⚠️ Could not apply: \`${filePath}\` no longer exists.`, components: [] }).catch(() => { });
+                            return "(Error) Approved, but the file no longer exists; edit not applied.";
+                        }
+                        const current = fs.readFileSync(absPath, "utf-8");
+                        if (!current.includes(oldString)) {
+                            await interaction.update({ content: `⚠️ Could not apply: the original text in \`${filePath}\` changed since the proposal.`, components: [] }).catch(() => { });
+                            return "(Error) Approved, but the file changed since the proposal; edit not applied.";
+                        }
+                        updated = current.replace(oldString, newString);
+                    }
+                    fs.mkdirSync(path.dirname(absPath), { recursive: true });
+                    fs.writeFileSync(absPath, updated, "utf-8");
+                    console.log(`[CodeEdit] Owner approved & applied edit to ${filePath}`);
+                    await interaction.update({ content: `✅ Applied edit to \`${filePath}\`.`, components: [] }).catch(() => { });
+                    return `(Success) The owner approved the edit and it was applied to ${filePath}.`;
+                } catch (err) {
+                    console.error("[CodeEdit] Failed to apply edit:", err);
+                    await interaction.update({ content: `⚠️ Failed to apply edit to \`${filePath}\`: ${err?.message || String(err)}`, components: [] }).catch(() => { });
+                    return `(Error) Approved but failed to write the file. ${err?.message || String(err)}`;
+                }
             },
             git_sync: async (args, { message }) => {
                 console.log("AI ran git_sync");
@@ -3110,54 +3145,6 @@ client.on("messageCreate", async (message) => {
     }
 });
 
-// Handle the Yes/No buttons on AI-proposed code edits. The change is applied to disk only
-// when the owner clicks "Yes"; "No" (or expiry) discards it.
-client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isButton()) { return; }
-    const id = interaction.customId || "";
-    if (!id.startsWith("editcode_accept_") && !id.startsWith("editcode_reject_")) { return; }
-
-    if (interaction.user.id !== CODE_EDIT_OWNER_ID) {
-        return interaction.reply({ content: "You are not allowed to respond to this.", flags: ["Ephemeral"] }).catch(() => { });
-    }
-
-    const accept = id.startsWith("editcode_accept_");
-    const editId = id.replace(/^editcode_(accept|reject)_/, "");
-    const pending = pendingCodeEdits.get(editId);
-    if (!pending) {
-        return interaction.update({ content: "This edit request has expired or was already handled.", components: [] }).catch(() => { });
-    }
-    pendingCodeEdits.delete(editId);
-
-    if (!accept) {
-        return interaction.update({ content: `❌ Edit to \`${pending.filePath}\` rejected.`, components: [] }).catch(() => { });
-    }
-
-    try {
-        const exists = fs.existsSync(pending.absPath);
-        let updated;
-        if (pending.oldString === "") {
-            const current = exists ? fs.readFileSync(pending.absPath, "utf-8") : "";
-            updated = current ? current + pending.newString : pending.newString;
-        } else {
-            if (!exists) {
-                return interaction.update({ content: `⚠️ Could not apply: \`${pending.filePath}\` no longer exists.`, components: [] }).catch(() => { });
-            }
-            const current = fs.readFileSync(pending.absPath, "utf-8");
-            if (!current.includes(pending.oldString)) {
-                return interaction.update({ content: `⚠️ Could not apply: the original text in \`${pending.filePath}\` changed since the proposal.`, components: [] }).catch(() => { });
-            }
-            updated = current.replace(pending.oldString, pending.newString);
-        }
-        fs.mkdirSync(path.dirname(pending.absPath), { recursive: true });
-        fs.writeFileSync(pending.absPath, updated, "utf-8");
-        console.log(`[CodeEdit] Owner applied edit to ${pending.filePath}`);
-        return interaction.update({ content: `✅ Applied edit to \`${pending.filePath}\`.`, components: [] }).catch(() => { });
-    } catch (err) {
-        console.error("[CodeEdit] Failed to apply edit:", err);
-        return interaction.update({ content: `⚠️ Failed to apply edit to \`${pending.filePath}\`: ${err?.message || String(err)}`, components: [] }).catch(() => { });
-    }
-});
 
 // </autocomplete>
 
