@@ -7,17 +7,25 @@
     <link rel="icon" href="https://cdn.discordapp.com/avatars/1369007178664378429/7069810073b2a5b9d9553b0ccb34d993.webp?size=128" sizes="128x128" type="image/webp">
     <meta name="theme-color" content="#222">
     <style>
+        * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; font-family: Arial, sans-serif; background: linear-gradient(135deg, #141414, #242424); color: #fff; }
         .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; background: rgba(0, 0, 0, 0.35); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
         .top img { width: 24px; height: 24px; }
-        .redirect-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .redirect-buttons, .tool-buttons, .action-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
         button { background: #5865f2; border: none; color: #fff; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
         button:hover { background: #4752c4; }
-        .body { max-width: 960px; margin: 0 auto; padding: 32px 20px 48px; }
+        button.active { background: #43b581; }
+        .body { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
         .subtitle { color: rgba(255, 255, 255, 0.75); margin-bottom: 20px; }
         .card { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 20px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25); }
-        .canvas-placeholder { display: flex; align-items: center; justify-content: center; min-height: 360px; margin-top: 18px; border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 14px; text-align: center; color: rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.03); }
-        ul { line-height: 1.7; }
+        .toolbar { display: grid; gap: 14px; }
+        .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        label { display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.12); padding: 10px 14px; border-radius: 8px; font-weight: 600; }
+        input[type="color"] { width: 42px; height: 32px; padding: 0; border: none; background: none; }
+        input[type="range"] { width: 160px; }
+        .status { color: rgba(255, 255, 255, 0.75); font-size: 14px; }
+        .canvas-wrap { margin-top: 16px; background: #fff; border-radius: 14px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.12); }
+        canvas { display: block; width: 100%; max-width: 100%; background: #fff; touch-action: none; cursor: crosshair; }
     </style>
 </head>
 <body>
@@ -34,20 +42,34 @@
     </div>
     <div class="body">
         <h1>Drawing</h1>
-        <p class="subtitle">Phase 1 of the drawing feature is now a real page. The advanced tools can be added in the next phase.</p>
+        <p class="subtitle">Phase 2 is live with a starter drawing tool set.</p>
         <div class="card">
-            <h2>Phase 1 setup</h2>
-            <ul>
-                <li>Drawing section created under the tools area.</li>
-                <li>Reserved space for the future canvas and controls.</li>
-                <li>Ready for phase 2 features like brush, eraser, shapes, undo, and save/export.</li>
-            </ul>
-            <div class="canvas-placeholder">
-                <div>
-                    <strong>Canvas placeholder</strong><br>
-                    The interactive drawing tools can be added next.
+            <h2>Drawing Studio</h2>
+            <p class="subtitle">Starter tools are now here: brush, eraser, fill bucket, color picker, line, rectangle, circle, undo/redo, brush size, clear, and save/export.</p>
+            <div class="toolbar">
+                <div class="row tool-buttons">
+                    <button class="active" data-tool="brush">Brush</button>
+                    <button data-tool="eraser">Eraser</button>
+                    <button data-tool="fill">Fill Bucket</button>
+                    <button data-tool="picker">Color Picker</button>
+                    <button data-tool="line">Line</button>
+                    <button data-tool="rectangle">Rectangle</button>
+                    <button data-tool="circle">Circle</button>
+                </div>
+                <div class="row action-buttons">
+                    <label>Color <input id="color" type="color" value="#000000"></label>
+                    <label>Brush Size <input id="size" type="range" min="1" max="50" value="6"></label>
+                    <span class="status" id="sizeLabel">6 px</span>
+                    <button id="undo">Undo</button>
+                    <button id="redo">Redo</button>
+                    <button id="clear">Clear</button>
+                    <button id="save">Save/Export</button>
                 </div>
             </div>
+            <div class="canvas-wrap">
+                <canvas id="drawingCanvas" width="1000" height="600"></canvas>
+            </div>
+            <p class="status" id="status">Selected tool: Brush</p>
         </div>
     </div>
 </body>
