@@ -2762,7 +2762,7 @@ async function runChatGptReply(message) {
         const baseRequest = {
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "26"
+                "version": "27"
             },
             tools: tools,
             text: {
