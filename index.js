@@ -1855,6 +1855,71 @@ async function runChatGptReply(message) {
                 }
                 return `(File: ${filePath})\n${content}`;
             },
+            read_server_code_lines: async (args, { message }) => {
+                console.log("AI ran read_server_code_lines");
+                console.log("[ServerFunction] read_server_code_lines called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath, startLine: args?.startLine, endLine: args?.endLine });
+
+                // Reading is open to everyone (no permission required). The .env/.git/node_modules
+                // block below still applies so secrets/internals are never exposed.
+                const { filePath, startLine, endLine } = args || {};
+                if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
+                    return "(Error) Missing filePath";
+                }
+                const start = Math.floor(Number(startLine));
+                const end = Math.floor(Number(endLine));
+                if (!Number.isFinite(start) || !Number.isFinite(end) || start < 1 || end < 1) {
+                    return "(Error) startLine and endLine must be positive whole numbers (1-based).";
+                }
+                if (end < start) {
+                    return "(Error) endLine must be greater than or equal to startLine.";
+                }
+
+                // Keep reads inside the project directory and away from secrets/internals.
+                const root = path.resolve(__dirname);
+                const absPath = path.resolve(root, filePath);
+                if (absPath !== root && !absPath.startsWith(root + path.sep)) {
+                    return "(Error) filePath escapes the project directory.";
+                }
+                const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
+                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || rel === ".env" || rel.endsWith("/.env")) {
+                    return "(Error) Reading that file is not allowed.";
+                }
+
+                if (!fs.existsSync(absPath)) {
+                    return "(Error) File does not exist.";
+                }
+                if (fs.statSync(absPath).isDirectory()) {
+                    return "(Error) That path is a directory, not a file.";
+                }
+
+                let content;
+                try {
+                    content = fs.readFileSync(absPath, "utf-8");
+                } catch (err) {
+                    return `(Error) Could not read file. ${err?.message || String(err)}`;
+                }
+
+                const lines = content.split("\n");
+                if (start > lines.length) {
+                    return `(Error) startLine ${start} is past the end of the file (${lines.length} lines).`;
+                }
+
+                // Clamp the range and cap how many lines we return at once.
+                const MAX_LINES = 400;
+                const from = start;
+                const to = Math.min(end, lines.length, start + MAX_LINES - 1);
+                const truncated = to < Math.min(end, lines.length);
+
+                // Number each line so the AI can build an exact oldString for edit_server_code.
+                const width = String(to).length;
+                const slice = lines.slice(from - 1, to)
+                    .map((line, i) => `${String(from + i).padStart(width, " ")} | ${line}`)
+                    .join("\n");
+
+                actionsMade += `-# Read \`${filePath}\` lines ${from}-${to}\n`;
+                const header = `(File: ${filePath}, lines ${from}-${to} of ${lines.length}${truncated ? `, truncated to ${MAX_LINES} lines` : ""})`;
+                return `${header}\n${slice}`;
+            },
             edit_server_code: async (args, { message }) => {
                 console.log("AI ran edit_server_code");
                 console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
@@ -2372,6 +2437,22 @@ async function runChatGptReply(message) {
             },
             {
                 type: "function",
+                name: "read_server_code_lines",
+                description: "Read a specific range of lines from one of the bot's own source files. Available to anyone. Returns the requested lines, each prefixed with its 1-based line number, so you can copy an exact snippet for edit_server_code. Use this for large files where read_server_code would truncate. Path is relative to the project root; secrets and internals (.env, .git, node_modules) are not readable. Returns at most 400 lines per call.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        filePath: { type: "string", description: "Path to the file to read, relative to the project root (e.g. 'index.js')" },
+                        startLine: { type: "number", description: "First line to read (1-based, inclusive)" },
+                        endLine: { type: "number", description: "Last line to read (1-based, inclusive). Must be >= startLine." },
+                    },
+                    required: ["filePath", "startLine", "endLine"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
                 name: "edit_server_code",
                 description: "Propose an edit to the bot's own source code. Anyone can propose, but the edit is NOT applied immediately: the bot owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Read the file first with read_server_code so oldString is an exact, unique snippet. To create a new file or append, pass an empty oldString and put the content in newString.",
                 strict: true,
@@ -2546,7 +2627,7 @@ async function runChatGptReply(message) {
         let response = await openai.responses.create({
             prompt: {
                 "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "22"
+                "version": "23"
             },
             input: history,
             tools: tools,
