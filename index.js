@@ -2981,7 +2981,34 @@ async function runChatGptReply(message) {
         });
 
         // ====== SEND TEXT ======
-        await message.reply(replyText);
+        if (replyText.length <= 2000) {
+            await message.reply(replyText);
+        } else {
+            const chunks = [];
+            let remaining = replyText;
+
+            while (remaining.length > 0) {
+                let chunk = remaining.slice(0, 2000);
+
+                if (remaining.length > 2000) {
+                    const splitAt = Math.max(
+                        chunk.lastIndexOf("\n"),
+                        chunk.lastIndexOf(" ")
+                    );
+                    if (splitAt > 0) {
+                        chunk = chunk.slice(0, splitAt);
+                    }
+                }
+
+                chunks.push(chunk);
+                remaining = remaining.slice(chunk.length).trimStart();
+            }
+
+            await message.reply(chunks[0]);
+            for (let i = 1; i < chunks.length; i++) {
+                await message.channel.send(chunks[i]);
+            }
+        }
 
         // ===== JOIN VOICE CHANNEL FOR TTS REPLY IF USER IS IN VOICE =====
         try {
