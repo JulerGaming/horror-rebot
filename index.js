@@ -279,7 +279,7 @@ const updatedAt = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getDa
 package["updated-at"] = updatedAt;
 fs.writeFileSync("./package.json", JSON.stringify(package, null, 2));;
 
-const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials, Events, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType, ChannelType, Partials, Events, ButtonBuilder, ActionRowBuilder, ButtonStyle, PermissionFlagsBits } = require("discord.js");
 
 const upDate = package["updated-at"] || "January 1, 1970 at 12:00 AM UTC";
 
@@ -2597,16 +2597,23 @@ async function runChatGptReply(message) {
                 return { count: inactiveMembers.size, members };
             },
             send_announcement: async (args, { message }) => {
-                const { content } = args;
+                const { title, content, roleMention } = args;
                 if (!content) {
                     return "(Error) Announcement content is required.";
                 }
-                
+
                 // Ask the owner to approve the announcement via DM buttons.
                 const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
                 if (!owner) {
                     return "(Error) Could not reach the bot owner to request approval.";
                 }
+
+                // Build the mention line: "@everyone" stays as-is, anything else is treated as a role ID.
+                let mention = "";
+                if (roleMention) {
+                    mention = /everyone/i.test(roleMention) ? "@everyone" : `<@&${roleMention.replace(/\D/g, "")}>`;
+                }
+                const announcementText = `${mention ? `${mention}\n` : ""}${title ? `# ${title}\n` : ""}### ${content}`;
 
                 const announcementId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
                 const acceptId = `announcement_accept_${announcementId}`;
@@ -2619,7 +2626,7 @@ async function runChatGptReply(message) {
                 let sent;
                 try {
                     sent = await owner.send({
-                        content: `Do you approve sending the following announcement?\n\`\`\`\n${content}\n\`\`\``,
+                        content: `Do you approve sending the following announcement?\n\`\`\`\n${announcementText}\n\`\`\``,
                         components: [row],
                     });
                 } catch (err) {
@@ -2639,6 +2646,25 @@ async function runChatGptReply(message) {
                     return "(Denied) The owner did not respond in time, so the announcement was NOT sent.";
                 }
 
+                if (interaction.customId === rejectId) {
+                    try { await interaction.update({ content: `❌ Announcement rejected.`, components: [] }); } catch { /* ignore */ }
+                    return "(Denied) The owner rejected the announcement, so it was NOT sent.";
+                }
+
+                const channel = await client.channels.fetch(configl.basics.announcementChannelID).catch(() => null);
+                if (!channel) {
+                    try { await interaction.update({ content: `⚠️ Approved, but the announcement channel could not be found.`, components: [] }); } catch { /* ignore */ }
+                    return "(Error) Announcement channel not found; the announcement was NOT sent.";
+                }
+
+                try {
+                    await channel.send(announcementText);
+                } catch (err) {
+                    try { await interaction.update({ content: `⚠️ Approved, but sending failed: ${err?.message || String(err)}`, components: [] }); } catch { /* ignore */ }
+                    return `(Error) Failed to send the announcement: ${err?.message || String(err)}`;
+                }
+
+                try { await interaction.update({ content: `✅ Announcement approved and sent.`, components: [] }); } catch { /* ignore */ }
                 return "(Success) Announcement sent.";
             }
         };
@@ -3735,7 +3761,7 @@ client.on("interactionCreate", async (interaction) => {
                         ephemeral: true,
                     });
                 }
-                if (!interaction.member.permissions.has("ADMINISTRATOR")) {
+                if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                     return interaction.reply({
                         content: "You do not have permission to use this command.",
                         ephemeral: true,
@@ -3798,7 +3824,7 @@ client.on("interactionCreate", async (interaction) => {
                         ephemeral: true,
                     });
                 }
-                if (!interaction.member.permissions.has("ADMINISTRATOR")) {
+                if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                     return interaction.reply({
                         content: "You do not have permission to use this command.",
                         ephemeral: true,

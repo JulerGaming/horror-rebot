@@ -1,4 +1,4 @@
-const { REST, Routes, SlashCommandBuilder } = require("discord.js");
+const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 // Info needed for slash commands (so we don't have to use "!" before commands)
 // Read environment variables from .env file
 require("dotenv").config();
@@ -98,6 +98,7 @@ const slashRegister = async () => {
           .setDescription("broadcasts a message to all direct messages")
           .setIntegrationTypes(0)
           .setContexts(0) // Servers only
+          .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
           .addStringOption((option) =>
             option
               .setName("message")
@@ -109,6 +110,7 @@ const slashRegister = async () => {
           .setDescription("broadcasts an update message to all direct messages")
           .setIntegrationTypes(0)
           .setContexts(0) // Servers only
+          .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
           .addStringOption((option) =>
             option
               .setName("title")
