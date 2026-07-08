@@ -2595,6 +2595,51 @@ async function runChatGptReply(message) {
                     .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
                     .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
                 return { count: inactiveMembers.size, members };
+            },
+            send_announcement: async (args, { message }) => {
+                const { content } = args;
+                if (!content) {
+                    return "(Error) Announcement content is required.";
+                }
+                
+                // Ask the owner to approve the announcement via DM buttons.
+                const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
+                if (!owner) {
+                    return "(Error) Could not reach the bot owner to request approval.";
+                }
+
+                const announcementId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+                const acceptId = `announcement_accept_${announcementId}`;
+                const rejectId = `announcement_reject_${announcementId}`;
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(acceptId).setLabel("Yes").setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(rejectId).setLabel("No").setStyle(ButtonStyle.Danger),
+                );
+
+                let sent;
+                try {
+                    sent = await owner.send({
+                        content: `Do you approve sending the following announcement?\n\`\`\`\n${content}\n\`\`\``,
+                        components: [row],
+                    });
+                } catch (err) {
+                    return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
+                }
+
+                // Wait for the owner to click Yes/No (or timeout).
+                const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
+                let interaction;
+                try {
+                    interaction = await sent.awaitMessageComponent({
+                        filter: (i) => i.user.id === CODE_EDIT_OWNER_ID && (i.customId === acceptId || i.customId === rejectId),
+                        time: APPROVAL_TIMEOUT_MS,
+                    });
+                } catch {
+                    try { await sent.edit({ content: `⌛ Announcement approval timed out (no response).`, components: [] }); } catch { /* ignore */ }
+                    return "(Denied) The owner did not respond in time, so the announcement was NOT sent.";
+                }
+
+                return "(Success) Announcement sent.";
             }
         };
 
@@ -2815,6 +2860,22 @@ async function runChatGptReply(message) {
                     type: "object",
                     properties: {},
                     required: [],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
+                name: "send_announcement",
+                description: "Sends an announcement to the server. Admin-only. The bot owner must approve the announcement via DM buttons before it is sent.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        title: { type: "string", description: "The announcement title" },
+                        content: { type: "string", description: "The announcement content to send" },
+                        roleMention: { type: "string", description: "Optional role ID to mention in the announcement (If the user did not specify, use @everyone)" },
+                    },
+                    required: ["title", "content", "roleMention"],
                     additionalProperties: false,
                 },
             }
