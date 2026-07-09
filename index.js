@@ -4569,7 +4569,7 @@ client.on("interactionCreate", async (interaction) => {
                     await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 
                     const player = createAudioPlayer();
-                    const resource = createAudioResource("http://localhost:8080", { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
+                    const resource = createAudioResource("http://localhost:8080/stream", { filter: "audioonly" }, { inputType: StreamType.Arbitrary });
 
                     player.play(resource);
                     connection.subscribe(player);
