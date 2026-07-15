@@ -2727,6 +2727,20 @@ async function runChatGptReply(message) {
             },
             {
                 type: "function",
+                name: "whois_domain_lookup",
+                description: "Look up a domain using a WHOIS-style domain registration lookup and return registrar, dates, status, nameservers, and a details link.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        domain: { type: "string", description: "The domain name to look up, such as example.com" },
+                    },
+                    required: ["domain"],
+                    additionalProperties: false,
+                },
+            },
+            {
+                type: "function",
                 name: "read_server_code_lines",
                 description: "Read a specific range of lines from one of the bot's own source files. Available to anyone. Returns the requested lines, each prefixed with its 1-based line number, so you can copy an exact snippet for edit_server_code. Use this for large files where read_server_code would truncate. Path is relative to the project root; secrets and internals (.env, .git, node_modules) are not readable. Returns at most 400 lines per call.",
                 strict: true,
