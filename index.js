@@ -2666,6 +2666,49 @@ async function runChatGptReply(message) {
 
                 try { await interaction.update({ content: `✅ Announcement approved and sent.`, components: [] }); } catch { /* ignore */ }
                 return "(Success) Announcement sent.";
+            },
+            whois_domain_lookup: async (args) => {
+                const domainInput = typeof args?.domain === "string" ? args.domain : "";
+                const domain = domainInput.trim().toLowerCase().replace(/\.$/, "");
+                const domainRegex = /^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
+                if (!domain) {
+                    return "(Error) Missing domain.";
+                }
+                if (!domainRegex.test(domain)) {
+                    return "(Error) Please provide a valid domain name.";
+                }
+
+                try {
+                    const response = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+                        headers: {
+                            accept: "application/json"
+                        }
+                    });
+
+                    if (!response.ok) {
+                        return "(Error) Could not look up that domain right now. Please try again later.";
+                    }
+
+                    const data = await response.json();
+                    const registrarEntity = data.entities?.find((entity) => entity.roles?.includes("registrar"));
+                    const registrarField = registrarEntity?.vcardArray?.[1]?.find((field) => field[0] === "fn");
+                    const registrar = registrarField?.[3] || registrarEntity?.handle || "Unknown";
+                    const created = data.events?.find((event) => event.eventAction === "registration")?.eventDate || "Unknown";
+                    const updated = data.events?.find((event) => event.eventAction === "last changed")?.eventDate || "Unknown";
+                    const expires = data.events?.find((event) => event.eventAction === "expiration")?.eventDate || "Unknown";
+                    const statuses = Array.isArray(data.status) && data.status.length > 0
+                        ? data.status.slice(0, 3).join(", ")
+                        : "Unknown";
+                    const nameservers = Array.isArray(data.nameservers) && data.nameservers.length > 0
+                        ? data.nameservers.slice(0, 3).map((nameserver) => nameserver.ldhName).filter(Boolean).join(", ")
+                        : "Unknown";
+
+                    return `WHOIS-style lookup for ${domain}\nRegistrar: ${registrar}\nCreated: ${created}\nUpdated: ${updated}\nExpires: ${expires}\nStatus: ${statuses}\nNameservers: ${nameservers}\nMore details: https://rdap.org/domain/${encodeURIComponent(domain)}?utm_source=horror-rebot`;
+                } catch (error) {
+                    console.error("Error looking up domain:", error);
+                    return "(Error) Failed to look up that domain. Please try again later.";
+                }
             }
         };
 
