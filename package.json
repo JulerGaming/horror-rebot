@@ -28,6 +28,7 @@
     "canvas": "^3.2.1",
     "choco": "^0.2.1",
     "diagnostics_channel": "^1.1.0",
+    "discord": "^0.8.2",
     "discord-player": "^7.2.0",
     "discord-ytdl-core": "^5.0.4",
     "discord.js": "^14.25.1",
