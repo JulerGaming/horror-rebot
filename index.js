@@ -11,6 +11,7 @@ const chatMemory = new Map();
 // The bot owner — the only user who can approve AI-proposed code edits (and trigger a
 // manual git sync). Edits are never written to disk until they click "Yes" on the DM.
 const CODE_EDIT_OWNER_ID = "804839205309382676";
+const BOT_DISPLAY_NAME = "Bismuth Assistant";
 
 // Secret env files the AI must NEVER read, edit, or even list — anywhere in the tree.
 // Matches ".env" and every variant (".env.local", ".env.production", etc.) by basename.
@@ -528,7 +529,7 @@ process.on("uncaughtException", async (err) => {
     console.error("==============================");
     console.error("Bot Crashed!", err);
     console.error("");
-    console.error("Horror Rebot, " + version);
+    console.error(BOT_DISPLAY_NAME + ", " + version);
     console.error("Node.js, " + process.version);
     console.error("");
     console.error("==============================");
@@ -550,7 +551,7 @@ process.on("unhandledRejection", async (err) => {
     console.error("==============================");
     console.error("Unhandled Rejection:", err);
     console.error("");
-    console.error("Horror Rebot, " + version);
+    console.error(BOT_DISPLAY_NAME + ", " + version);
     console.error("Node.js, " + process.version);
     console.error("");
     console.error("==============================");
@@ -621,11 +622,25 @@ async function clearVoiceChannelMessagesIfEmpty(voiceChannel) {
 }
 
 client.once(Events.ClientReady, async () => {
+    if (client.user.username !== BOT_DISPLAY_NAME) {
+        try {
+            await client.user.setUsername(BOT_DISPLAY_NAME);
+        } catch (err) {
+            console.error(`Failed to update the bot name to ${BOT_DISPLAY_NAME}:`, err);
+        }
+    }
     console.log(`Logged in as ${client.user.username}`);
     const { slashRegister } = require('./slash-deploy.js');
     slashRegister();
     if (client.user.setAFK) { client.user.setAFK(false); }
     const guild = client.guilds.cache.get("1333194010201952367");
+    if (guild?.members?.me?.displayName !== BOT_DISPLAY_NAME) {
+        try {
+            await guild.members.me.setNickname(BOT_DISPLAY_NAME);
+        } catch (err) {
+            console.error(`Failed to update the server nickname to ${BOT_DISPLAY_NAME}:`, err);
+        }
+    }
     client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} players | v${version}`, type: ActivityType.Watching }] });
     console.log("Update status!");
 
@@ -1033,8 +1048,8 @@ function stopVoiceModeration(guildId) {
 const voiceAssistants = new Map(); // guildId -> { remove, idleTimer, textChannel }
 const VOICE_ASSISTANT_IDLE_MS = 5 * 60 * 1000; // auto-leave after 5 min with no wake-word activity
 
-// Tolerant of Whisper mis-hearing the name ("rebot"/"reboot"/"robot"/"horror bot").
-const WAKE_WORDS = ["horror rebot", "hey rebot", "ok rebot", "rebot", "reboot", "robot", "ribot", "rebought", "horribot", "horror robot", "horror bot", "poor robot", "horarybot", "horribot", "oriba", "horror-e-bot", "horror re-bot", "horror-y bot"];
+// Tolerant of Whisper mis-hearing the name.
+const WAKE_WORDS = ["bismuth assistant", "hey bismuth", "ok bismuth", "bismuth", "bizmuth", "business assistant"];
 
 // Returns the query with the wake word stripped, or null if no wake word was present.
 function extractWakeQuery(text) {
@@ -1729,7 +1744,7 @@ async function runChatGptReply(message) {
 
         let actionsMade = "";
 
-        if (!configl.chatgptintegration.enabled) { return message.reply("Sorry, Horror ReAI is currently disabled."); }
+        if (!configl.chatgptintegration.enabled) { return message.reply(`Sorry, ${BOT_DISPLAY_NAME} is currently disabled.`); }
 
         if (message.content.startsWith("!")) { return; } // commands start with ! so ignore those
 
@@ -1742,8 +1757,8 @@ async function runChatGptReply(message) {
         message.channel.sendTyping();
 
         let cleaned = message.content
-            .replace(`<@!${client.user.id}>`, "@Horror Rebot")
-            .replace(`<@${client.user.id}>`, "@Horror Rebot")
+            .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
+            .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
             .replace(/\s{2,}/g, " ")
             .trim();
 
@@ -3103,8 +3118,8 @@ async function runChatGptReply(message) {
         replyText = replyText || response.output_text || "";
 
         replyText = replyText
-            .replace(`<@!${client.user.id}>`, "@Horror Rebot")
-            .replace(`<@${client.user.id}>`, "@Horror Rebot")
+            .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
+            .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
             .replace(/<@!?\d+>/g, "@...")
             .replace(/<@&\d+>/g, "@...")
             .replace(/<#\d+>/g, "@...")
@@ -4378,8 +4393,8 @@ client.on("interactionCreate", async (interaction) => {
 
                 const aboutEmbed = new EmbedBuilder()
                     .setColor(0x858585)
-                    .setTitle("About Horror Rebot")
-                    .setDescription("Horror Rebot is a multifunctional Discord bot created by JulerGT for the Discord server Horror Remake. It offers a variety of features including fun commands, utility functions, and voice channel interactions.")
+                    .setTitle(`About ${BOT_DISPLAY_NAME}`)
+                    .setDescription(`${BOT_DISPLAY_NAME} is a multifunctional Discord bot created by JulerGT for the Discord server Horror Remake. It offers a variety of features including fun commands, utility functions, and voice channel interactions.`)
                     .addFields(
                         { name: "Creator", value: "JulerGT" },
                         { name: "Library", value: "discord.js v14" },
@@ -4389,7 +4404,7 @@ client.on("interactionCreate", async (interaction) => {
                         { name: "Uptime", value: `${Math.floor(process.uptime() / 60)} minutes` },
                         { name: "Updated At", value: upDate }
                     )
-                    .setFooter({ text: "Thank you for using Horror Rebot!" })
+                    .setFooter({ text: `Thank you for using ${BOT_DISPLAY_NAME}!` })
                     .setThumbnail(client.user.displayAvatarURL({ size: 128, extension: "png" }));
                 await interaction.reply({ embeds: [aboutEmbed], ephemeral: true });
             }
