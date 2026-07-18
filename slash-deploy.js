@@ -94,6 +94,17 @@ const slashRegister = async () => {
               .setRequired(true)
           ),
         new SlashCommandBuilder()
+          .setName("whois")
+          .setDescription("looks up domain registration info")
+          .setIntegrationTypes(0, 1)
+          .setContexts(0, 1, 2)
+          .addStringOption((option) =>
+            option
+              .setName("domain")
+              .setDescription("the domain you want to look up")
+              .setRequired(true)
+          ),
+        new SlashCommandBuilder()
           .setName("broadcast")
           .setDescription("broadcasts a message to all direct messages")
           .setIntegrationTypes(0)
