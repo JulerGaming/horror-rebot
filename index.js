@@ -1048,16 +1048,62 @@ function stopVoiceModeration(guildId) {
 const voiceAssistants = new Map(); // guildId -> { remove, idleTimer, textChannel }
 const VOICE_ASSISTANT_IDLE_MS = 5 * 60 * 1000; // auto-leave after 5 min with no wake-word activity
 
-// Tolerant of Whisper mis-hearing the name.
-const WAKE_WORDS = ["bismuth assistant", "hey bismuth", "ok bismuth", "bismuth", "bizmuth", "business assistant"];
+// Common multi-word ways Whisper may transcribe "Bismuth Assistant".
+const WAKE_PHRASES = [
+    "bismuth assistant",
+    "bismuth assistance",
+    "business assistant",
+    "business assistance",
+    "bis mouth assistant",
+    "biz mouth assistant",
+    "bis myth assistant",
+    "biz myth assistant",
+    "this month assistant",
+    "bis mouth",
+    "biz mouth",
+    "bis myth",
+    "biz myth",
+];
 
-// Returns the query with the wake word stripped, or null if no wake word was present.
+function wakeWordDistance(a, b) {
+    const previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i += 1) {
+        const current = [i];
+        for (let j = 1; j <= b.length; j += 1) {
+            current[j] = Math.min(
+                current[j - 1] + 1,
+                previous[j] + 1,
+                previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+            );
+        }
+        previous.splice(0, previous.length, ...current);
+    }
+    return previous[b.length];
+}
+
+function stripWakePhrase(text) {
+    return text
+        .replace(/^[\s,.:;!?'"-]+/, "")
+        .replace(/^(?:assistant|assistance)\b[\s,.:;!?'"-]*/i, "")
+        .trim();
+}
+
+// Returns the query with the wake phrase stripped, or null if none was present.
 function extractWakeQuery(text) {
     const lower = text.toLowerCase();
-    for (const w of WAKE_WORDS) {
-        const idx = lower.indexOf(w);
+    for (const phrase of WAKE_PHRASES) {
+        const idx = lower.indexOf(phrase);
         if (idx !== -1) {
-            return text.slice(idx + w.length).replace(/^[\s,.:;!?'"-]+/, "").trim();
+            return stripWakePhrase(text.slice(idx + phrase.length));
+        }
+    }
+
+    // Accept spelling variants such as "bizmuth", "bismith", or "bismouth"
+    // without maintaining an endless list of transcription mistakes.
+    for (const match of lower.matchAll(/\b[a-z]+\b/g)) {
+        const word = match[0];
+        if (word.length >= 5 && wakeWordDistance(word, "bismuth") <= 2) {
+            return stripWakePhrase(text.slice(match.index + word.length));
         }
     }
     return null;
