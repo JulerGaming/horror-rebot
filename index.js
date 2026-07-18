@@ -626,7 +626,7 @@ client.once(Events.ClientReady, async () => {
     slashRegister();
     if (client.user.setAFK) { client.user.setAFK(false); }
     const guild = client.guilds.cache.get("1333194010201952367");
-    client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} monkeys | v${version}`, type: ActivityType.Watching }] });
+    client.user.setPresence({ status: 'online', activities: [{ name: `${guild.memberCount} players | v${version}`, type: ActivityType.Watching }] });
     console.log("Update status!");
 
     const emptyVoiceChatChannel = await guild?.channels?.fetch?.(EMPTY_VOICE_CHAT_CHANNEL_ID).catch(() => null);
