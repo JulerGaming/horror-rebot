@@ -3205,6 +3205,30 @@ async function runChatGptReply(message) {
             content: replyText
         });
 
+        const memberVoiceChannel = member?.voice?.channel;
+        const shouldUseVoiceTts = Boolean(memberVoiceChannel && configl.basics.vc.enabled);
+        let audioBuffer = null;
+
+        // Voice users should keep seeing a typing indicator while Fish Audio processes
+        // the reply. Do not send the text until synthesis has completed.
+        if (shouldUseVoiceTts) {
+            const refreshTyping = () => {
+                message.channel.sendTyping().catch(() => { /* ignore typing failures */ });
+            };
+
+            refreshTyping();
+            const typingInterval = setInterval(refreshTyping, 8000);
+
+            try {
+                audioBuffer = await speakText(sanitizeForTTS(replyText));
+            } catch (err) {
+                console.error("TTS processing failed:", err);
+                newIssue(`A TTS processing error occurred at ${new Date().toISOString()}.`);
+            } finally {
+                clearInterval(typingInterval);
+            }
+        }
+
         // ====== SEND TEXT ======
         if (replyText.length <= 2000) {
             await message.reply(replyText);
@@ -3236,10 +3260,8 @@ async function runChatGptReply(message) {
         }
 
         // ===== JOIN VOICE CHANNEL FOR TTS REPLY IF USER IS IN VOICE =====
-        try {
-            const memberVoiceChannel = member?.voice?.channel;
-            if (memberVoiceChannel) {
-                if (!configl.basics.vc.enabled) { return; }
+        if (shouldUseVoiceTts && audioBuffer) {
+            try {
                 const connection = joinVoiceChannel({
                     channelId: memberVoiceChannel.id,
                     guildId: memberVoiceChannel.guild.id,
@@ -3253,7 +3275,6 @@ async function runChatGptReply(message) {
                     catch (e) { console.error("[VoiceChat] Failed to start assistant:", e?.message || e); }
                 }
 
-                const audioBuffer = await speakText(sanitizeForTTS(replyText));
                 const { Readable } = require("stream");
                 const audioStream = new Readable({
                     read() {
@@ -3273,17 +3294,10 @@ async function runChatGptReply(message) {
                         destroyVoiceConnectionIfNotSpeaking(memberVoiceChannel.guild.id, player);
                     }, 30000);
                 });
-            } else {
-                if (!message.guild) { return; }
-                return; // voice is disabled until further notice
-                const connection = getVoiceConnection(message.guild.id);
-                if (connection) {
-                    connection.destroy();
-                }
+            } catch (err) {
+                console.error("TTS playback failed:", err);
+                newIssue(`A TTS playback error occurred at ${new Date().toISOString()}.`);
             }
-        } catch (err) {
-            console.error("TTS playback failed:", err);
-            newIssue(`A TTS playback error occurred at ${new Date().toISOString()}.`);
         }
 }
 
