@@ -27,6 +27,9 @@ npm install
 4. Inside .env
 ```
 BOT_TOKEN=your-bot-token-here
+FISH_API_KEY=your-fish-audio-api-key
+# Optional: use a specific Fish Audio voice model
+FISH_REFERENCE_ID=your-fish-audio-reference-id
 ```
 ## Usage
 

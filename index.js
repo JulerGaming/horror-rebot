@@ -1214,32 +1214,50 @@ async function newIssue(message) {
 }
 
 async function speakText(text) {
-    const AWS = require('aws-sdk');
-    const region = process.env.AWS_REGION || 'us-east-1';
-    const polly = new AWS.Polly({ apiVersion: '2016-06-10', region });
-
     const maxLength = 3000;
     const payload = (typeof text === 'string') ? (text.length > maxLength ? text.slice(0, maxLength) : text) : String(text);
+    const fishApiKey = process.env.FISH_API_KEY || process.env.FISH_AUDIO_API_KEY;
+    const referenceId = process.env.FISH_REFERENCE_ID || process.env.FISH_AUDIO_REFERENCE_ID;
 
-    console.log('[TTS][Polly] Synthesizing speech (chars:', payload.length, ')');
+    if (!fishApiKey) {
+        throw new Error('FISH_API_KEY is required for text-to-speech');
+    }
 
-    const params = {
-        OutputFormat: 'mp3',
-        Text: payload,
-        VoiceId: process.env.POLLY_VOICE || 'Matthew',
-        TextType: 'text'
+    console.log('[TTS][Fish Audio] Synthesizing speech (chars:', payload.length, ')');
+
+    const requestBody = {
+        text: payload,
+        format: 'mp3'
     };
 
+    if (referenceId) {
+        requestBody.reference_id = referenceId;
+    }
+
     try {
-        const data = await polly.synthesizeSpeech(params).promise();
-        if (!data || !data.AudioStream) {
-            throw new Error('No audio returned from Polly');
+        const response = await fetch('https://api.fish.audio/v1/tts', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${fishApiKey}`,
+                'Content-Type': 'application/json',
+                'model': 's2.1-pro-free'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const details = await response.text();
+            throw new Error(`Fish Audio request failed (${response.status}): ${details}`);
         }
 
-        const audioBuffer = Buffer.isBuffer(data.AudioStream) ? data.AudioStream : Buffer.from(data.AudioStream);
+        const audioBuffer = Buffer.from(await response.arrayBuffer());
+        if (audioBuffer.length === 0) {
+            throw new Error('No audio returned from Fish Audio');
+        }
+
         return audioBuffer;
     } catch (err) {
-        console.error('[TTS][Polly] Error synthesizing speech:', err);
+        console.error('[TTS][Fish Audio] Error synthesizing speech:', err);
         throw err;
     }
 }
