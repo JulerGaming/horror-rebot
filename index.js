@@ -3217,7 +3217,7 @@ async function runChatGptReply(message) {
             };
 
             refreshTyping();
-            const typingInterval = setInterval(refreshTyping, 8000);
+            const typingInterval = setInterval(refreshTyping, 5000);
 
             try {
                 audioBuffer = await speakText(sanitizeForTTS(replyText));
