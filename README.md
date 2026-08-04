@@ -44,6 +44,11 @@ npm start
 
 Follow the on-screen prompts or use Discord commands to interact with the bot.
 
+## Contributors
+
+- JulerGT — Creator and maintainer
+- Codex — AI coding contributor
+
 ## Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request.
