@@ -191,7 +191,7 @@
 
         function sendAnnouncement() {
             const title = document.getElementById("announcement-title").value.trim();
-            const content = document.getElementById("announcement-content").value.trim();
+            const content = document.getElementById("announcement-content").textContent.trim();
 
             if (!title || !content) {
                 alert("Please fill in both the title and content fields.");
@@ -258,8 +258,8 @@
             </label>
             <input type="text" id="announcement-title" placeholder="Title..."
                 style="width: 80%; padding: 8px; font-size: 1rem; border-radius: 4px; border: none; box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);">
-            <input type="text" id="announcement-content" placeholder="Content..."
-                style="width: 80%; padding: 8px; font-size: 1rem; border-radius: 4px; border: none; box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); margin-top: 12px;">
+            <textarea id="announcement-content" placeholder="Content..." rows="3" maxlength="1000"
+                style="width: 80%; padding: 8px; font-size: 1rem; border-radius: 4px; border: none; box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); margin-top: 12px;"></textarea>
             <button onclick="sendAnnouncement()"
                 style="margin-top: 16px; padding: 10px 20px; font-size: 1rem; border-radius: 4px; border: none; background-color: #0f0; color: #000; font-weight: 700; cursor: pointer; box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);">Send
                 Announcement</button>
