@@ -191,7 +191,7 @@
 
         function sendAnnouncement() {
             const title = document.getElementById("announcement-title").value.trim();
-            const content = document.getElementById("announcement-content").textContent.trim();
+            const content = document.getElementById("announcement-content").value.trim();
 
             if (!title || !content) {
                 alert("Please fill in both the title and content fields.");
