@@ -12,7 +12,7 @@
   "chatgptintegration": {
     "enabled": true,
     "aimoderation": {
-      "enabled": false
+      "enabled": true
     }
   },
   "GitHub": true
