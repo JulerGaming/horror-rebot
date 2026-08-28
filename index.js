@@ -389,7 +389,19 @@ async function syncRepo() {
     try {
         console.log("Syncing repo with GitHub...");
 
-        await run("git fetch");
+        try {
+            await run("git fetch --prune");
+        } catch (fetchErr) {
+            const fetchMsg = String(fetchErr || "");
+            if (fetchMsg.includes("bad object refs/heads/main")) {
+                console.warn("Local main ref looks corrupted. Repairing it from origin/main and retrying...");
+                const remoteMain = await run("git rev-parse --verify refs/remotes/origin/main");
+                await run(`git update-ref refs/heads/main ${remoteMain}`);
+                await run("git fetch --prune");
+            } else {
+                throw fetchErr;
+            }
+        }
 
         // 1) Commit any local changes FIRST so the working tree is clean before merging.
         const status = await run("git status --porcelain");
@@ -4913,3 +4925,26 @@ async function attemptSelfRestart(userId) {
 }
 
 // export or integrate this function where appropriate, with checks for owner ID
+
+// Recover automatically if the local git index is corrupted during a repo sync.
+const originalRunWithGitRecovery = run;
+run = function patchedRun(cmd, options = {}) {
+    const { retriedCorruptIndex = false } = options;
+    return originalRunWithGitRecovery(cmd).catch(async (err) => {
+        const errorText = String(err || "");
+        if (!retriedCorruptIndex && typeof cmd === "string" && cmd.startsWith("git ") && /index file corrupt|bad signature/i.test(errorText)) {
+            try {
+                const gitIndexPath = path.join(__dirname, ".git", "index");
+                if (fs.existsSync(gitIndexPath)) {
+                    fs.unlinkSync(gitIndexPath);
+                    console.warn("Detected corrupt git index. Removed .git/index and rebuilding it before retrying.");
+                }
+                await originalRunWithGitRecovery("git reset --mixed HEAD");
+                return await patchedRun(cmd, { retriedCorruptIndex: true });
+            } catch (repairErr) {
+                throw `Git index recovery failed: ${repairErr?.message || String(repairErr)}`;
+            }
+        }
+        throw err;
+    });
+};
