@@ -31,47 +31,25 @@
 <body>
     <div class="top">
         <img src="https://cdn.discordapp.com/avatars/1369007178664378429/bd38919e372414218473dd8310396ae7.png?size=2048" alt="Bismuth Assistant Logo">
-        <span>Bismuth Assistant - Drawing</span>
+        <span>Bismuth Assistant - Tools</span>
         <div class="redirect-buttons">
             <button onclick="window.location.href='/'">Home</button>
             <button onclick="window.location.href='/announcements/send/'">Send Announcement</button>
             <button onclick="window.location.href='/tools/'">Tools</button>
             <button onclick="window.location.href='/tools/birthdays/'">Birthdays</button>
-            <button onclick="window.location.href='/tools/drawing/'">Drawing</button>
         </div>
     </div>
     <div class="body">
-        <h1>Drawing</h1>
-        <p class="subtitle">Phase 2 is live with a starter drawing tool set.</p>
+        <h1>Drawing removed</h1>
+        <p class="subtitle">The drawing tool has been removed from the web interface.</p>
         <div class="card">
-            <h2>Drawing Studio</h2>
-            <p class="subtitle">Starter tools are now here: brush, eraser, fill bucket, color picker, line, rectangle, circle, undo/redo, brush size, clear, and save/export.</p>
-            <div class="toolbar">
-                <div class="row tool-buttons">
-                    <button class="active" data-tool="brush">Brush</button>
-                    <button data-tool="eraser">Eraser</button>
-                    <button data-tool="fill">Fill Bucket</button>
-                    <button data-tool="picker">Color Picker</button>
-                    <button data-tool="line">Line</button>
-                    <button data-tool="rectangle">Rectangle</button>
-                    <button data-tool="circle">Circle</button>
-                </div>
-                <div class="row action-buttons">
-                    <label>Color <input id="color" type="color" value="#000000"></label>
-                    <label>Brush Size <input id="size" type="range" min="1" max="50" value="6"></label>
-                    <span class="status" id="sizeLabel">6 px</span>
-                    <button id="undo">Undo</button>
-                    <button id="redo">Redo</button>
-                    <button id="clear">Clear</button>
-                    <button id="save">Save/Export</button>
-                </div>
+            <h2>Tool retired</h2>
+            <p class="subtitle">This page is kept only so old links do not break. Head back to the tools page to use the remaining features.</p>
+            <div class="row action-buttons">
+                <button onclick="window.location.href='/tools/'">Back to Tools</button>
+                <button onclick="window.location.href='/tools/birthdays/'">Open Birthdays</button>
             </div>
-            <div class="canvas-wrap">
-                <canvas id="drawingCanvas" width="1000" height="600"></canvas>
-            </div>
-            <p class="status" id="status">Selected tool: Brush</p>
         </div>
     </div>
-    <script src="/tools/drawing/app.js"></script>
 </body>
 </html>
