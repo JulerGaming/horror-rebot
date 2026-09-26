@@ -336,32 +336,6 @@
                         console.error('Could not load issues from issues.txt:', err);
                         addIssue('Could not load issues from server.');
                     });
-                const consoleEl = document.getElementById('console');
-
-                const source = new EventSource('/logs');
-
-                source.onmessage = (event) => {
-                    const { type, message } = JSON.parse(event.data);
-
-                    const line = document.createElement('div');
-
-                    if (type === "error") {
-                        line.style.color = "#ff6b6b";
-                        line.textContent = "[ERROR] " + message;
-                    } else {
-                        line.textContent = "[OUT] " + message;
-                    }
-
-                    consoleEl.appendChild(line);
-
-                    // auto-scroll
-                    consoleEl.scrollTop = consoleEl.scrollHeight;
-
-                    // prevent infinite growth
-                    if (consoleEl.children.length > 500) {
-                        consoleEl.removeChild(consoleEl.firstChild);
-                    }
-                };
             });
         </script>
         <h1>Bismuth Assistant</h1>
