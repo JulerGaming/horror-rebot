@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const OpenAI = require("openai");
 const path = require("path");
-const { writeFile } = require("fs/promises");
+const { writeFile, link } = require("fs/promises");
 const puppeteer = require('puppeteer');
 const { PartialGroupDMChannel, OmitPartialGroupDMChannel, Message } = require('discord.js');
 // Simple in-memory chat history
@@ -3125,7 +3125,7 @@ async function runChatGptReply(message) {
             parameters: {
                 type: "object",
                 properties: {
-                    url: { type: "string", description: "The URL to visit" },
+                    link: { type: "string", description: "The URL to visit" },
                 },
                 required: ["html"],
                 additionalProperties: false,
