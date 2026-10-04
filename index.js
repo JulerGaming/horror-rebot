@@ -1819,7 +1819,7 @@ client.on("messageCreate", async (message) => {
  * ChatGPT mention reply
  */
 async function runChatGptReply(message) {
-    let files;
+    let files = [];
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
 
     console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
