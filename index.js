@@ -1844,7 +1844,7 @@ async function runChatGptReply(message) {
         .replace(/\s{2,}/g, " ")
         .trim();
 
-    if (!cleaned) { cleaned = "Hello"; }
+    if (!cleaned) { cleaned = "**Empty message, this message probably contains an image or file attachment**"; }
     message.content = cleaned;
 
     // ====== MEMORY KEY ======
