@@ -4,6 +4,7 @@ const OpenAI = require("openai");
 const path = require("path");
 const { writeFile } = require("fs/promises");
 const puppeteer = require('puppeteer');
+const { PartialGroupDMChannel, OmitPartialGroupDMChannel } = require('discord.js');
 // Simple in-memory chat history
 const chatMemory = new Map();
 // key = channelId OR userId (for DMs)
@@ -1812,9 +1813,11 @@ client.on("messageCreate", async (message) => {
     }
 });
 
-// ====== CHATGPT REPLY ======
-// Shared by text @mentions/DMs and the voice assistant, which calls this with a synthetic
-// message built from a transcribed voice utterance (see makeSyntheticMessage).
+/**
+ * ChatGPT mention reply
+ * @param {OmitPartialGroupDMChannel} message 
+ * @returns 
+ */
 async function runChatGptReply(message) {
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
 
@@ -3274,7 +3277,7 @@ async function runChatGptReply(message) {
 
     // ====== SEND TEXT ======
     if (replyText.length <= 2000) {
-        await message.reply(replyText);
+        await message.reply({ content: replyText,  });
     } else {
         const chunks = [];
         let remaining = replyText;
