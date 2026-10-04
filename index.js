@@ -1818,1516 +1818,1529 @@ client.on("messageCreate", async (message) => {
 async function runChatGptReply(message) {
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
 
-        console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
+    console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
 
-        let actionsMade = "";
+    let actionsMade = "";
 
-        if (!configl.chatgptintegration.enabled) { return message.reply(`Sorry, ${BOT_DISPLAY_NAME} is currently disabled.`); }
+    if (!configl.chatgptintegration.enabled) { return message.reply(`Sorry, ${BOT_DISPLAY_NAME} is currently disabled.`); }
 
-        if (message.content.startsWith("!")) { return; } // commands start with ! so ignore those
+    if (message.content.startsWith("!")) { return; } // commands start with ! so ignore those
 
-        if (message.channelId === "1333199694716862554") { return; }
-        if (message.channelId === "1496576226611953684") { return; }
+    if (message.channelId === "1333199694716862554") { return; }
+    if (message.channelId === "1496576226611953684") { return; }
 
-        if (message.author.bot) { return; }
-        if (message.mentions.has("@everyone") || message.mentions.has("@here")) { return; }
+    if (message.author.bot) { return; }
+    if (message.mentions.has("@everyone") || message.mentions.has("@here")) { return; }
 
-        message.channel.sendTyping();
+    message.channel.sendTyping();
 
-        let cleaned = message.content
-            .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
-            .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
-            .replace(/\s{2,}/g, " ")
-            .trim();
+    let cleaned = message.content
+        .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
+        .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
+        .replace(/\s{2,}/g, " ")
+        .trim();
 
-        if (!cleaned) { cleaned = "Hello"; }
-        message.content = cleaned;
+    if (!cleaned) { cleaned = "Hello"; }
+    message.content = cleaned;
 
-        // ====== MEMORY KEY ======
-        const memoryKey = message.guild
-            ? `channel:${message.channel.id}`
-            : `dm:${message.author.id}`;
+    // ====== MEMORY KEY ======
+    const memoryKey = message.guild
+        ? `channel:${message.channel.id}`
+        : `dm:${message.author.id}`;
 
-        if (!chatMemory.has(memoryKey)) {
-            chatMemory.set(memoryKey, []);
-        }
+    if (!chatMemory.has(memoryKey)) {
+        chatMemory.set(memoryKey, []);
+    }
 
-        // If this message is a reply, and the replied-to message is itself a reply,
-        // fetch the original parent message and add a system prompt with its content.
-        if (message.reference?.messageId) {
-            try {
-                const repliedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
-                if (repliedMsg?.reference?.messageId) {
-                    const parentMsg = await message.channel.messages.fetch(repliedMsg.reference.messageId).catch(() => null);
-                    if (parentMsg) {
-                        const parentText = (parentMsg.content || "[non-text content]").replace(/\s+/g, " ").trim().slice(0, 4000);
-                        const mem = chatMemory.get(memoryKey);
-                        if (mem) {
-                            mem.push({
-                                role: "system",
-                                content: `You are currently replying to a message that itself is a reply. We will share the message content of the parent message here. \n${parentText}`
-                            });
-                        }
+    // If this message is a reply, and the replied-to message is itself a reply,
+    // fetch the original parent message and add a system prompt with its content.
+    if (message.reference?.messageId) {
+        try {
+            const repliedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+            if (repliedMsg?.reference?.messageId) {
+                const parentMsg = await message.channel.messages.fetch(repliedMsg.reference.messageId).catch(() => null);
+                if (parentMsg) {
+                    const parentText = (parentMsg.content || "[non-text content]").replace(/\s+/g, " ").trim().slice(0, 4000);
+                    const mem = chatMemory.get(memoryKey);
+                    if (mem) {
+                        mem.push({
+                            role: "system",
+                            content: `You are currently replying to a message that itself is a reply. We will share the message content of the parent message here. \n${parentText}`
+                        });
                     }
                 }
-            } catch (e) {
-                // ignore fetch failures silently
             }
+        } catch (e) {
+            // ignore fetch failures silently
         }
+    }
 
-        const history = chatMemory.get(memoryKey);
+    const history = chatMemory.get(memoryKey);
 
-        // ====== OPENAI ======
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+    // ====== OPENAI ======
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
 
-        // ====== FETCH USER INFO ======
-        let member;
-        if (!message.guild) {
-            for (const guild of client.guilds.cache.values()) {
-                try {
-                    const fetchedMember = await guild.members.fetch(message.author.id);
-                    if (fetchedMember) {
-                        member = fetchedMember;
-                        break;
-                    }
-                } catch { }
-            }
-        } else {
-            member = await message.guild.members.fetch(message.author.id);
-        }
-
-        const presence = member?.presence?.activities?.[0];
-        const typeMap = {
-            0: "Playing",
-            1: "Streaming",
-            2: "Listening to",
-            3: "Watching",
-            4: "Custom",
-            5: "Competing in"
-        };
-
-        const activity = presence
-            ? `${typeMap[presence.type] || "Doing"} ${presence.name}`
-            : "No current activity";
-
-        // ====== URL FETCHING ======
-        const urls = cleaned.match(urlRegex) || [];
-        let pageContent = "";
-
-        for (const url of urls) {
+    // ====== FETCH USER INFO ======
+    let member;
+    if (!message.guild) {
+        for (const guild of client.guilds.cache.values()) {
             try {
-                const res = await fetch(url, { redirect: "follow" });
-                let html;
-                const contentType = res.headers.get?.('content-type') || '';
-                if (contentType.includes('text/html')) {
-                    try {
-                        // Render the page with JS using puppeteer (install puppeteer in your project)
-                        const browser = await puppeteer.launch({
-                            args: ['--no-sandbox', '--disable-setuid-sandbox', '--ngrok-skip-browser-warning 1', '--ngrok-skip-browser-warning=1'],
-                        });
-                        const page = await browser.newPage();
-                        await page.setExtraHTTPHeaders({
-                            "ngrok-skip-browser-warning": "1",
-                        });
-                        await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3");
-                        await page.goto(url, { waitUntil: "networkidle2", timeout: 15000 });
-                        html = await page.content();
-                        await browser.close();
-                    } catch (err) {
-                        // Fallback to plain text if puppeteer is unavailable or fails
-                        html = await res.text();
-                    }
-                } else {
+                const fetchedMember = await guild.members.fetch(message.author.id);
+                if (fetchedMember) {
+                    member = fetchedMember;
+                    break;
+                }
+            } catch { }
+        }
+    } else {
+        member = await message.guild.members.fetch(message.author.id);
+    }
+
+    const presence = member?.presence?.activities?.[0];
+    const typeMap = {
+        0: "Playing",
+        1: "Streaming",
+        2: "Listening to",
+        3: "Watching",
+        4: "Custom",
+        5: "Competing in"
+    };
+
+    const activity = presence
+        ? `${typeMap[presence.type] || "Doing"} ${presence.name}`
+        : "No current activity";
+
+    // ====== URL FETCHING ======
+    const urls = cleaned.match(urlRegex) || [];
+    let pageContent = "";
+
+    for (const url of urls) {
+        try {
+            const res = await fetch(url, { redirect: "follow" });
+            let html;
+            const contentType = res.headers.get?.('content-type') || '';
+            if (contentType.includes('text/html')) {
+                try {
+                    // Render the page with JS using puppeteer (install puppeteer in your project)
+                    const browser = await puppeteer.launch({
+                        args: ['--no-sandbox', '--disable-setuid-sandbox', '--ngrok-skip-browser-warning 1', '--ngrok-skip-browser-warning=1'],
+                    });
+                    const page = await browser.newPage();
+                    await page.setExtraHTTPHeaders({
+                        "ngrok-skip-browser-warning": "1",
+                    });
+                    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3");
+                    await page.goto(url, { waitUntil: "networkidle2", timeout: 15000 });
+                    html = await page.content();
+                    await browser.close();
+                } catch (err) {
+                    // Fallback to plain text if puppeteer is unavailable or fails
                     html = await res.text();
                 }
-
-                // VERY basic HTML text extraction
-                const text = html
-                    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-                    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-                    .replace(/<[^>]+>/g, "")
-                    .replace(/\s+/g, " ")
-                    .trim();
-
-                pageContent += `\n\n[Content from ${url} (If the page warns you that javascript is disabled, its because you are viewing the page in plain text without styles or scripts loaded.)]\n${text.slice(0, 12000)}`;
-            } catch (err) {
-                pageContent += `\n\n[Failed to fetch ${url}]`;
+            } else {
+                html = await res.text();
             }
+
+            // VERY basic HTML text extraction
+            const text = html
+                .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+                .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+                .replace(/<[^>]+>/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            pageContent += `\n\n[Content from ${url} (If the page warns you that javascript is disabled, its because you are viewing the page in plain text without styles or scripts loaded.)]\n${text.slice(0, 12000)}`;
+        } catch (err) {
+            pageContent += `\n\n[Failed to fetch ${url}]`;
         }
+    }
 
-        // ====== PUSH USER MESSAGE ======
-        history.push({
-            role: "user",
-            content: JSON.stringify({
-                message: message,
-                author: message.author,
-                channel: message.channel
-            })
-        });
+    // ====== PUSH USER MESSAGE ======
+    history.push({
+        role: "user",
+        content: JSON.stringify({
+            message: message,
+            author: message.author,
+            channel: message.channel
+        })
+    });
 
-        // ====== TRIM MEMORY ======
-        if (history.length > 21) {
-            history.splice(1, history.length - 21);
-        }
+    // ====== TRIM MEMORY ======
+    if (history.length > 21) {
+        history.splice(1, history.length - 21);
+    }
 
-        // ====== SERVER-SIDE FUNCTIONS (OPENAI TOOL CALLING) ======
-        const serverFunctionHandlers = {
-            do_nothing: async () => {
-                console.log("AI ran do_nothing");
-                console.log("[ServerFunction] do_nothing called by", message?.author?.tag || message?.author?.id || "unknown");
-                return "ok";
-            },
-            read_server_code: async (args, { message }) => {
-                console.log("AI ran read_server_code");
-                console.log("[ServerFunction] read_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
+    // ====== SERVER-SIDE FUNCTIONS (OPENAI TOOL CALLING) ======
+    const serverFunctionHandlers = {
+        do_nothing: async () => {
+            console.log("AI ran do_nothing");
+            console.log("[ServerFunction] do_nothing called by", message?.author?.tag || message?.author?.id || "unknown");
+            return "ok";
+        },
+        read_server_code: async (args, { message }) => {
+            console.log("AI ran read_server_code");
+            console.log("[ServerFunction] read_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
 
-                // Reading is open to everyone (no permission required). The .env/.git/node_modules
-                // block below still applies so secrets/internals are never exposed.
-                const { filePath } = args || {};
-                if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
-                    return "(Error) Missing filePath";
-                }
+            // Reading is open to everyone (no permission required). The .env/.git/node_modules
+            // block below still applies so secrets/internals are never exposed.
+            const { filePath } = args || {};
+            if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
+                return "(Error) Missing filePath";
+            }
 
-                // Keep reads inside the project directory and away from secrets/internals.
-                const root = path.resolve(__dirname);
-                const absPath = path.resolve(root, filePath);
-                if (absPath !== root && !absPath.startsWith(root + path.sep)) {
-                    return "(Error) filePath escapes the project directory.";
-                }
-                const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
-                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
-                    return "(Error) Reading that file is not allowed.";
-                }
+            // Keep reads inside the project directory and away from secrets/internals.
+            const root = path.resolve(__dirname);
+            const absPath = path.resolve(root, filePath);
+            if (absPath !== root && !absPath.startsWith(root + path.sep)) {
+                return "(Error) filePath escapes the project directory.";
+            }
+            const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
+            if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
+                return "(Error) Reading that file is not allowed.";
+            }
 
-                if (!fs.existsSync(absPath)) {
-                    return "(Error) File does not exist.";
-                }
-                if (fs.statSync(absPath).isDirectory()) {
-                    // List directory contents instead of trying to read it as a file.
-                    // Hide secret env files so they aren't even visible.
-                    const entries = fs.readdirSync(absPath, { withFileTypes: true })
-                        .filter((e) => !isProtectedSecretFile(e.name.toLowerCase()))
-                        .map((e) => (e.isDirectory() ? `${e.name}/` : e.name));
-                    return `(Directory) ${filePath}\n${entries.join("\n")}`;
-                }
+            if (!fs.existsSync(absPath)) {
+                return "(Error) File does not exist.";
+            }
+            if (fs.statSync(absPath).isDirectory()) {
+                // List directory contents instead of trying to read it as a file.
+                // Hide secret env files so they aren't even visible.
+                const entries = fs.readdirSync(absPath, { withFileTypes: true })
+                    .filter((e) => !isProtectedSecretFile(e.name.toLowerCase()))
+                    .map((e) => (e.isDirectory() ? `${e.name}/` : e.name));
+                return `(Directory) ${filePath}\n${entries.join("\n")}`;
+            }
 
-                let content;
+            let content;
+            try {
+                content = fs.readFileSync(absPath, "utf-8");
+            } catch (err) {
+                return `(Error) Could not read file. ${err?.message || String(err)}`;
+            }
+
+            // Cap the returned content so a huge file can't blow up the token budget. The AI
+            // can ask for a specific snippet to edit even from a partial view.
+            const MAX_CHARS = 12000;
+            actionsMade += `-# Read \`${filePath}\`\n`;
+            if (content.length > MAX_CHARS) {
+                return `(File: ${filePath}, truncated to first ${MAX_CHARS} of ${content.length} chars)\n${content.slice(0, MAX_CHARS)}`;
+            }
+            return `(File: ${filePath})\n${content}`;
+        },
+        read_server_code_lines: async (args, { message }) => {
+            console.log("AI ran read_server_code_lines");
+            console.log("[ServerFunction] read_server_code_lines called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath, startLine: args?.startLine, endLine: args?.endLine });
+
+            // Reading is open to everyone (no permission required). The .env/.git/node_modules
+            // block below still applies so secrets/internals are never exposed.
+            const { filePath, startLine, endLine } = args || {};
+            if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
+                return "(Error) Missing filePath";
+            }
+            const start = Math.floor(Number(startLine));
+            const end = Math.floor(Number(endLine));
+            if (!Number.isFinite(start) || !Number.isFinite(end) || start < 1 || end < 1) {
+                return "(Error) startLine and endLine must be positive whole numbers (1-based).";
+            }
+            if (end < start) {
+                return "(Error) endLine must be greater than or equal to startLine.";
+            }
+
+            // Keep reads inside the project directory and away from secrets/internals.
+            const root = path.resolve(__dirname);
+            const absPath = path.resolve(root, filePath);
+            if (absPath !== root && !absPath.startsWith(root + path.sep)) {
+                return "(Error) filePath escapes the project directory.";
+            }
+            const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
+            if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
+                return "(Error) Reading that file is not allowed.";
+            }
+
+            if (!fs.existsSync(absPath)) {
+                return "(Error) File does not exist.";
+            }
+            if (fs.statSync(absPath).isDirectory()) {
+                return "(Error) That path is a directory, not a file.";
+            }
+
+            let content;
+            try {
+                content = fs.readFileSync(absPath, "utf-8");
+            } catch (err) {
+                return `(Error) Could not read file. ${err?.message || String(err)}`;
+            }
+
+            const lines = content.split("\n");
+            if (start > lines.length) {
+                return `(Error) startLine ${start} is past the end of the file (${lines.length} lines).`;
+            }
+
+            // Clamp the range and cap how many lines we return at once.
+            const MAX_LINES = 400;
+            const from = start;
+            const to = Math.min(end, lines.length, start + MAX_LINES - 1);
+            const truncated = to < Math.min(end, lines.length);
+
+            // Number each line so the AI can build an exact oldString for edit_server_code.
+            const width = String(to).length;
+            const slice = lines.slice(from - 1, to)
+                .map((line, i) => `${String(from + i).padStart(width, " ")} | ${line}`)
+                .join("\n");
+
+            actionsMade += `-# Read \`${filePath}\` lines ${from}-${to}\n`;
+            const header = `(File: ${filePath}, lines ${from}-${to} of ${lines.length}${truncated ? `, truncated to ${MAX_LINES} lines` : ""})`;
+            return `${header}\n${slice}`;
+        },
+        list_server_files: async (args, { message }) => {
+            console.log("AI ran list_server_files");
+            console.log("[ServerFunction] list_server_files called by", message?.author?.tag || message?.author?.id || "unknown");
+
+            // Open to everyone. Recursively lists every file in the project, skipping the
+            // dependency/VCS dirs (node_modules, .git) since those aren't "the app".
+            const root = path.resolve(__dirname);
+            const SKIP_DIRS = new Set(["node_modules", ".git"]);
+            const MAX_FILES = 2000;
+            const results = [];
+            let truncated = false;
+
+            const walk = (dir) => {
+                if (results.length >= MAX_FILES) { truncated = true; return; }
+                let entries;
                 try {
-                    content = fs.readFileSync(absPath, "utf-8");
-                } catch (err) {
-                    return `(Error) Could not read file. ${err?.message || String(err)}`;
+                    entries = fs.readdirSync(dir, { withFileTypes: true });
+                } catch {
+                    return; // unreadable dir, skip it
                 }
-
-                // Cap the returned content so a huge file can't blow up the token budget. The AI
-                // can ask for a specific snippet to edit even from a partial view.
-                const MAX_CHARS = 12000;
-                actionsMade += `-# Read \`${filePath}\`\n`;
-                if (content.length > MAX_CHARS) {
-                    return `(File: ${filePath}, truncated to first ${MAX_CHARS} of ${content.length} chars)\n${content.slice(0, MAX_CHARS)}`;
-                }
-                return `(File: ${filePath})\n${content}`;
-            },
-            read_server_code_lines: async (args, { message }) => {
-                console.log("AI ran read_server_code_lines");
-                console.log("[ServerFunction] read_server_code_lines called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath, startLine: args?.startLine, endLine: args?.endLine });
-
-                // Reading is open to everyone (no permission required). The .env/.git/node_modules
-                // block below still applies so secrets/internals are never exposed.
-                const { filePath, startLine, endLine } = args || {};
-                if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
-                    return "(Error) Missing filePath";
-                }
-                const start = Math.floor(Number(startLine));
-                const end = Math.floor(Number(endLine));
-                if (!Number.isFinite(start) || !Number.isFinite(end) || start < 1 || end < 1) {
-                    return "(Error) startLine and endLine must be positive whole numbers (1-based).";
-                }
-                if (end < start) {
-                    return "(Error) endLine must be greater than or equal to startLine.";
-                }
-
-                // Keep reads inside the project directory and away from secrets/internals.
-                const root = path.resolve(__dirname);
-                const absPath = path.resolve(root, filePath);
-                if (absPath !== root && !absPath.startsWith(root + path.sep)) {
-                    return "(Error) filePath escapes the project directory.";
-                }
-                const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
-                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
-                    return "(Error) Reading that file is not allowed.";
-                }
-
-                if (!fs.existsSync(absPath)) {
-                    return "(Error) File does not exist.";
-                }
-                if (fs.statSync(absPath).isDirectory()) {
-                    return "(Error) That path is a directory, not a file.";
-                }
-
-                let content;
-                try {
-                    content = fs.readFileSync(absPath, "utf-8");
-                } catch (err) {
-                    return `(Error) Could not read file. ${err?.message || String(err)}`;
-                }
-
-                const lines = content.split("\n");
-                if (start > lines.length) {
-                    return `(Error) startLine ${start} is past the end of the file (${lines.length} lines).`;
-                }
-
-                // Clamp the range and cap how many lines we return at once.
-                const MAX_LINES = 400;
-                const from = start;
-                const to = Math.min(end, lines.length, start + MAX_LINES - 1);
-                const truncated = to < Math.min(end, lines.length);
-
-                // Number each line so the AI can build an exact oldString for edit_server_code.
-                const width = String(to).length;
-                const slice = lines.slice(from - 1, to)
-                    .map((line, i) => `${String(from + i).padStart(width, " ")} | ${line}`)
-                    .join("\n");
-
-                actionsMade += `-# Read \`${filePath}\` lines ${from}-${to}\n`;
-                const header = `(File: ${filePath}, lines ${from}-${to} of ${lines.length}${truncated ? `, truncated to ${MAX_LINES} lines` : ""})`;
-                return `${header}\n${slice}`;
-            },
-            list_server_files: async (args, { message }) => {
-                console.log("AI ran list_server_files");
-                console.log("[ServerFunction] list_server_files called by", message?.author?.tag || message?.author?.id || "unknown");
-
-                // Open to everyone. Recursively lists every file in the project, skipping the
-                // dependency/VCS dirs (node_modules, .git) since those aren't "the app".
-                const root = path.resolve(__dirname);
-                const SKIP_DIRS = new Set(["node_modules", ".git"]);
-                const MAX_FILES = 2000;
-                const results = [];
-                let truncated = false;
-
-                const walk = (dir) => {
+                entries.sort((a, b) => a.name.localeCompare(b.name));
+                for (const e of entries) {
                     if (results.length >= MAX_FILES) { truncated = true; return; }
-                    let entries;
-                    try {
-                        entries = fs.readdirSync(dir, { withFileTypes: true });
-                    } catch {
-                        return; // unreadable dir, skip it
+                    // isDirectory() is false for symlinks, so symlinked dirs aren't followed (no loops).
+                    if (e.isDirectory()) {
+                        if (SKIP_DIRS.has(e.name)) { continue; }
+                        walk(path.join(dir, e.name));
+                    } else if (e.isFile()) {
+                        const relFile = path.relative(root, path.join(dir, e.name)).replace(/\\/g, "/");
+                        if (isProtectedSecretFile(relFile.toLowerCase())) { continue; } // never expose secret env files
+                        results.push(relFile);
                     }
-                    entries.sort((a, b) => a.name.localeCompare(b.name));
-                    for (const e of entries) {
-                        if (results.length >= MAX_FILES) { truncated = true; return; }
-                        // isDirectory() is false for symlinks, so symlinked dirs aren't followed (no loops).
-                        if (e.isDirectory()) {
-                            if (SKIP_DIRS.has(e.name)) { continue; }
-                            walk(path.join(dir, e.name));
-                        } else if (e.isFile()) {
-                            const relFile = path.relative(root, path.join(dir, e.name)).replace(/\\/g, "/");
-                            if (isProtectedSecretFile(relFile.toLowerCase())) { continue; } // never expose secret env files
-                            results.push(relFile);
-                        }
-                    }
-                };
-                walk(root);
-
-                actionsMade += `-# Listed all project files\n`;
-                let body = results.join("\n");
-                const MAX_CHARS = 12000;
-                if (body.length > MAX_CHARS) {
-                    body = body.slice(0, MAX_CHARS) + "\n... (more files omitted)";
-                    truncated = true;
                 }
-                const header = `(Project files: ${results.length}${truncated ? `, truncated` : ""}; node_modules and .git are excluded)`;
-                return `${header}\n${body}`;
-            },
-            search_server_code: async (args, { message }) => {
-                console.log("AI ran search_server_code");
-                console.log("[ServerFunction] search_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { query: args?.query });
+            };
+            walk(root);
 
-                // Open to everyone. Case-insensitive substring search across the app so the AI can
-                // jump straight to the relevant lines instead of reading whole files chunk by chunk.
-                const { query } = args || {};
-                if (!query || typeof query !== "string" || !query.trim()) {
-                    return "(Error) Missing query";
+            actionsMade += `-# Listed all project files\n`;
+            let body = results.join("\n");
+            const MAX_CHARS = 12000;
+            if (body.length > MAX_CHARS) {
+                body = body.slice(0, MAX_CHARS) + "\n... (more files omitted)";
+                truncated = true;
+            }
+            const header = `(Project files: ${results.length}${truncated ? `, truncated` : ""}; node_modules and .git are excluded)`;
+            return `${header}\n${body}`;
+        },
+        search_server_code: async (args, { message }) => {
+            console.log("AI ran search_server_code");
+            console.log("[ServerFunction] search_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { query: args?.query });
+
+            // Open to everyone. Case-insensitive substring search across the app so the AI can
+            // jump straight to the relevant lines instead of reading whole files chunk by chunk.
+            const { query } = args || {};
+            if (!query || typeof query !== "string" || !query.trim()) {
+                return "(Error) Missing query";
+            }
+            const needle = query.toLowerCase();
+
+            const root = path.resolve(__dirname);
+            const SKIP_DIRS = new Set(["node_modules", ".git"]);
+            const MAX_FILES_SCANNED = 2000;
+            const MAX_MATCHES = 60;
+            const matches = [];
+            let scanned = 0;
+            let truncated = false;
+
+            const walk = (dir) => {
+                if (matches.length >= MAX_MATCHES || scanned >= MAX_FILES_SCANNED) { truncated = true; return; }
+                let entries;
+                try {
+                    entries = fs.readdirSync(dir, { withFileTypes: true });
+                } catch {
+                    return;
                 }
-                const needle = query.toLowerCase();
-
-                const root = path.resolve(__dirname);
-                const SKIP_DIRS = new Set(["node_modules", ".git"]);
-                const MAX_FILES_SCANNED = 2000;
-                const MAX_MATCHES = 60;
-                const matches = [];
-                let scanned = 0;
-                let truncated = false;
-
-                const walk = (dir) => {
+                entries.sort((a, b) => a.name.localeCompare(b.name));
+                for (const e of entries) {
                     if (matches.length >= MAX_MATCHES || scanned >= MAX_FILES_SCANNED) { truncated = true; return; }
-                    let entries;
-                    try {
-                        entries = fs.readdirSync(dir, { withFileTypes: true });
-                    } catch {
-                        return;
-                    }
-                    entries.sort((a, b) => a.name.localeCompare(b.name));
-                    for (const e of entries) {
-                        if (matches.length >= MAX_MATCHES || scanned >= MAX_FILES_SCANNED) { truncated = true; return; }
-                        if (e.isDirectory()) {
-                            if (SKIP_DIRS.has(e.name)) { continue; }
-                            walk(path.join(dir, e.name));
-                        } else if (e.isFile()) {
-                            const abs = path.join(dir, e.name);
-                            const relFile = path.relative(root, abs).replace(/\\/g, "/");
-                            if (isProtectedSecretFile(relFile.toLowerCase())) { continue; } // never search secret env files
-                            let stat;
-                            try { stat = fs.statSync(abs); } catch { continue; }
-                            if (stat.size > 2 * 1024 * 1024) { continue; } // skip very large/binary files
-                            let content;
-                            try { content = fs.readFileSync(abs, "utf-8"); } catch { continue; }
-                            scanned++;
-                            const lines = content.split("\n");
-                            for (let i = 0; i < lines.length; i++) {
-                                if (lines[i].toLowerCase().includes(needle)) {
-                                    matches.push(`${relFile}:${i + 1}: ${lines[i].trim().slice(0, 200)}`);
-                                    if (matches.length >= MAX_MATCHES) { truncated = true; break; }
-                                }
+                    if (e.isDirectory()) {
+                        if (SKIP_DIRS.has(e.name)) { continue; }
+                        walk(path.join(dir, e.name));
+                    } else if (e.isFile()) {
+                        const abs = path.join(dir, e.name);
+                        const relFile = path.relative(root, abs).replace(/\\/g, "/");
+                        if (isProtectedSecretFile(relFile.toLowerCase())) { continue; } // never search secret env files
+                        let stat;
+                        try { stat = fs.statSync(abs); } catch { continue; }
+                        if (stat.size > 2 * 1024 * 1024) { continue; } // skip very large/binary files
+                        let content;
+                        try { content = fs.readFileSync(abs, "utf-8"); } catch { continue; }
+                        scanned++;
+                        const lines = content.split("\n");
+                        for (let i = 0; i < lines.length; i++) {
+                            if (lines[i].toLowerCase().includes(needle)) {
+                                matches.push(`${relFile}:${i + 1}: ${lines[i].trim().slice(0, 200)}`);
+                                if (matches.length >= MAX_MATCHES) { truncated = true; break; }
                             }
                         }
                     }
-                };
-                walk(root);
+                }
+            };
+            walk(root);
 
-                actionsMade += `-# Searched the code for "${query.slice(0, 60)}"\n`;
-                if (matches.length === 0) {
-                    return `(No matches for "${query}". Try a shorter or different snippet.)`;
-                }
-                const header = `(${matches.length}${truncated ? "+" : ""} match(es) for "${query}" — use read_server_code_lines on a path:line to see context)`;
-                return `${header}\n${matches.join("\n")}`;
-            },
-            edit_server_code: async (args, { message }) => {
-                console.log("AI ran edit_server_code");
-                console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
+            actionsMade += `-# Searched the code for "${query.slice(0, 60)}"\n`;
+            if (matches.length === 0) {
+                return `(No matches for "${query}". Try a shorter or different snippet.)`;
+            }
+            const header = `(${matches.length}${truncated ? "+" : ""} match(es) for "${query}" — use read_server_code_lines on a path:line to see context)`;
+            return `${header}\n${matches.join("\n")}`;
+        },
+        edit_server_code: async (args, { message }) => {
+            console.log("AI ran edit_server_code");
+            console.log("[ServerFunction] edit_server_code called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { filePath: args?.filePath });
 
-                // Anyone may PROPOSE an edit, but it is never applied without owner approval:
-                // the change is parked and only written to disk when the owner clicks "Yes" on
-                // the DM below (and the buttons are gated to the owner).
-                const { filePath, oldString, newString } = args || {};
-                if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
-                    return "(Error) Missing filePath";
-                }
-                if (typeof oldString !== "string" || typeof newString !== "string") {
-                    return "(Error) oldString and newString must both be strings (use an empty oldString to create/append).";
-                }
-                if (oldString === "" && newString === "") {
-                    return "(Error) Nothing to change (both oldString and newString are empty).";
-                }
+            // Anyone may PROPOSE an edit, but it is never applied without owner approval:
+            // the change is parked and only written to disk when the owner clicks "Yes" on
+            // the DM below (and the buttons are gated to the owner).
+            const { filePath, oldString, newString } = args || {};
+            if (!filePath || typeof filePath !== "string" || !filePath.trim()) {
+                return "(Error) Missing filePath";
+            }
+            if (typeof oldString !== "string" || typeof newString !== "string") {
+                return "(Error) oldString and newString must both be strings (use an empty oldString to create/append).";
+            }
+            if (oldString === "" && newString === "") {
+                return "(Error) Nothing to change (both oldString and newString are empty).";
+            }
 
-                // Keep the edit inside the project directory and away from secrets/internals.
-                const root = path.resolve(__dirname);
-                const absPath = path.resolve(root, filePath);
-                if (absPath !== root && !absPath.startsWith(root + path.sep)) {
-                    return "(Error) filePath escapes the project directory.";
-                }
-                const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
-                if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
-                    return "(Error) Editing that file is not allowed.";
-                }
+            // Keep the edit inside the project directory and away from secrets/internals.
+            const root = path.resolve(__dirname);
+            const absPath = path.resolve(root, filePath);
+            if (absPath !== root && !absPath.startsWith(root + path.sep)) {
+                return "(Error) filePath escapes the project directory.";
+            }
+            const rel = path.relative(root, absPath).replace(/\\/g, "/").toLowerCase();
+            if (rel.startsWith(".git/") || rel.startsWith("node_modules/") || isProtectedSecretFile(rel)) {
+                return "(Error) Editing that file is not allowed.";
+            }
 
-                // Validate the replacement target up front so we can give the AI a useful error.
-                const exists = fs.existsSync(absPath);
-                if (oldString !== "") {
-                    if (!exists) {
-                        return "(Error) File does not exist. To create it, pass an empty oldString and put the file contents in newString.";
+            // Validate the replacement target up front so we can give the AI a useful error.
+            const exists = fs.existsSync(absPath);
+            if (oldString !== "") {
+                if (!exists) {
+                    return "(Error) File does not exist. To create it, pass an empty oldString and put the file contents in newString.";
+                }
+                const current = fs.readFileSync(absPath, "utf-8");
+                const occurrences = current.split(oldString).length - 1;
+                if (occurrences === 0) {
+                    return "(Error) oldString was not found in the file. Provide an exact snippet to replace.";
+                }
+                if (occurrences > 1) {
+                    return "(Error) oldString appears multiple times; include more surrounding context so it is unique.";
+                }
+            }
+
+            // Ask the owner to approve it via DM buttons.
+            const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
+            if (!owner) {
+                return "(Error) Could not reach the bot owner to request approval.";
+            }
+
+            const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            const acceptId = `editcode_accept_${editId}`;
+            const rejectId = `editcode_reject_${editId}`;
+            const whatchanged = buildEditPreview(filePath, oldString, newString);
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(acceptId).setLabel("Yes").setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(rejectId).setLabel("No").setStyle(ButtonStyle.Danger),
+            );
+
+            let sent;
+            try {
+                sent = await owner.send({
+                    content: `Do you accept the edits?\n\`\`\`diff\n${whatchanged}\n\`\`\``,
+                    components: [row],
+                });
+            } catch (err) {
+                return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
+            }
+
+            actionsMade += `-# Proposed an edit to \`${filePath}\` (awaiting owner approval)\n`;
+
+            // Block until the owner clicks Yes/No (or it times out), then continue with the outcome.
+            const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
+            let interaction;
+            try {
+                interaction = await sent.awaitMessageComponent({
+                    filter: (i) => i.user.id === CODE_EDIT_OWNER_ID && (i.customId === acceptId || i.customId === rejectId),
+                    time: APPROVAL_TIMEOUT_MS,
+                });
+            } catch {
+                // No response within the window.
+                try { await sent.edit({ content: `⌛ Edit to \`${filePath}\` timed out (no response).`, components: [] }); } catch { /* ignore */ }
+                return "(Denied) The owner did not respond in time, so the edit was NOT applied.";
+            }
+
+            if (interaction.customId === rejectId) {
+                await interaction.update({ content: `❌ Edit to \`${filePath}\` rejected.`, components: [] }).catch(() => { });
+                return "(Denied) The owner rejected the edit; nothing was changed.";
+            }
+
+            // Approved -> apply the change to disk now.
+            try {
+                const stillExists = fs.existsSync(absPath);
+                let updated;
+                if (oldString === "") {
+                    const current = stillExists ? fs.readFileSync(absPath, "utf-8") : "";
+                    updated = current ? current + newString : newString;
+                } else {
+                    if (!stillExists) {
+                        await interaction.update({ content: `⚠️ Could not apply: \`${filePath}\` no longer exists.`, components: [] }).catch(() => { });
+                        return "(Error) Approved, but the file no longer exists; edit not applied.";
                     }
                     const current = fs.readFileSync(absPath, "utf-8");
-                    const occurrences = current.split(oldString).length - 1;
-                    if (occurrences === 0) {
-                        return "(Error) oldString was not found in the file. Provide an exact snippet to replace.";
+                    if (!current.includes(oldString)) {
+                        await interaction.update({ content: `⚠️ Could not apply: the original text in \`${filePath}\` changed since the proposal.`, components: [] }).catch(() => { });
+                        return "(Error) Approved, but the file changed since the proposal; edit not applied.";
                     }
-                    if (occurrences > 1) {
-                        return "(Error) oldString appears multiple times; include more surrounding context so it is unique.";
-                    }
-                }
-
-                // Ask the owner to approve it via DM buttons.
-                const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
-                if (!owner) {
-                    return "(Error) Could not reach the bot owner to request approval.";
-                }
-
-                const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-                const acceptId = `editcode_accept_${editId}`;
-                const rejectId = `editcode_reject_${editId}`;
-                const whatchanged = buildEditPreview(filePath, oldString, newString);
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(acceptId).setLabel("Yes").setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(rejectId).setLabel("No").setStyle(ButtonStyle.Danger),
-                );
-
-                let sent;
-                try {
-                    sent = await owner.send({
-                        content: `Do you accept the edits?\n\`\`\`diff\n${whatchanged}\n\`\`\``,
-                        components: [row],
-                    });
-                } catch (err) {
-                    return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
-                }
-
-                actionsMade += `-# Proposed an edit to \`${filePath}\` (awaiting owner approval)\n`;
-
-                // Block until the owner clicks Yes/No (or it times out), then continue with the outcome.
-                const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
-                let interaction;
-                try {
-                    interaction = await sent.awaitMessageComponent({
-                        filter: (i) => i.user.id === CODE_EDIT_OWNER_ID && (i.customId === acceptId || i.customId === rejectId),
-                        time: APPROVAL_TIMEOUT_MS,
-                    });
-                } catch {
-                    // No response within the window.
-                    try { await sent.edit({ content: `⌛ Edit to \`${filePath}\` timed out (no response).`, components: [] }); } catch { /* ignore */ }
-                    return "(Denied) The owner did not respond in time, so the edit was NOT applied.";
-                }
-
-                if (interaction.customId === rejectId) {
-                    await interaction.update({ content: `❌ Edit to \`${filePath}\` rejected.`, components: [] }).catch(() => { });
-                    return "(Denied) The owner rejected the edit; nothing was changed.";
-                }
-
-                // Approved -> apply the change to disk now.
-                try {
-                    const stillExists = fs.existsSync(absPath);
-                    let updated;
-                    if (oldString === "") {
-                        const current = stillExists ? fs.readFileSync(absPath, "utf-8") : "";
-                        updated = current ? current + newString : newString;
-                    } else {
-                        if (!stillExists) {
-                            await interaction.update({ content: `⚠️ Could not apply: \`${filePath}\` no longer exists.`, components: [] }).catch(() => { });
-                            return "(Error) Approved, but the file no longer exists; edit not applied.";
-                        }
-                        const current = fs.readFileSync(absPath, "utf-8");
-                        if (!current.includes(oldString)) {
-                            await interaction.update({ content: `⚠️ Could not apply: the original text in \`${filePath}\` changed since the proposal.`, components: [] }).catch(() => { });
-                            return "(Error) Approved, but the file changed since the proposal; edit not applied.";
-                        }
-                        updated = current.replace(oldString, newString);
-                    }
-                    fs.mkdirSync(path.dirname(absPath), { recursive: true });
-                    fs.writeFileSync(absPath, updated, "utf-8");
-                    console.log(`[CodeEdit] Owner approved & applied edit to ${filePath}`);
-                    await interaction.update({ content: `✅ Applied edit to \`${filePath}\`.`, components: [] }).catch(() => { });
-                    return `(Success) The owner approved the edit and it was applied to ${filePath}.`;
-                } catch (err) {
-                    console.error("[CodeEdit] Failed to apply edit:", err);
-                    await interaction.update({ content: `⚠️ Failed to apply edit to \`${filePath}\`: ${err?.message || String(err)}`, components: [] }).catch(() => { });
-                    return `(Error) Approved but failed to write the file. ${err?.message || String(err)}`;
-                }
-            },
-            git_sync: async (args, { message }) => {
-                console.log("AI ran git_sync");
-                console.log("[ServerFunction] git_sync called by", message?.author?.tag || message?.author?.id || "unknown");
-
-                // Owner-only: a sync commits + pushes to the public repo and can restart the bot.
-                if (message?.author?.id !== CODE_EDIT_OWNER_ID) {
-                    return "(Error) Only the bot owner can manually trigger a git sync.";
-                }
-
-                actionsMade += `-# Triggered a git sync\n`;
-                const result = await syncRepo();
-
-                if (!result || !result.ok) {
-                    return `(Error) ${result?.reason || "Git sync did not complete."}`;
-                }
-                if (result.willRestart) {
-                    // restart() was kicked off inside syncRepo; the bot may exit before this reply sends.
-                    return "(Success) Pulled new remote code and merged it. Restarting to run the latest version...";
-                }
-                const parts = [];
-                if (result.committed) { parts.push("committed local changes"); }
-                if (result.pushed) { parts.push(`pushed ${result.pushed} commit(s)`); }
-                if (parts.length === 0) { parts.push("already up to date, nothing to commit or push"); }
-                return `(Success) Git sync complete: ${parts.join(", ")}.`;
-            },
-            dm_member: async (args, { message }) => {
-                console.log("AI ran dm_member");
-                console.log("[ServerFunction] dm_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
-                const { targetUserID, content } = args || {};
-
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-
-                if (!targetUserID) {
-                    return "(Error) Missing targetUserID";
-                }
-                if (!content || typeof content !== "string" || !content.trim()) {
-                    return "(Error) Missing content";
-                }
-
-                const user = await client.users.fetch(targetUserID).catch(() => null);
-                if (!user) {
-                    return "(Error) Could not find that user.";
-                }
-                if (user.id === client.user.id) {
-                    return "(Error) Attempted to DM self.";
-                }
-
-                try {
-                    await user.send(content.slice(0, 1900));
-                    actionsMade += `-# Sent a DM to ${user.displayName}\n`;
-                    return `(Success) Sent a DM to ${user.username}`;
-                } catch (err) {
-                    return `(Error) Could not DM that user (privacy settings or blocked). ${err?.message || String(err)}`;
-                }
-            },
-            ban_member: async (args, { message }) => {
-                console.log("AI ran ban_member");
-                console.log("[ServerFunction] ban_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
-                const { targetUserID, reason = null } = args || {};
-                const guild = message.guild ? message.guild : null;
-                if (!guild) {
-                    return "(Error) Guild is null or unknown :(";
-                }
-
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-
-                if (!targetUserID) {
-                    return "(Error) Missing targetUserID";
-                }
-
-                const victim = await guild.members.fetch(targetUserID).catch(() => null);
-                if (!victim) {
-                    return "(Error) Could not find that user in this server.";
-                }
-                if (victim.user?.id === client.user.id) {
-                    return "(Error) Attempted suicide (Tried to ban self)";
-                }
-                if (victim && victim.bannable) {
-                    await victim.ban({ reason: reason ? reason : "No reason given." });
-                    actionsMade += `-# Banned ${victim.displayName}\n`;
-                    return `(Success) Banned ${victim.displayName}`;
-                }
-
-                return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
-            },
-            package: async () => {
-                console.log("AI read package.json");
-                console.log("[ServerFunction] package called by", message?.author?.tag || message?.author?.id || "unknown");
-                actionsMade += `-# Looked up information on the bot\n`;
-                return package;
-            },
-            view_user_info: async (args, { message }) => {
-                let output = "";
-                const { id } = args || {};
-                try {
-                    console.log("AI is getting info from user " + id);
-                    console.log("[ServerFunction] view_user_info called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
-
-                    output += "Getting user";
-                    const member = client.users.cache.get(id);
-
-                    if (member) {
-                        output += `\nFinal member information: ${JSON.stringify(member)}`;
-                    } else {
-                        output += "\nUnknown User";
-                    }
-
-                    actionsMade += member ? `-# Got information on user: ${member.displayName}\n` : `-# Could not fetch user information`;
-                    return output;
-                } catch (error) {
-                    output += error;
-                }
-            },
-            kick_member: async (args, { message }) => {
-                console.log("AI ran kick_member");
-                console.log("[ServerFunction] kick_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
-                const { targetUserID, reason = null } = args || {};
-                const guild = message.guild ? message.guild : null;
-                if (!guild) {
-                    return "(Error) Guild is null or unknown :(";
-                }
-
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-
-                if (!targetUserID) {
-                    return "(Error) Missing targetUserID";
-                }
-
-                const victim = await guild.members.fetch(targetUserID).catch(() => null);
-                if (!victim) {
-                    return "(Error) Could not find that user in this server.";
-                }
-                if (victim.user?.id === client.user.id) {
-                    return "(Error) Attempted suicide (Tried to kick self)";
-                }
-                if (victim && victim.kickable) {
-                    await victim.kick({ reason: reason ? reason : "No reason given." });
-                    actionsMade += `-# Kicked ${victim.displayName}\n`;
-                    return `(Success) Kicked ${victim.displayName}`;
-                }
-
-                return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
-            },
-            timeout_member: async (args, { message }) => {
-                console.log("AI ran timeout_member");
-                console.log("[ServerFunction] timeout_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
-                const { targetUserID, durationSeconds, reason = "" } = args || {};
-
-                const guild = message.guild ? message.guild : null;
-                if (!guild) {
-                    return "(Error) Guild is null or unknown :(";
-                }
-
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-
-                if (!targetUserID) {
-                    return "(Error) Missing targetUserID";
-                }
-
-                const seconds = Number(durationSeconds);
-                if (!Number.isFinite(seconds) || seconds < 0) {
-                    return "(Error) durationSeconds must be a number >= 0";
-                }
-                // Discord timeout max is 28 days
-                const maxSeconds = 28 * 24 * 60 * 60;
-                const clampedSeconds = Math.min(Math.floor(seconds), maxSeconds);
-                const durationMs = clampedSeconds * 1000;
-
-                const victim = await guild.members.fetch(targetUserID).catch(() => null);
-                if (!victim) {
-                    return "(Error) Could not find that user in this server.";
-                }
-                if (victim.user?.id === client.user.id) {
-                    return "(Error) Attempted suicide (Tried to timeout self)";
-                }
-
-                if (!victim.moderatable) {
-                    return "(Error) I cannot timeout this user (missing permissions / role hierarchy).";
-                }
-
-                try {
-                    await victim.timeout(durationMs, (reason || "").slice(0, 400));
-                    if (durationMs === 0) {
-                        actionsMade += `-# Removed timeout\n`;
-                        return `(Success) Removed timeout for ${victim.displayName}`;
-                    }
-                    actionsMade += `-# Timed out ${victim.displayName}\n`;
-                    return `(Success) Timed out ${victim.displayName} for ${clampedSeconds} seconds`;
-                } catch (err) {
-                    actionsMade += `-# Could not time out user\n`;
-                    return `(Error) Failed to timeout user. ${err?.message || String(err)}`;
-                }
-            },
-            send_image_message: async (args, { message }) => {
-                console.log("AI ran send_image_message");
-                console.log("[ServerFunction] send_image_message called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { imageUrl: args?.imageUrl });
-                const { imageUrl, content = "" } = args || {};
-
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-
-                if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.trim()) {
-                    return "(Error) Missing imageUrl";
-                }
-
-                let url;
-                try {
-                    url = new URL(imageUrl);
-                } catch {
-                    return "(Error) imageUrl must be a valid URL";
-                }
-
-                if (!["http:", "https:"].includes(url.protocol)) {
-                    return "(Error) imageUrl must be http(s)";
-                }
-
-                // Basic SSRF guard: block localhost and obvious private hostnames.
-                const hostname = (url.hostname || "").toLowerCase();
-                if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
-                    return "(Error) imageUrl hostname not allowed";
-                }
-                if (
-                    hostname.endsWith(".local") ||
-                    hostname.endsWith(".internal") ||
-                    hostname.endsWith(".lan")
-                ) {
-                    return "(Error) imageUrl hostname not allowed";
-                }
-
-                let resp;
-                try {
-                    resp = await fetch(url.toString(), { redirect: "follow" });
-                } catch (err) {
-                    return `(Error) Failed to fetch image. ${err?.message || String(err)}`;
-                }
-
-                if (!resp.ok) {
-                    return `(Error) Failed to fetch image (HTTP ${resp.status})`;
-                }
-
-                const contentType = (resp.headers.get("content-type") || "").toLowerCase();
-                if (!contentType.startsWith("image/")) {
-                    return `(Error) URL did not return an image (content-type: ${contentType || "unknown"})`;
-                }
-
-                let arrayBuffer;
-                try {
-                    arrayBuffer = await resp.arrayBuffer();
-                } catch (err) {
-                    return `(Error) Failed reading image body. ${err?.message || String(err)}`;
-                }
-
-                const buffer = Buffer.from(arrayBuffer);
-                // Keep within typical Discord upload limits; 8MB is a safe default.
-                const maxBytes = 8 * 1024 * 1024;
-                if (buffer.length > maxBytes) {
-                    return `(Error) Image too large (${buffer.length} bytes). Max ${maxBytes} bytes.`;
-                }
-
-                const { AttachmentBuilder } = require("discord.js");
-                const extFromType = contentType.split("/")[1]?.split(";")[0]?.trim();
-                const safeExt = extFromType && /^[a-z0-9.+-]+$/i.test(extFromType) ? extFromType : "png";
-                const fileName = `image.${safeExt}`;
-
-                try {
-                    await message.channel.send({
-                        content: (content || "").toString().slice(0, 1900),
-                        files: [new AttachmentBuilder(buffer, { name: fileName })],
-                    });
-                    return "(Success) Sent image message.";
-                } catch (err) {
-                    return `(Error) Failed to send image message. ${err?.message || String(err)}`;
-                }
-            },
-            scan_people_inactive_7days: async () => {
-                console.log("AI scanned for inactive people (7 days)");
-                console.log("[ServerFunction] scan_people_inactive_7days called by", message?.author?.tag || message?.author?.id || "unknown");
-                const guild = message.guild ? message.guild : null;
-                if (!guild) {
-                    return "(Error) Guild is null or unknown :(";
-                }
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-                const now = Date.now();
-                actionsMade += `-# Scanned for inactive members\n`;
-                const inactiveMembers = guild.members.cache.filter(m => {
-                    if (m.user?.bot) return false;
-                    const isOnline = m.presence?.status && m.presence.status !== "offline";
-                    if (isOnline) return false;
-                    const lastActive = m.lastMessage?.createdTimestamp || 0;
-                    return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
-                });
-                if (!inactiveMembers.size) {
-                    return { count: 0, members: [] };
-                }
-                const members = inactiveMembers
-                    .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
-                    .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
-                return { count: inactiveMembers.size, members };
-            },
-            scan_people_inactive_30days: async () => {
-                console.log("AI scanned for inactive people (30 days)");
-                console.log("[ServerFunction] scan_people_inactive_30days called by", message?.author?.tag || message?.author?.id || "unknown");
-                const guild = message.guild ? message.guild : null;
-                if (!guild) {
-                    return "(Error) Guild is null or unknown :(";
-                }
-                const executorMember = message.member;
-                if (!executorMember) {
-                    return "(Error) Could not resolve executor member.";
-                }
-                if (!executorMember.permissions.has("Administrator")) {
-                    return "(Error) Executor does not have permission to use this function";
-                }
-                actionsMade += `-# Scanned for inactive members (30 days)\n`;
-                const now = Date.now();
-                const inactiveMembers = guild.members.cache.filter(m => {
-                    if (m.user?.bot) return false;
-                    const isOnline = m.presence?.status && m.presence.status !== "offline";
-                    if (isOnline) return false;
-                    const lastActive = m.lastMessage?.createdTimestamp || 0;
-                    return now - lastActive > 30 * 24 * 60 * 60 * 1000; // 30 days
-                });
-                if (!inactiveMembers.size) {
-                    return { count: 0, members: [] };
-                }
-                const members = inactiveMembers
-                    .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
-                    .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
-                return { count: inactiveMembers.size, members };
-            },
-            send_announcement: async (args, { message }) => {
-                const { title, content, roleMention } = args;
-                if (!content) {
-                    return "(Error) Announcement content is required.";
-                }
-
-                // Ask the owner to approve the announcement via DM buttons.
-                const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
-                if (!owner) {
-                    return "(Error) Could not reach the bot owner to request approval.";
-                }
-
-                // Build the mention line: "@everyone" stays as-is, anything else is treated as a role ID.
-                let mention = "";
-                if (roleMention) {
-                    mention = /everyone/i.test(roleMention) ? "@everyone" : `<@&${roleMention.replace(/\D/g, "")}>`;
-                }
-                const announcementText = `${mention ? `${mention}\n` : ""}${title ? `# ${title}\n` : ""}### ${content}`;
-
-                const announcementId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-                const acceptId = `announcement_accept_${announcementId}`;
-                const rejectId = `announcement_reject_${announcementId}`;
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(acceptId).setLabel("Yes").setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(rejectId).setLabel("No").setStyle(ButtonStyle.Danger),
-                );
-
-                let sent;
-                try {
-                    sent = await owner.send({
-                        content: `Do you approve sending the following announcement?\n\`\`\`\n${announcementText}\n\`\`\``,
-                        components: [row],
-                    });
-                } catch (err) {
-                    return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
-                }
-
-                // Wait for the owner to click Yes/No (or timeout).
-                const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
-                let interaction;
-                try {
-                    interaction = await sent.awaitMessageComponent({
-                        filter: (i) => i.user.id === CODE_EDIT_OWNER_ID && (i.customId === acceptId || i.customId === rejectId),
-                        time: APPROVAL_TIMEOUT_MS,
-                    });
-                } catch {
-                    try { await sent.edit({ content: `⌛ Announcement approval timed out (no response).`, components: [] }); } catch { /* ignore */ }
-                    return "(Denied) The owner did not respond in time, so the announcement was NOT sent.";
-                }
-
-                if (interaction.customId === rejectId) {
-                    try { await interaction.update({ content: `❌ Announcement rejected.`, components: [] }); } catch { /* ignore */ }
-                    return "(Denied) The owner rejected the announcement, so it was NOT sent.";
-                }
-
-                const channel = await client.channels.fetch(configl.basics.announcementChannelID).catch(() => null);
-                if (!channel) {
-                    try { await interaction.update({ content: `⚠️ Approved, but the announcement channel could not be found.`, components: [] }); } catch { /* ignore */ }
-                    return "(Error) Announcement channel not found; the announcement was NOT sent.";
-                }
-
-                try {
-                    await channel.send(announcementText);
-                } catch (err) {
-                    try { await interaction.update({ content: `⚠️ Approved, but sending failed: ${err?.message || String(err)}`, components: [] }); } catch { /* ignore */ }
-                    return `(Error) Failed to send the announcement: ${err?.message || String(err)}`;
-                }
-
-                try { await interaction.update({ content: `✅ Announcement approved and sent.`, components: [] }); } catch { /* ignore */ }
-                return "(Success) Announcement sent.";
-            },
-            whois_domain_lookup: async (args) => {
-                const domainInput = typeof args?.domain === "string" ? args.domain : "";
-                const domain = domainInput.trim().toLowerCase().replace(/\.$/, "");
-                const domainRegex = /^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
-
-                if (!domain) {
-                    return "(Error) Missing domain.";
-                }
-                if (!domainRegex.test(domain)) {
-                    return "(Error) Please provide a valid domain name.";
-                }
-
-                try {
-                    const response = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
-                        headers: {
-                            accept: "application/json"
-                        }
-                    });
-
-                    if (!response.ok) {
-                        return "(Error) Could not look up that domain right now. Please try again later.";
-                    }
-
-                    const data = await response.json();
-                    const registrarEntity = data.entities?.find((entity) => entity.roles?.includes("registrar"));
-                    const registrarField = registrarEntity?.vcardArray?.[1]?.find((field) => field[0] === "fn");
-                    const registrar = registrarField?.[3] || registrarEntity?.handle || "Unknown";
-                    const created = data.events?.find((event) => event.eventAction === "registration")?.eventDate || "Unknown";
-                    const updated = data.events?.find((event) => event.eventAction === "last changed")?.eventDate || "Unknown";
-                    const expires = data.events?.find((event) => event.eventAction === "expiration")?.eventDate || "Unknown";
-                    const statuses = Array.isArray(data.status) && data.status.length > 0
-                        ? data.status.slice(0, 3).join(", ")
-                        : "Unknown";
-                    const nameservers = Array.isArray(data.nameservers) && data.nameservers.length > 0
-                        ? data.nameservers.slice(0, 3).map((nameserver) => nameserver.ldhName).filter(Boolean).join(", ")
-                        : "Unknown";
-
-                    return `WHOIS-style lookup for ${domain}\nRegistrar: ${registrar}\nCreated: ${created}\nUpdated: ${updated}\nExpires: ${expires}\nStatus: ${statuses}\nNameservers: ${nameservers}\nMore details: https://rdap.org/domain/${encodeURIComponent(domain)}?utm_source=horror-rebot`;
-                } catch (error) {
-                    console.error("Error looking up domain:", error);
-                    return "(Error) Failed to look up that domain. Please try again later.";
-                }
-            },
-            build_pdf: async (args) => {
-                const html = args.html;
+                    updated = current.replace(oldString, newString);
+                }
+                fs.mkdirSync(path.dirname(absPath), { recursive: true });
+                fs.writeFileSync(absPath, updated, "utf-8");
+                console.log(`[CodeEdit] Owner approved & applied edit to ${filePath}`);
+                await interaction.update({ content: `✅ Applied edit to \`${filePath}\`.`, components: [] }).catch(() => { });
+                return `(Success) The owner approved the edit and it was applied to ${filePath}.`;
+            } catch (err) {
+                console.error("[CodeEdit] Failed to apply edit:", err);
+                await interaction.update({ content: `⚠️ Failed to apply edit to \`${filePath}\`: ${err?.message || String(err)}`, components: [] }).catch(() => { });
+                return `(Error) Approved but failed to write the file. ${err?.message || String(err)}`;
             }
-        };
+        },
+        git_sync: async (args, { message }) => {
+            console.log("AI ran git_sync");
+            console.log("[ServerFunction] git_sync called by", message?.author?.tag || message?.author?.id || "unknown");
 
-        const tools = [
-            {
-                type: "function",
-                name: "do_nothing",
-                description: "Example server-side function that does nothing. Returns a short status string ('ok').",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {},
-                    required: [],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "whois_domain_lookup",
-                description: "Look up a domain using a WHOIS-style domain registration lookup and return registrar, dates, status, nameservers, and a details link.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        domain: { type: "string", description: "The domain name to look up, such as example.com" },
-                    },
-                    required: ["domain"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "read_server_code_lines",
-                description: "Read a specific range of lines from one of the bot's own source files. Available to anyone. Returns the requested lines, each prefixed with its 1-based line number, so you can copy an exact snippet for edit_server_code. Use this for large files where read_server_code would truncate. Path is relative to the project root; secrets and internals (.env, .git, node_modules) are not readable. Returns at most 400 lines per call.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        filePath: { type: "string", description: "Path to the file to read, relative to the project root (e.g. 'index.js')" },
-                        startLine: { type: "number", description: "First line to read (1-based, inclusive)" },
-                        endLine: { type: "number", description: "Last line to read (1-based, inclusive). Must be >= startLine." },
-                    },
-                    required: ["filePath", "startLine", "endLine"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "list_server_files",
-                description: "List every file in the app (the project), recursively, as paths relative to the project root. Available to anyone. The dependency and version-control folders (node_modules, .git) are excluded since they aren't part of the app. Use this to discover what files exist before reading or editing them.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {},
-                    required: [],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "search_server_code",
-                description: "Search the app's source code for a text snippet (case-insensitive substring). Available to anyone. Returns matching 'path:line: text' results so you can jump straight to the relevant code instead of reading whole files. PREFER this to locate code (a function name, a string, a variable) before reading a line range or proposing an edit — index.js is very large, so do NOT scan it chunk by chunk. Excludes node_modules, .git and secret env files.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        query: { type: "string", description: "Plain text to search for, case-insensitive. E.g. 'function restart', 'syncRepo', or a unique string from the code." },
-                    },
-                    required: ["query"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "edit_server_code",
-                description: "Propose an edit to the bot's own source code. Anyone can propose, but the edit is NOT applied immediately: the bot owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Read the file first with read_server_code so oldString is an exact, unique snippet. To create a new file or append, pass an empty oldString and put the content in newString.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        filePath: { type: "string", description: "Path to the file to edit, relative to the project root (e.g. 'index.js')" },
-                        oldString: { type: "string", description: "Exact, unique snippet of existing text to replace. Use an empty string to create a new file or append to an existing one." },
-                        newString: { type: "string", description: "The replacement text (or the new/appended content when oldString is empty)." },
-                    },
-                    required: ["filePath", "oldString", "newString"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "git_sync",
-                description: "Manually trigger a git sync now (the bot also does this automatically every minute). Owner-only. Commits any local changes, pulls/merges remote changes, and pushes to GitHub. If new remote code is merged in, the bot restarts to run the latest version.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {},
-                    required: [],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "dm_member",
-                description: "Sends a private DM to a user (admin-only).",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        targetUserID: { type: "string", description: "User ID of the person to DM" },
-                        content: { type: "string", description: "Message content to send (plain text)" },
-                    },
-                    required: [
-                        "targetUserID",
-                        "content"
-                    ],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "ban_member",
-                description: "Bans a member.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        targetUserID: { type: "string", description: "User ID of the person to ban" },
-                        reason: { type: "string", description: "Reason for banning the member (can be an empty string)" }
-                    },
-                    required: [
-                        "targetUserID",
-                        "reason"
-                    ],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "package",
-                description: "Returns information about the app that you run on",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {},
-                    required: [],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "view_user_info",
-                description: "Returns information about a user that you specify",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        id: { type: "string", description: "User ID of the person to look up (If the user provides <@...>, the user id is \"...\"" },
-                    },
-                    required: [
-                        "id"
-                    ],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "kick_member",
-                description: "Kicks a user from the server",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        targetUserID: { type: "string", description: "User ID of the person to kick" },
-                        reason: { type: "string", description: "Why the person is getting kicked" },
-                    },
-                    required: [
-                        "targetUserID",
-                        "reason"
-                    ],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "timeout_member",
-                description: "Times out a member (temporarily prevents them from chatting). Admin-only.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        targetUserID: { type: "string", description: "User ID of the person to timeout" },
-                        durationSeconds: { type: "number", description: "Timeout duration in seconds. Use 0 to remove timeout. Max is 2419200 (28 days)." },
-                        reason: { type: "string", description: "Reason for the timeout (can be empty)" },
-                    },
-                    required: ["targetUserID", "durationSeconds", "reason"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "send_image_message",
-                description: "Sends a message with an attached image (fetched from an http(s) URL). Admin-only.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        imageUrl: { type: "string", description: "Direct http(s) URL to an image" },
-                        content: { type: "string", description: "Optional message text to send with the image" },
-                    },
-                    required: ["imageUrl", "content"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "scan_people_inactive_7days",
-                description: "Scans for people who have been inactive for 7 days. Admin-only.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {},
-                    required: [],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "scan_people_inactive_30days",
-                description: "Scans for people who have been inactive for 30 days. Admin-only.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {},
-                    required: [],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "send_announcement",
-                description: "Sends an announcement to the server. Admin-only. The bot owner must approve the announcement via DM buttons before it is sent.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        title: { type: "string", description: "The announcement title" },
-                        content: { type: "string", description: "The announcement content to send" },
-                        roleMention: { type: "string", description: "Optional role ID to mention in the announcement (If the user did not specify, use @everyone)" },
-                    },
-                    required: ["title", "content", "roleMention"],
-                    additionalProperties: false,
-                },
-            },
-            {
-                type: "function",
-                name: "build_pdf",
-                description: "Attaches a PDF file built with HTML into your message.",
-                strict: true,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        html: { type: "string", description: "HTML code that represents the PDF file" },
-                    },
-                    required: ["html"],
-                    additionalProperties: false,
-                },
+            // Owner-only: a sync commits + pushes to the public repo and can restart the bot.
+            if (message?.author?.id !== CODE_EDIT_OWNER_ID) {
+                return "(Error) Only the bot owner can manually trigger a git sync.";
             }
-        ];
 
-        history.push({
-            role: 'system',
-            content: "Please dont say exactly what the function names are. instead just summarize what it does if the user asks you what you can do."
-        });
+            actionsMade += `-# Triggered a git sync\n`;
+            const result = await syncRepo();
 
-        // ====== OPENAI REQUEST ======
-        // Shared request options so every round (initial + every tool follow-up) uses the
-        // same prompt version, tools and settings.
-        const baseRequest = {
-            prompt: {
-                "id": process.env.OPENAI_ASSISTANT_ID,
-                "version": "28"
-            },
-            tools: tools,
-            text: {
-                "format": {
-                    "type": "text"
-                }
-            },
-            reasoning: {},
-            max_output_tokens: 2048,
-            store: true,
-            include: ["web_search_call.action.sources"]
-        };
+            if (!result || !result.ok) {
+                return `(Error) ${result?.reason || "Git sync did not complete."}`;
+            }
+            if (result.willRestart) {
+                // restart() was kicked off inside syncRepo; the bot may exit before this reply sends.
+                return "(Success) Pulled new remote code and merged it. Restarting to run the latest version...";
+            }
+            const parts = [];
+            if (result.committed) { parts.push("committed local changes"); }
+            if (result.pushed) { parts.push(`pushed ${result.pushed} commit(s)`); }
+            if (parts.length === 0) { parts.push("already up to date, nothing to commit or push"); }
+            return `(Success) Git sync complete: ${parts.join(", ")}.`;
+        },
+        dm_member: async (args, { message }) => {
+            console.log("AI ran dm_member");
+            console.log("[ServerFunction] dm_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
+            const { targetUserID, content } = args || {};
 
-        let response = await openai.responses.create({ ...baseRequest, input: history });
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
+            }
 
-        // ====== EXECUTE TOOL CALLS (LOOP UNTIL THE MODEL STOPS REQUESTING TOOLS) ======
-        // The model often needs several sequential rounds (e.g. list files -> read lines ->
-        // edit). A single pass would only run the first round and then ignore later tool
-        // calls, so we keep feeding tool outputs back until it returns a final text answer.
-        const MAX_TOOL_ROUNDS = 18;
-        const conversation = [...history];
-        let nudgedToWrapUp = false;
+            if (!targetUserID) {
+                return "(Error) Missing targetUserID";
+            }
+            if (!content || typeof content !== "string" || !content.trim()) {
+                return "(Error) Missing content";
+            }
 
-        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-            if (!Array.isArray(response.output)) { break; }
+            const user = await client.users.fetch(targetUserID).catch(() => null);
+            if (!user) {
+                return "(Error) Could not find that user.";
+            }
+            if (user.id === client.user.id) {
+                return "(Error) Attempted to DM self.";
+            }
 
-            let executedAnyTool = false;
+            try {
+                await user.send(content.slice(0, 1900));
+                actionsMade += `-# Sent a DM to ${user.displayName}\n`;
+                return `(Success) Sent a DM to ${user.username}`;
+            } catch (err) {
+                return `(Error) Could not DM that user (privacy settings or blocked). ${err?.message || String(err)}`;
+            }
+        },
+        ban_member: async (args, { message }) => {
+            console.log("AI ran ban_member");
+            console.log("[ServerFunction] ban_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
+            const { targetUserID, reason = null } = args || {};
+            const guild = message.guild ? message.guild : null;
+            if (!guild) {
+                return "(Error) Guild is null or unknown :(";
+            }
 
-            for (const item of response.output) {
-                if (item?.type === "reasoning") {
-                    conversation.push(item);
-                    continue;
-                }
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
+            }
 
-                if (item?.type !== "function_call") { continue; }
-                executedAnyTool = true;
+            if (!targetUserID) {
+                return "(Error) Missing targetUserID";
+            }
 
-                // IMPORTANT: include the function_call item itself in the next request,
-                // otherwise the API will reject the corresponding function_call_output.
-                conversation.push(item);
+            const victim = await guild.members.fetch(targetUserID).catch(() => null);
+            if (!victim) {
+                return "(Error) Could not find that user in this server.";
+            }
+            if (victim.user?.id === client.user.id) {
+                return "(Error) Attempted suicide (Tried to ban self)";
+            }
+            if (victim && victim.bannable) {
+                await victim.ban({ reason: reason ? reason : "No reason given." });
+                actionsMade += `-# Banned ${victim.displayName}\n`;
+                return `(Success) Banned ${victim.displayName}`;
+            }
 
-                const handler = serverFunctionHandlers[item.name];
-                let output;
-                let args = {};
-                try { args = item.arguments ? JSON.parse(item.arguments) : {}; } catch { args = {}; }
-                const caller = message?.author?.tag || message?.author?.id || "unknown";
-                if (!handler) {
-                    console.log(`[ServerFunction][CALL] Unknown function requested: ${item.name} by ${caller} args:`, args);
-                    output = JSON.stringify({ ok: false, error: `Unknown function: ${item.name}` });
+            return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
+        },
+        package: async () => {
+            console.log("AI read package.json");
+            console.log("[ServerFunction] package called by", message?.author?.tag || message?.author?.id || "unknown");
+            actionsMade += `-# Looked up information on the bot\n`;
+            return package;
+        },
+        view_user_info: async (args, { message }) => {
+            let output = "";
+            const { id } = args || {};
+            try {
+                console.log("AI is getting info from user " + id);
+                console.log("[ServerFunction] view_user_info called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
+
+                output += "Getting user";
+                const member = client.users.cache.get(id);
+
+                if (member) {
+                    output += `\nFinal member information: ${JSON.stringify(member)}`;
                 } else {
-                    console.log(`[ServerFunction][CALL] ${item.name} invoked by ${caller} (round ${round + 1}) args:`, args);
-                    const start = Date.now();
-                    try {
-                        output = await handler(args, { message });
-                        try {
-                            console.log(`[ServerFunction][RESULT] ${item.name} completed by ${caller} in ${Date.now() - start}ms result:`, output);
-                        } catch (e) {
-                            console.log(`[ServerFunction][RESULT] ${item.name} completed by ${caller} in ${Date.now() - start}ms (unserializable result)`);
-                        }
-                    } catch (err) {
-                        console.log(`[ServerFunction][ERROR] ${item.name} threw after ${Date.now() - start}ms:`, err);
-                        output = JSON.stringify({ ok: false, error: err?.message || String(err) });
-                    }
+                    output += "\nUnknown User";
                 }
 
-                // Allow handlers to `return "something"` (or any JSON-serializable value).
-                let toolOutput = output;
-                if (toolOutput === undefined) { toolOutput = ""; }
-                if (typeof toolOutput !== "string") {
-                    try {
-                        toolOutput = JSON.stringify(toolOutput);
-                    } catch {
-                        toolOutput = String(toolOutput);
-                    }
-                }
-
-                conversation.push({
-                    type: "function_call_output",
-                    call_id: item.call_id,
-                    output: toolOutput,
-                });
+                actionsMade += member ? `-# Got information on user: ${member.displayName}\n` : `-# Could not fetch user information`;
+                return output;
+            } catch (error) {
+                output += error;
+            }
+        },
+        kick_member: async (args, { message }) => {
+            console.log("AI ran kick_member");
+            console.log("[ServerFunction] kick_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
+            const { targetUserID, reason = null } = args || {};
+            const guild = message.guild ? message.guild : null;
+            if (!guild) {
+                return "(Error) Guild is null or unknown :(";
             }
 
-            // No tools this round means the model produced its final answer — we're done.
-            if (!executedAnyTool) { break; }
-
-            const isLastRound = round === MAX_TOOL_ROUNDS - 1;
-
-            // A few rounds before the limit, tell the model to stop browsing and commit: make
-            // the edit now (or answer). Without this it can keep exploring until it runs out.
-            if (!nudgedToWrapUp && round >= MAX_TOOL_ROUNDS - 4) {
-                nudgedToWrapUp = true;
-                conversation.push({
-                    role: "system",
-                    content: "You are running low on tool calls. Stop searching/reading now. If you intend to edit code, propose the edit on your next step; otherwise give your final answer to the user.",
-                });
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
             }
 
-            if (isLastRound) {
-                // Out of tool budget: force a plain text answer so the user never gets an empty
-                // reply just because the model still wanted to call another tool.
-                console.warn(`[ServerFunction] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}); forcing a final text answer.`);
-                response = await openai.responses.create({ ...baseRequest, input: conversation, tool_choice: "none" });
-                break;
+            if (!targetUserID) {
+                return "(Error) Missing targetUserID";
             }
 
-            // Feed the tool outputs back so the model can decide its next step (or answer).
-            response = await openai.responses.create({ ...baseRequest, input: conversation });
-        }
+            const victim = await guild.members.fetch(targetUserID).catch(() => null);
+            if (!victim) {
+                return "(Error) Could not find that user in this server.";
+            }
+            if (victim.user?.id === client.user.id) {
+                return "(Error) Attempted suicide (Tried to kick self)";
+            }
+            if (victim && victim.kickable) {
+                await victim.kick({ reason: reason ? reason : "No reason given." });
+                actionsMade += `-# Kicked ${victim.displayName}\n`;
+                return `(Success) Kicked ${victim.displayName}`;
+            }
 
-        // ====== EXTRACT REPLY ======
-        let replyText = "";
+            return "(Error) I cannot ban this user (missing permissions / role hierarchy).";
+        },
+        timeout_member: async (args, { message }) => {
+            console.log("AI ran timeout_member");
+            console.log("[ServerFunction] timeout_member called by", message?.author?.tag || message?.author?.id || "unknown", "args:", args);
+            const { targetUserID, durationSeconds, reason = "" } = args || {};
 
-        if (Array.isArray(response.output)) {
-            replyText = response.output
-                .map(o =>
-                    Array.isArray(o.content)
-                        ? o.content.map(c => c?.text || "").join("")
-                        : o.text || ""
-                )
-                .join("\n")
-                .trim();
-        }
+            const guild = message.guild ? message.guild : null;
+            if (!guild) {
+                return "(Error) Guild is null or unknown :(";
+            }
 
-        replyText = replyText || response.output_text || "";
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
+            }
 
-        replyText = replyText
-            .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
-            .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
-            .replace(/<@!?\d+>/g, "@...")
-            .replace(/<@&\d+>/g, "@...")
-            .replace(/<#\d+>/g, "@...")
-            .replace(/\s{2,}/g, " ")
-            .trim();
+            if (!targetUserID) {
+                return "(Error) Missing targetUserID";
+            }
 
-        replyText = `${actionsMade}${replyText}`;
-        if (actionsMade === "") { replyText = response.output_text; }
+            const seconds = Number(durationSeconds);
+            if (!Number.isFinite(seconds) || seconds < 0) {
+                return "(Error) durationSeconds must be a number >= 0";
+            }
+            // Discord timeout max is 28 days
+            const maxSeconds = 28 * 24 * 60 * 60;
+            const clampedSeconds = Math.min(Math.floor(seconds), maxSeconds);
+            const durationMs = clampedSeconds * 1000;
 
-        if (!replyText) {
-            return message.reply("Sorry, I couldn't get a response.");
-        }
+            const victim = await guild.members.fetch(targetUserID).catch(() => null);
+            if (!victim) {
+                return "(Error) Could not find that user in this server.";
+            }
+            if (victim.user?.id === client.user.id) {
+                return "(Error) Attempted suicide (Tried to timeout self)";
+            }
 
-        // ====== SAVE ASSISTANT MESSAGE ======
-        history.push({
-            role: "assistant",
-            content: replyText
-        });
-
-        const memberVoiceChannel = member?.voice?.channel;
-        const shouldUseVoiceTts = Boolean(memberVoiceChannel && configl.basics.vc.enabled);
-        let audioBuffer = null;
-
-        // Voice users should keep seeing a typing indicator while Fish Audio processes
-        // the reply. Do not send the text until synthesis has completed.
-        if (shouldUseVoiceTts) {
-            const refreshTyping = () => {
-                message.channel.sendTyping().catch(() => { /* ignore typing failures */ });
-            };
-
-            refreshTyping();
-            const typingInterval = setInterval(refreshTyping, 5000);
+            if (!victim.moderatable) {
+                return "(Error) I cannot timeout this user (missing permissions / role hierarchy).";
+            }
 
             try {
-                audioBuffer = await speakText(sanitizeForTTS(replyText));
+                await victim.timeout(durationMs, (reason || "").slice(0, 400));
+                if (durationMs === 0) {
+                    actionsMade += `-# Removed timeout\n`;
+                    return `(Success) Removed timeout for ${victim.displayName}`;
+                }
+                actionsMade += `-# Timed out ${victim.displayName}\n`;
+                return `(Success) Timed out ${victim.displayName} for ${clampedSeconds} seconds`;
             } catch (err) {
-                console.error("TTS processing failed:", err);
-                newIssue(`A TTS processing error occurred at ${new Date().toISOString()}.`);
+                actionsMade += `-# Could not time out user\n`;
+                return `(Error) Failed to timeout user. ${err?.message || String(err)}`;
+            }
+        },
+        send_image_message: async (args, { message }) => {
+            console.log("AI ran send_image_message");
+            console.log("[ServerFunction] send_image_message called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { imageUrl: args?.imageUrl });
+            const { imageUrl, content = "" } = args || {};
+
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
+            }
+
+            if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.trim()) {
+                return "(Error) Missing imageUrl";
+            }
+
+            let url;
+            try {
+                url = new URL(imageUrl);
+            } catch {
+                return "(Error) imageUrl must be a valid URL";
+            }
+
+            if (!["http:", "https:"].includes(url.protocol)) {
+                return "(Error) imageUrl must be http(s)";
+            }
+
+            // Basic SSRF guard: block localhost and obvious private hostnames.
+            const hostname = (url.hostname || "").toLowerCase();
+            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+                return "(Error) imageUrl hostname not allowed";
+            }
+            if (
+                hostname.endsWith(".local") ||
+                hostname.endsWith(".internal") ||
+                hostname.endsWith(".lan")
+            ) {
+                return "(Error) imageUrl hostname not allowed";
+            }
+
+            let resp;
+            try {
+                resp = await fetch(url.toString(), { redirect: "follow" });
+            } catch (err) {
+                return `(Error) Failed to fetch image. ${err?.message || String(err)}`;
+            }
+
+            if (!resp.ok) {
+                return `(Error) Failed to fetch image (HTTP ${resp.status})`;
+            }
+
+            const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+            if (!contentType.startsWith("image/")) {
+                return `(Error) URL did not return an image (content-type: ${contentType || "unknown"})`;
+            }
+
+            let arrayBuffer;
+            try {
+                arrayBuffer = await resp.arrayBuffer();
+            } catch (err) {
+                return `(Error) Failed reading image body. ${err?.message || String(err)}`;
+            }
+
+            const buffer = Buffer.from(arrayBuffer);
+            // Keep within typical Discord upload limits; 8MB is a safe default.
+            const maxBytes = 8 * 1024 * 1024;
+            if (buffer.length > maxBytes) {
+                return `(Error) Image too large (${buffer.length} bytes). Max ${maxBytes} bytes.`;
+            }
+
+            const { AttachmentBuilder } = require("discord.js");
+            const extFromType = contentType.split("/")[1]?.split(";")[0]?.trim();
+            const safeExt = extFromType && /^[a-z0-9.+-]+$/i.test(extFromType) ? extFromType : "png";
+            const fileName = `image.${safeExt}`;
+
+            try {
+                await message.channel.send({
+                    content: (content || "").toString().slice(0, 1900),
+                    files: [new AttachmentBuilder(buffer, { name: fileName })],
+                });
+                return "(Success) Sent image message.";
+            } catch (err) {
+                return `(Error) Failed to send image message. ${err?.message || String(err)}`;
+            }
+        },
+        scan_people_inactive_7days: async () => {
+            console.log("AI scanned for inactive people (7 days)");
+            console.log("[ServerFunction] scan_people_inactive_7days called by", message?.author?.tag || message?.author?.id || "unknown");
+            const guild = message.guild ? message.guild : null;
+            if (!guild) {
+                return "(Error) Guild is null or unknown :(";
+            }
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
+            }
+            const now = Date.now();
+            actionsMade += `-# Scanned for inactive members\n`;
+            const inactiveMembers = guild.members.cache.filter(m => {
+                if (m.user?.bot) return false;
+                const isOnline = m.presence?.status && m.presence.status !== "offline";
+                if (isOnline) return false;
+                const lastActive = m.lastMessage?.createdTimestamp || 0;
+                return now - lastActive > 7 * 24 * 60 * 60 * 1000; // 7 days
+            });
+            if (!inactiveMembers.size) {
+                return { count: 0, members: [] };
+            }
+            const members = inactiveMembers
+                .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
+                .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
+            return { count: inactiveMembers.size, members };
+        },
+        scan_people_inactive_30days: async () => {
+            console.log("AI scanned for inactive people (30 days)");
+            console.log("[ServerFunction] scan_people_inactive_30days called by", message?.author?.tag || message?.author?.id || "unknown");
+            const guild = message.guild ? message.guild : null;
+            if (!guild) {
+                return "(Error) Guild is null or unknown :(";
+            }
+            const executorMember = message.member;
+            if (!executorMember) {
+                return "(Error) Could not resolve executor member.";
+            }
+            if (!executorMember.permissions.has("Administrator")) {
+                return "(Error) Executor does not have permission to use this function";
+            }
+            actionsMade += `-# Scanned for inactive members (30 days)\n`;
+            const now = Date.now();
+            const inactiveMembers = guild.members.cache.filter(m => {
+                if (m.user?.bot) return false;
+                const isOnline = m.presence?.status && m.presence.status !== "offline";
+                if (isOnline) return false;
+                const lastActive = m.lastMessage?.createdTimestamp || 0;
+                return now - lastActive > 30 * 24 * 60 * 60 * 1000; // 30 days
+            });
+            if (!inactiveMembers.size) {
+                return { count: 0, members: [] };
+            }
+            const members = inactiveMembers
+                .map(m => ({ id: m.id, tag: m.user.tag, lastActive: m.lastMessage?.createdTimestamp || null }))
+                .sort((a, b) => (a.tag || "").localeCompare(b.tag || ""));
+            return { count: inactiveMembers.size, members };
+        },
+        send_announcement: async (args, { message }) => {
+            const { title, content, roleMention } = args;
+            if (!content) {
+                return "(Error) Announcement content is required.";
+            }
+
+            // Ask the owner to approve the announcement via DM buttons.
+            const owner = await client.users.fetch(CODE_EDIT_OWNER_ID).catch(() => null);
+            if (!owner) {
+                return "(Error) Could not reach the bot owner to request approval.";
+            }
+
+            // Build the mention line: "@everyone" stays as-is, anything else is treated as a role ID.
+            let mention = "";
+            if (roleMention) {
+                mention = /everyone/i.test(roleMention) ? "@everyone" : `<@&${roleMention.replace(/\D/g, "")}>`;
+            }
+            const announcementText = `${mention ? `${mention}\n` : ""}${title ? `# ${title}\n` : ""}### ${content}`;
+
+            const announcementId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            const acceptId = `announcement_accept_${announcementId}`;
+            const rejectId = `announcement_reject_${announcementId}`;
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(acceptId).setLabel("Yes").setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(rejectId).setLabel("No").setStyle(ButtonStyle.Danger),
+            );
+
+            let sent;
+            try {
+                sent = await owner.send({
+                    content: `Do you approve sending the following announcement?\n\`\`\`\n${announcementText}\n\`\`\``,
+                    components: [row],
+                });
+            } catch (err) {
+                return `(Error) Could not DM the owner for approval (privacy settings or blocked). ${err?.message || String(err)}`;
+            }
+
+            // Wait for the owner to click Yes/No (or timeout).
+            const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
+            let interaction;
+            try {
+                interaction = await sent.awaitMessageComponent({
+                    filter: (i) => i.user.id === CODE_EDIT_OWNER_ID && (i.customId === acceptId || i.customId === rejectId),
+                    time: APPROVAL_TIMEOUT_MS,
+                });
+            } catch {
+                try { await sent.edit({ content: `⌛ Announcement approval timed out (no response).`, components: [] }); } catch { /* ignore */ }
+                return "(Denied) The owner did not respond in time, so the announcement was NOT sent.";
+            }
+
+            if (interaction.customId === rejectId) {
+                try { await interaction.update({ content: `❌ Announcement rejected.`, components: [] }); } catch { /* ignore */ }
+                return "(Denied) The owner rejected the announcement, so it was NOT sent.";
+            }
+
+            const channel = await client.channels.fetch(configl.basics.announcementChannelID).catch(() => null);
+            if (!channel) {
+                try { await interaction.update({ content: `⚠️ Approved, but the announcement channel could not be found.`, components: [] }); } catch { /* ignore */ }
+                return "(Error) Announcement channel not found; the announcement was NOT sent.";
+            }
+
+            try {
+                await channel.send(announcementText);
+            } catch (err) {
+                try { await interaction.update({ content: `⚠️ Approved, but sending failed: ${err?.message || String(err)}`, components: [] }); } catch { /* ignore */ }
+                return `(Error) Failed to send the announcement: ${err?.message || String(err)}`;
+            }
+
+            try { await interaction.update({ content: `✅ Announcement approved and sent.`, components: [] }); } catch { /* ignore */ }
+            return "(Success) Announcement sent.";
+        },
+        whois_domain_lookup: async (args) => {
+            const domainInput = typeof args?.domain === "string" ? args.domain : "";
+            const domain = domainInput.trim().toLowerCase().replace(/\.$/, "");
+            const domainRegex = /^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
+            if (!domain) {
+                return "(Error) Missing domain.";
+            }
+            if (!domainRegex.test(domain)) {
+                return "(Error) Please provide a valid domain name.";
+            }
+
+            try {
+                const response = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+                    headers: {
+                        accept: "application/json"
+                    }
+                });
+
+                if (!response.ok) {
+                    return "(Error) Could not look up that domain right now. Please try again later.";
+                }
+
+                const data = await response.json();
+                const registrarEntity = data.entities?.find((entity) => entity.roles?.includes("registrar"));
+                const registrarField = registrarEntity?.vcardArray?.[1]?.find((field) => field[0] === "fn");
+                const registrar = registrarField?.[3] || registrarEntity?.handle || "Unknown";
+                const created = data.events?.find((event) => event.eventAction === "registration")?.eventDate || "Unknown";
+                const updated = data.events?.find((event) => event.eventAction === "last changed")?.eventDate || "Unknown";
+                const expires = data.events?.find((event) => event.eventAction === "expiration")?.eventDate || "Unknown";
+                const statuses = Array.isArray(data.status) && data.status.length > 0
+                    ? data.status.slice(0, 3).join(", ")
+                    : "Unknown";
+                const nameservers = Array.isArray(data.nameservers) && data.nameservers.length > 0
+                    ? data.nameservers.slice(0, 3).map((nameserver) => nameserver.ldhName).filter(Boolean).join(", ")
+                    : "Unknown";
+
+                return `WHOIS-style lookup for ${domain}\nRegistrar: ${registrar}\nCreated: ${created}\nUpdated: ${updated}\nExpires: ${expires}\nStatus: ${statuses}\nNameservers: ${nameservers}\nMore details: https://rdap.org/domain/${encodeURIComponent(domain)}?utm_source=horror-rebot`;
+            } catch (error) {
+                console.error("Error looking up domain:", error);
+                return "(Error) Failed to look up that domain. Please try again later.";
+            }
+        },
+        build_pdf: async (args) => {
+            const htmlContent = args.html;
+
+            const browser = await puppeteer.launch();
+            try {
+                const page = await browser.newPage();
+                await page.setContent(htmlContent, { waitUntil: 'load' });
+
+                return await page.pdf({
+                    format: 'letter',
+                    printBackground: true
+                });
             } finally {
-                clearInterval(typingInterval);
+                await browser.close();
             }
         }
+    };
 
-        // ====== SEND TEXT ======
-        if (replyText.length <= 2000) {
-            await message.reply(replyText);
-        } else {
-            const chunks = [];
-            let remaining = replyText;
+    const tools = [
+        {
+            type: "function",
+            name: "do_nothing",
+            description: "Example server-side function that does nothing. Returns a short status string ('ok').",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "whois_domain_lookup",
+            description: "Look up a domain using a WHOIS-style domain registration lookup and return registrar, dates, status, nameservers, and a details link.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    domain: { type: "string", description: "The domain name to look up, such as example.com" },
+                },
+                required: ["domain"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "read_server_code_lines",
+            description: "Read a specific range of lines from one of the bot's own source files. Available to anyone. Returns the requested lines, each prefixed with its 1-based line number, so you can copy an exact snippet for edit_server_code. Use this for large files where read_server_code would truncate. Path is relative to the project root; secrets and internals (.env, .git, node_modules) are not readable. Returns at most 400 lines per call.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    filePath: { type: "string", description: "Path to the file to read, relative to the project root (e.g. 'index.js')" },
+                    startLine: { type: "number", description: "First line to read (1-based, inclusive)" },
+                    endLine: { type: "number", description: "Last line to read (1-based, inclusive). Must be >= startLine." },
+                },
+                required: ["filePath", "startLine", "endLine"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "list_server_files",
+            description: "List every file in the app (the project), recursively, as paths relative to the project root. Available to anyone. The dependency and version-control folders (node_modules, .git) are excluded since they aren't part of the app. Use this to discover what files exist before reading or editing them.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "search_server_code",
+            description: "Search the app's source code for a text snippet (case-insensitive substring). Available to anyone. Returns matching 'path:line: text' results so you can jump straight to the relevant code instead of reading whole files. PREFER this to locate code (a function name, a string, a variable) before reading a line range or proposing an edit — index.js is very large, so do NOT scan it chunk by chunk. Excludes node_modules, .git and secret env files.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "Plain text to search for, case-insensitive. E.g. 'function restart', 'syncRepo', or a unique string from the code." },
+                },
+                required: ["query"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "edit_server_code",
+            description: "Propose an edit to the bot's own source code. Anyone can propose, but the edit is NOT applied immediately: the bot owner receives a DM with a diff preview and Yes/No buttons, and the change is only written to disk if they accept. Read the file first with read_server_code so oldString is an exact, unique snippet. To create a new file or append, pass an empty oldString and put the content in newString.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    filePath: { type: "string", description: "Path to the file to edit, relative to the project root (e.g. 'index.js')" },
+                    oldString: { type: "string", description: "Exact, unique snippet of existing text to replace. Use an empty string to create a new file or append to an existing one." },
+                    newString: { type: "string", description: "The replacement text (or the new/appended content when oldString is empty)." },
+                },
+                required: ["filePath", "oldString", "newString"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "git_sync",
+            description: "Manually trigger a git sync now (the bot also does this automatically every minute). Owner-only. Commits any local changes, pulls/merges remote changes, and pushes to GitHub. If new remote code is merged in, the bot restarts to run the latest version.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "dm_member",
+            description: "Sends a private DM to a user (admin-only).",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    targetUserID: { type: "string", description: "User ID of the person to DM" },
+                    content: { type: "string", description: "Message content to send (plain text)" },
+                },
+                required: [
+                    "targetUserID",
+                    "content"
+                ],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "ban_member",
+            description: "Bans a member.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    targetUserID: { type: "string", description: "User ID of the person to ban" },
+                    reason: { type: "string", description: "Reason for banning the member (can be an empty string)" }
+                },
+                required: [
+                    "targetUserID",
+                    "reason"
+                ],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "package",
+            description: "Returns information about the app that you run on",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "view_user_info",
+            description: "Returns information about a user that you specify",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    id: { type: "string", description: "User ID of the person to look up (If the user provides <@...>, the user id is \"...\"" },
+                },
+                required: [
+                    "id"
+                ],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "kick_member",
+            description: "Kicks a user from the server",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    targetUserID: { type: "string", description: "User ID of the person to kick" },
+                    reason: { type: "string", description: "Why the person is getting kicked" },
+                },
+                required: [
+                    "targetUserID",
+                    "reason"
+                ],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "timeout_member",
+            description: "Times out a member (temporarily prevents them from chatting). Admin-only.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    targetUserID: { type: "string", description: "User ID of the person to timeout" },
+                    durationSeconds: { type: "number", description: "Timeout duration in seconds. Use 0 to remove timeout. Max is 2419200 (28 days)." },
+                    reason: { type: "string", description: "Reason for the timeout (can be empty)" },
+                },
+                required: ["targetUserID", "durationSeconds", "reason"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "send_image_message",
+            description: "Sends a message with an attached image (fetched from an http(s) URL). Admin-only.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    imageUrl: { type: "string", description: "Direct http(s) URL to an image" },
+                    content: { type: "string", description: "Optional message text to send with the image" },
+                },
+                required: ["imageUrl", "content"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "scan_people_inactive_7days",
+            description: "Scans for people who have been inactive for 7 days. Admin-only.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "scan_people_inactive_30days",
+            description: "Scans for people who have been inactive for 30 days. Admin-only.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "send_announcement",
+            description: "Sends an announcement to the server. Admin-only. The bot owner must approve the announcement via DM buttons before it is sent.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    title: { type: "string", description: "The announcement title" },
+                    content: { type: "string", description: "The announcement content to send" },
+                    roleMention: { type: "string", description: "Optional role ID to mention in the announcement (If the user did not specify, use @everyone)" },
+                },
+                required: ["title", "content", "roleMention"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "build_pdf",
+            description: "Attaches a PDF file in Letter format built with HTML into your message.",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    html: { type: "string", description: "HTML code that represents the PDF file" },
+                },
+                required: ["html"],
+                additionalProperties: false,
+            },
+        }
+    ];
 
-            while (remaining.length > 0) {
-                let chunk = remaining.slice(0, 2000);
+    history.push({
+        role: 'system',
+        content: "Please dont say exactly what the function names are. instead just summarize what it does if the user asks you what you can do."
+    });
 
-                if (remaining.length > 2000) {
-                    const splitAt = Math.max(
-                        chunk.lastIndexOf("\n"),
-                        chunk.lastIndexOf(" ")
-                    );
-                    if (splitAt > 0) {
-                        chunk = chunk.slice(0, splitAt);
+    // ====== OPENAI REQUEST ======
+    // Shared request options so every round (initial + every tool follow-up) uses the
+    // same prompt version, tools and settings.
+    const baseRequest = {
+        prompt: {
+            "id": process.env.OPENAI_ASSISTANT_ID,
+            "version": "28"
+        },
+        tools: tools,
+        text: {
+            "format": {
+                "type": "text"
+            }
+        },
+        reasoning: {},
+        max_output_tokens: 2048,
+        store: true,
+        include: ["web_search_call.action.sources"]
+    };
+
+    let response = await openai.responses.create({ ...baseRequest, input: history });
+
+    // ====== EXECUTE TOOL CALLS (LOOP UNTIL THE MODEL STOPS REQUESTING TOOLS) ======
+    // The model often needs several sequential rounds (e.g. list files -> read lines ->
+    // edit). A single pass would only run the first round and then ignore later tool
+    // calls, so we keep feeding tool outputs back until it returns a final text answer.
+    const MAX_TOOL_ROUNDS = 18;
+    const conversation = [...history];
+    let nudgedToWrapUp = false;
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        if (!Array.isArray(response.output)) { break; }
+
+        let executedAnyTool = false;
+
+        for (const item of response.output) {
+            if (item?.type === "reasoning") {
+                conversation.push(item);
+                continue;
+            }
+
+            if (item?.type !== "function_call") { continue; }
+            executedAnyTool = true;
+
+            // IMPORTANT: include the function_call item itself in the next request,
+            // otherwise the API will reject the corresponding function_call_output.
+            conversation.push(item);
+
+            const handler = serverFunctionHandlers[item.name];
+            let output;
+            let args = {};
+            try { args = item.arguments ? JSON.parse(item.arguments) : {}; } catch { args = {}; }
+            const caller = message?.author?.tag || message?.author?.id || "unknown";
+            if (!handler) {
+                console.log(`[ServerFunction][CALL] Unknown function requested: ${item.name} by ${caller} args:`, args);
+                output = JSON.stringify({ ok: false, error: `Unknown function: ${item.name}` });
+            } else {
+                console.log(`[ServerFunction][CALL] ${item.name} invoked by ${caller} (round ${round + 1}) args:`, args);
+                const start = Date.now();
+                try {
+                    output = await handler(args, { message });
+                    try {
+                        console.log(`[ServerFunction][RESULT] ${item.name} completed by ${caller} in ${Date.now() - start}ms result:`, output);
+                    } catch (e) {
+                        console.log(`[ServerFunction][RESULT] ${item.name} completed by ${caller} in ${Date.now() - start}ms (unserializable result)`);
                     }
+                } catch (err) {
+                    console.log(`[ServerFunction][ERROR] ${item.name} threw after ${Date.now() - start}ms:`, err);
+                    output = JSON.stringify({ ok: false, error: err?.message || String(err) });
                 }
-
-                chunks.push(chunk);
-                remaining = remaining.slice(chunk.length).trimStart();
             }
 
-            await message.reply(chunks[0]);
-            for (let i = 1; i < chunks.length; i++) {
-                await message.channel.send(chunks[i]);
+            // Allow handlers to `return "something"` (or any JSON-serializable value).
+            let toolOutput = output;
+            if (toolOutput === undefined) { toolOutput = ""; }
+            if (typeof toolOutput !== "string") {
+                try {
+                    toolOutput = JSON.stringify(toolOutput);
+                } catch {
+                    toolOutput = String(toolOutput);
+                }
             }
+
+            conversation.push({
+                type: "function_call_output",
+                call_id: item.call_id,
+                output: toolOutput,
+            });
         }
 
-        // ===== JOIN VOICE CHANNEL FOR TTS REPLY IF USER IS IN VOICE =====
-        if (shouldUseVoiceTts && audioBuffer) {
-            try {
-                const connection = joinVoiceChannel({
-                    channelId: memberVoiceChannel.id,
-                    guildId: memberVoiceChannel.guild.id,
-                    adapterCreator: memberVoiceChannel.guild.voiceAdapterCreator,
-                    selfDeaf: false, // stay undeafened so the wake-word assistant can hear follow-ups
-                });
+        // No tools this round means the model produced its final answer — we're done.
+        if (!executedAnyTool) { break; }
 
-                // Keep listening for the wake word so the user can continue talking by voice.
-                if (configl.chatgptintegration.enabled) {
-                    try { startVoiceAssistant(connection, memberVoiceChannel, message.channel); }
-                    catch (e) { console.error("[VoiceChat] Failed to start assistant:", e?.message || e); }
-                }
+        const isLastRound = round === MAX_TOOL_ROUNDS - 1;
 
-                const { Readable } = require("stream");
-                const audioStream = new Readable({
-                    read() {
-                        this.push(audioBuffer);
-                        this.push(null);
-                    }
-                });
-
-                const player = createAudioPlayer();
-                const resource = createAudioResource(audioStream, { inputType: StreamType.Arbitrary });
-
-                player.play(resource);
-                connection.subscribe(player);
-
-                player.on(AudioPlayerStatus.Idle, () => {
-                    setTimeout(() => {
-                        destroyVoiceConnectionIfNotSpeaking(memberVoiceChannel.guild.id, player);
-                    }, 30000);
-                });
-            } catch (err) {
-                console.error("TTS playback failed:", err);
-                newIssue(`A TTS playback error occurred at ${new Date().toISOString()}.`);
-            }
+        // A few rounds before the limit, tell the model to stop browsing and commit: make
+        // the edit now (or answer). Without this it can keep exploring until it runs out.
+        if (!nudgedToWrapUp && round >= MAX_TOOL_ROUNDS - 4) {
+            nudgedToWrapUp = true;
+            conversation.push({
+                role: "system",
+                content: "You are running low on tool calls. Stop searching/reading now. If you intend to edit code, propose the edit on your next step; otherwise give your final answer to the user.",
+            });
         }
+
+        if (isLastRound) {
+            // Out of tool budget: force a plain text answer so the user never gets an empty
+            // reply just because the model still wanted to call another tool.
+            console.warn(`[ServerFunction] Hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}); forcing a final text answer.`);
+            response = await openai.responses.create({ ...baseRequest, input: conversation, tool_choice: "none" });
+            break;
+        }
+
+        // Feed the tool outputs back so the model can decide its next step (or answer).
+        response = await openai.responses.create({ ...baseRequest, input: conversation });
+    }
+
+    // ====== EXTRACT REPLY ======
+    let replyText = "";
+
+    if (Array.isArray(response.output)) {
+        replyText = response.output
+            .map(o =>
+                Array.isArray(o.content)
+                    ? o.content.map(c => c?.text || "").join("")
+                    : o.text || ""
+            )
+            .join("\n")
+            .trim();
+    }
+
+    replyText = replyText || response.output_text || "";
+
+    replyText = replyText
+        .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
+        .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
+        .replace(/<@!?\d+>/g, "@...")
+        .replace(/<@&\d+>/g, "@...")
+        .replace(/<#\d+>/g, "@...")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+    replyText = `${actionsMade}${replyText}`;
+    if (actionsMade === "") { replyText = response.output_text; }
+
+    if (!replyText) {
+        return message.reply("Sorry, I couldn't get a response.");
+    }
+
+    // ====== SAVE ASSISTANT MESSAGE ======
+    history.push({
+        role: "assistant",
+        content: replyText
+    });
+
+    const memberVoiceChannel = member?.voice?.channel;
+    const shouldUseVoiceTts = Boolean(memberVoiceChannel && configl.basics.vc.enabled);
+    let audioBuffer = null;
+
+    // Voice users should keep seeing a typing indicator while Fish Audio processes
+    // the reply. Do not send the text until synthesis has completed.
+    if (shouldUseVoiceTts) {
+        const refreshTyping = () => {
+            message.channel.sendTyping().catch(() => { /* ignore typing failures */ });
+        };
+
+        refreshTyping();
+        const typingInterval = setInterval(refreshTyping, 5000);
+
+        try {
+            audioBuffer = await speakText(sanitizeForTTS(replyText));
+        } catch (err) {
+            console.error("TTS processing failed:", err);
+            newIssue(`A TTS processing error occurred at ${new Date().toISOString()}.`);
+        } finally {
+            clearInterval(typingInterval);
+        }
+    }
+
+    // ====== SEND TEXT ======
+    if (replyText.length <= 2000) {
+        await message.reply(replyText);
+    } else {
+        const chunks = [];
+        let remaining = replyText;
+
+        while (remaining.length > 0) {
+            let chunk = remaining.slice(0, 2000);
+
+            if (remaining.length > 2000) {
+                const splitAt = Math.max(
+                    chunk.lastIndexOf("\n"),
+                    chunk.lastIndexOf(" ")
+                );
+                if (splitAt > 0) {
+                    chunk = chunk.slice(0, splitAt);
+                }
+            }
+
+            chunks.push(chunk);
+            remaining = remaining.slice(chunk.length).trimStart();
+        }
+
+        await message.reply(chunks[0]);
+        for (let i = 1; i < chunks.length; i++) {
+            await message.channel.send(chunks[i]);
+        }
+    }
+
+    // ===== JOIN VOICE CHANNEL FOR TTS REPLY IF USER IS IN VOICE =====
+    if (shouldUseVoiceTts && audioBuffer) {
+        try {
+            const connection = joinVoiceChannel({
+                channelId: memberVoiceChannel.id,
+                guildId: memberVoiceChannel.guild.id,
+                adapterCreator: memberVoiceChannel.guild.voiceAdapterCreator,
+                selfDeaf: false, // stay undeafened so the wake-word assistant can hear follow-ups
+            });
+
+            // Keep listening for the wake word so the user can continue talking by voice.
+            if (configl.chatgptintegration.enabled) {
+                try { startVoiceAssistant(connection, memberVoiceChannel, message.channel); }
+                catch (e) { console.error("[VoiceChat] Failed to start assistant:", e?.message || e); }
+            }
+
+            const { Readable } = require("stream");
+            const audioStream = new Readable({
+                read() {
+                    this.push(audioBuffer);
+                    this.push(null);
+                }
+            });
+
+            const player = createAudioPlayer();
+            const resource = createAudioResource(audioStream, { inputType: StreamType.Arbitrary });
+
+            player.play(resource);
+            connection.subscribe(player);
+
+            player.on(AudioPlayerStatus.Idle, () => {
+                setTimeout(() => {
+                    destroyVoiceConnectionIfNotSpeaking(memberVoiceChannel.guild.id, player);
+                }, 30000);
+            });
+        } catch (err) {
+            console.error("TTS playback failed:", err);
+            newIssue(`A TTS playback error occurred at ${new Date().toISOString()}.`);
+        }
+    }
 }
 
 // occurs when this member's roles or nickname are updated
@@ -4932,13 +4945,13 @@ async function restart(code) {
 // This function will allow the bot to restart itself, but only if invoked by the owner
 
 async function attemptSelfRestart(userId) {
-  const ownerId = "804839205309382676"; // Juler's user ID
-  if (userId !== ownerId) {
-    return "Error: You do not have permission to restart the bot.";
-  }
-  // Logic to safely restart the bot process
-  // For security and stability, actual restart will be handled by the hosting environment
-  return "Restart initiated.";
+    const ownerId = "804839205309382676"; // Juler's user ID
+    if (userId !== ownerId) {
+        return "Error: You do not have permission to restart the bot.";
+    }
+    // Logic to safely restart the bot process
+    // For security and stability, actual restart will be handled by the hosting environment
+    return "Restart initiated.";
 }
 
 // export or integrate this function where appropriate, with checks for owner ID
