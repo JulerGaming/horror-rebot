@@ -2822,7 +2822,7 @@ async function runChatGptReply(message) {
 
                 files.push(
                     {
-                        attachment: pdf,
+                        attachment: Buffer(pdf),
                         name: `Bismuth_Assistant_${new Date()}.pdf`
                     }
                 )
