@@ -2878,7 +2878,7 @@ async function runChatGptReply(message) {
                 messages: [
                     {
                         role: "system",
-                        content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
+                        content: "You are a helpful assistant that describes images."
                     },
                     {
                         role: "user",
