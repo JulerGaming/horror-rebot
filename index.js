@@ -2615,7 +2615,7 @@ async function runChatGptReply(message) {
             if (buffer.length > maxBytes) {
                 return `(Error) Image too large (${buffer.length} bytes). Max ${maxBytes} bytes.`;
             }
-            
+
             const extFromType = contentType.split("/")[1]?.split(";")[0]?.trim();
             const safeExt = extFromType && /^[a-z0-9.+-]+$/i.test(extFromType) ? extFromType : "png";
             const fileName = `image.${safeExt}`;
@@ -2623,6 +2623,7 @@ async function runChatGptReply(message) {
             try {
                 files.push(
                     {
+                        attachment: buffer,
                         name: fileName
                     }
                 )
