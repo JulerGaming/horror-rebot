@@ -2867,6 +2867,41 @@ async function runChatGptReply(message) {
         },
         describe_image: async (args) => {
             const imageUrl = args.imageUrl;
+
+            const openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY,
+            });
+
+            // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
+            const response = await openai.chat.completions.create({
+                model: "gpt-5.4",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a helpful assistant that describes Discord profile pictures. Please note the server's name is 'Horror Remake'."
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Describe the following image."
+                            },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: imageUrl
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_completion_tokens: 100
+            });
+            const aiReply = response.choices?.[0]?.message?.content || "";
+            console.log(`AI read an image: ${aiReply}`);
+
+            return aiReply;
         }
     };
 
