@@ -3112,8 +3112,9 @@ async function runChatGptReply(message) {
                 type: "object",
                 properties: {
                     html: { type: "string", description: "HTML code that represents the PDF file" },
+                    fileName: { type: "string", description: "The file name to give the PDF file (MUST NOT INCLUDE FILE EXTENSION, WILL BE ASSIGNED AUTOMATICALLY)" }
                 },
-                required: ["html"],
+                required: ["html", "fileName"],
                 additionalProperties: false,
             },
         },
@@ -3127,7 +3128,7 @@ async function runChatGptReply(message) {
                 properties: {
                     link: { type: "string", description: "The URL to visit" },
                 },
-                required: ["html"],
+                required: ["link"],
                 additionalProperties: false,
             },
         }
