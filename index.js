@@ -3388,7 +3388,7 @@ async function runChatGptReply(message) {
 
     // ====== SEND TEXT ======
     if (replyText.length <= 2000) {
-        await message.reply({ content: replyText, files });
+        await message.reply({ content: replyText, files, allowedMentions: { parse: [] } });
     } else {
         const chunks = [];
         let remaining = replyText;
@@ -3412,7 +3412,7 @@ async function runChatGptReply(message) {
 
         await message.reply(chunks[0]);
         for (let i = 1; i < chunks.length; i++) {
-            await message.channel.send(chunks[i]);
+            await message.channel.send({ content: chunks[i], files, allowedMentions: { parse: [] } });
         }
     }
 
