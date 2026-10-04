@@ -2802,6 +2802,9 @@ async function runChatGptReply(message) {
                     console.error("Error looking up domain:", error);
                     return "(Error) Failed to look up that domain. Please try again later.";
                 }
+            },
+            build_pdf: async (args) => {
+                const html = args.html;
             }
         };
 
