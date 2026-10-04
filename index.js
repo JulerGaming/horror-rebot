@@ -2823,7 +2823,7 @@ async function runChatGptReply(message) {
                 files.push(
                     {
                         attachment: Buffer(pdf),
-                        name: `Bismuth_Assistant_${new Date()}.pdf`
+                        name: `Bismuth_Assistant_${new Date().replace(" ", "-")}.pdf`
                     }
                 )
 
