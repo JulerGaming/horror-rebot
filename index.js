@@ -2840,7 +2840,7 @@ async function runChatGptReply(message) {
                     }
                 )
 
-                return "Successfully attached a PDF file to your message";
+                return "Successfully pushed a new PDF file to your message's attachments";
             } finally {
                 await browser.close();
             }
