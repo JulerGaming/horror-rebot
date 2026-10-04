@@ -2809,6 +2809,7 @@ async function runChatGptReply(message) {
         },
         build_pdf: async (args) => {
             const htmlContent = args.html;
+            const fileName = args.fileName;
 
             const browser = await puppeteer.launch();
             try {
@@ -2823,7 +2824,7 @@ async function runChatGptReply(message) {
                 files.push(
                     {
                         attachment: Buffer(pdf),
-                        name: `Bismuth_Assistant_${new Date().replace(" ", "-")}.pdf`
+                        name: fileName
                     }
                 )
 
