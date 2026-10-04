@@ -3344,8 +3344,9 @@ async function runChatGptReply(message) {
         .replace(/<@!?\d+>/g, "@...")
         .replace(/<@&\d+>/g, "@...")
         .replace(/<#\d+>/g, "@...")
+        .replace(/@everyone/g, "***Attempted to mention everyone***")
+        .replace(/@here/g, "***Attempted to mention here***")
         .replace(/\s{2,}/g, " ")
-        .replace("@everyone", "***Attempted to mention everyone***")
         .trim();
 
     replyText = `${actionsMade}${replyText}`;
