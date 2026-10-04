@@ -3057,6 +3057,20 @@ async function runChatGptReply(message) {
                     required: ["title", "content", "roleMention"],
                     additionalProperties: false,
                 },
+            },
+            {
+                type: "function",
+                name: "build_pdf",
+                description: "Attaches a PDF file built with HTML into your message.",
+                strict: true,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        html: { type: "string", description: "HTML code that represents the PDF file" },
+                    },
+                    required: ["html"],
+                    additionalProperties: false,
+                },
             }
         ];
 
