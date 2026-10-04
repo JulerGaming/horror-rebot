@@ -2845,7 +2845,6 @@ async function runChatGptReply(message) {
 
             const content = await page.content();
             return content;
-
         }
     };
 
