@@ -2864,6 +2864,9 @@ async function runChatGptReply(message) {
             } finally {
                 browser.close();
             }
+        },
+        describe_image: async (args) => {
+            const imageUrl = args.imageUrl;
         }
     };
 
@@ -3143,6 +3146,20 @@ async function runChatGptReply(message) {
                     link: { type: "string", description: "The URL to visit" },
                 },
                 required: ["link"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "describe_image",
+            description: "Describes an image using an image model",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    imageUrl: { type: "string", description: "The URL to the image" },
+                },
+                required: ["imageUrl"],
                 additionalProperties: false,
             },
         }
