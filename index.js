@@ -2831,6 +2831,21 @@ async function runChatGptReply(message) {
             } finally {
                 await browser.close();
             }
+        },
+        view_webpage: async (args) => {
+            const link = args.link;
+
+            const browser = await puppeteer.launch();
+
+            const page = await browser.newPage();
+
+            await page.goto(link, {
+                waitUntil: 'networkidle2'
+            });
+
+            const content = await page.content();
+            return content;
+
         }
     };
 
