@@ -2820,7 +2820,12 @@ async function runChatGptReply(message) {
                     printBackground: true
                 });
 
-                attachments.push()
+                attachments.push(
+                    {
+                        attachment: pdf,
+                        name: `Bismuth_Assistant_${new Date()}.pdf`
+                    }
+                )
             } finally {
                 await browser.close();
             }
