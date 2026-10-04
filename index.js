@@ -3344,8 +3344,8 @@ async function runChatGptReply(message) {
         .replace(/<@!?\d+>/g, "@...")
         .replace(/<@&\d+>/g, "@...")
         .replace(/<#\d+>/g, "@...")
-        .replace(/@everyone/g, "***Attempted to mention everyone***")
-        .replace(/@here/g, "***Attempted to mention here***")
+        .replace(/@everyone/g, "everyone")
+        .replace(/@here/g, "here")
         .replace(/\s{2,}/g, " ")
         .trim();
 
@@ -3357,8 +3357,8 @@ async function runChatGptReply(message) {
             .replace(/<@!?\d+>/g, "@...")
             .replace(/<@&\d+>/g, "@...")
             .replace(/<#\d+>/g, "@...")
-            .replace(/@everyone/g, "***Attempted to mention everyone***")
-            .replace(/@here/g, "***Attempted to mention here***")
+            .replace(/@everyone/g, "everyone")
+            .replace(/@here/g, "here")
             .replace(/\s{2,}/g, " ")
             .trim();
     }
