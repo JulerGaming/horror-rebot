@@ -4,7 +4,7 @@ const OpenAI = require("openai");
 const path = require("path");
 const { writeFile } = require("fs/promises");
 const puppeteer = require('puppeteer');
-const { PartialGroupDMChannel, OmitPartialGroupDMChannel } = require('discord.js');
+const { PartialGroupDMChannel, OmitPartialGroupDMChannel, Message } = require('discord.js');
 // Simple in-memory chat history
 const chatMemory = new Map();
 // key = channelId OR userId (for DMs)
@@ -1814,6 +1814,8 @@ client.on("messageCreate", async (message) => {
 });
 
 /**
+ * @param {Message} message Discord Message
+ * 
  * ChatGPT mention reply
  */
 async function runChatGptReply(message) {
