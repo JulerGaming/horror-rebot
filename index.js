@@ -2834,17 +2834,22 @@ async function runChatGptReply(message) {
         },
         view_webpage: async (args) => {
             const link = args.link;
-
             const browser = await puppeteer.launch();
 
-            const page = await browser.newPage();
+            try {
+                const page = await browser.newPage();
 
-            await page.goto(link, {
-                waitUntil: 'networkidle2'
-            });
+                await page.goto(link, {
+                    waitUntil: 'networkidle2'
+                });
 
-            const content = await page.content();
-            return content;
+                const content = await page.content();
+                actionsMade += "Viewed a website\n";
+
+                return content;
+            } finally {
+                browser.close();
+            }
         }
     };
 
@@ -3107,6 +3112,20 @@ async function runChatGptReply(message) {
                 type: "object",
                 properties: {
                     html: { type: "string", description: "HTML code that represents the PDF file" },
+                },
+                required: ["html"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "view_webpage",
+            description: "View a website (Returns raw HTML)",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    url: { type: "string", description: "The URL to visit" },
                 },
                 required: ["html"],
                 additionalProperties: false,
