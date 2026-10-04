@@ -2811,7 +2811,7 @@ async function runChatGptReply(message) {
                 const page = await browser.newPage();
                 await page.setContent(htmlContent, { waitUntil: 'load' });
 
-                return await page.pdf({
+                const pdf = await page.pdf({
                     format: 'letter',
                     printBackground: true
                 });
@@ -3232,6 +3232,7 @@ async function runChatGptReply(message) {
         .replace(/<@&\d+>/g, "@...")
         .replace(/<#\d+>/g, "@...")
         .replace(/\s{2,}/g, " ")
+        .replace("@everyone", "***Attempted to mention everyone***")
         .trim();
 
     replyText = `${actionsMade}${replyText}`;
