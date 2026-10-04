@@ -2824,7 +2824,7 @@ async function runChatGptReply(message) {
                 files.push(
                     {
                         attachment: Buffer(pdf),
-                        name: fileName
+                        name: `${fileName}.pdf`
                     }
                 )
 
