@@ -1815,8 +1815,6 @@ client.on("messageCreate", async (message) => {
 
 /**
  * ChatGPT mention reply
- * @param {OmitPartialGroupDMChannel} message 
- * @returns 
  */
 async function runChatGptReply(message) {
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
