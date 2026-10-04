@@ -366,7 +366,7 @@ app.post("/send-announcement", express.json(), async (req, res) => {
     const channel = client.channels.cache.get(channelID);
 
     if (pingEveryone) {
-        await channel.send(`@everyone\n# ${title}\n### ${content}`);
+        await channel.send(`@everyone\n# ${title}\n${content}`);
     } else {
         await channel.send(`# ${title}\n${content}`);
     }
