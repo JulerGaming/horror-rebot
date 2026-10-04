@@ -1819,6 +1819,7 @@ client.on("messageCreate", async (message) => {
  * ChatGPT mention reply
  */
 async function runChatGptReply(message) {
+    let files;
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
 
     console.log(`ChatGPT mention/DM by ${message.author.globalName || message.author.displayName}: ${message.content}`);
@@ -2818,6 +2819,8 @@ async function runChatGptReply(message) {
                     format: 'letter',
                     printBackground: true
                 });
+
+                attachments.push()
             } finally {
                 await browser.close();
             }
@@ -3277,7 +3280,7 @@ async function runChatGptReply(message) {
 
     // ====== SEND TEXT ======
     if (replyText.length <= 2000) {
-        await message.reply({ content: replyText,  });
+        await message.reply({ content: replyText, files });
     } else {
         const chunks = [];
         let remaining = replyText;
