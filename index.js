@@ -2615,17 +2615,17 @@ async function runChatGptReply(message) {
             if (buffer.length > maxBytes) {
                 return `(Error) Image too large (${buffer.length} bytes). Max ${maxBytes} bytes.`;
             }
-
-            const { AttachmentBuilder } = require("discord.js");
+            
             const extFromType = contentType.split("/")[1]?.split(";")[0]?.trim();
             const safeExt = extFromType && /^[a-z0-9.+-]+$/i.test(extFromType) ? extFromType : "png";
             const fileName = `image.${safeExt}`;
 
             try {
-                await message.channel.send({
-                    content: (content || "").toString().slice(0, 1900),
-                    files: [new AttachmentBuilder(buffer, { name: fileName })],
-                });
+                files.push(
+                    {
+                        name: fileName
+                    }
+                )
                 return "(Success) Sent image message.";
             } catch (err) {
                 return `(Error) Failed to send image message. ${err?.message || String(err)}`;
