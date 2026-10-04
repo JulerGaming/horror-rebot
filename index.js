@@ -2826,6 +2826,8 @@ async function runChatGptReply(message) {
                         name: `Bismuth_Assistant_${new Date()}.pdf`
                     }
                 )
+
+                return "Successfully attached a PDF file to your message";
             } finally {
                 await browser.close();
             }
