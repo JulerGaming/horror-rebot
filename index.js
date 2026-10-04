@@ -2811,6 +2811,18 @@ async function runChatGptReply(message) {
             const htmlContent = args.html;
             const fileName = args.fileName;
 
+            if (!fileName && !htmlContent) {
+                return "Missing fileName and htmlContent";
+            }
+
+            if (!fileName) {
+                return "Missing fileName";
+            }
+
+            if (!htmlContent) {
+                return "Missing htmlContent";
+            }
+
             const browser = await puppeteer.launch();
             try {
                 const page = await browser.newPage();
@@ -2845,7 +2857,7 @@ async function runChatGptReply(message) {
                 });
 
                 const content = await page.content();
-                actionsMade += "Viewed a website\n";
+                actionsMade += "-# Viewed a website\n";
 
                 return content;
             } finally {
