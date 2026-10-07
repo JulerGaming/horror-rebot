@@ -758,6 +758,35 @@ const badWords = loadWordList("bad-words.txt");
 
 const cheatsWords = loadWordList("cheat-words.txt");
 
+client.once(Events.ClientReady, async () => {
+    try {
+        const guild = client.guilds.cache.get("1333194010201952367");
+        if (!guild) { throw new Error("Cheat-word AutoMod: server not found"); }
+        const keywordFilter = [...new Set(cheatsWords)];
+        if (!keywordFilter.length || keywordFilter.length > 1000 || keywordFilter.some(w => w.length > 60)) {
+            throw new Error("Cheat-word list exceeds AutoMod limits or is empty");
+        }
+        const rules = await guild.autoModerationRules.fetch();
+        const existing = rules.find(rule => rule.name === "Bismuth cheat words" && rule.creatorId === client.user.id && rule.triggerType === 1);
+        const options = {
+            name: "Bismuth cheat words",
+            eventType: 1, // MessageSend
+            triggerMetadata: { keywordFilter },
+            actions: [{ type: 1, metadata: { customMessage: "No cheats in Bismuth. Please remove the blocked cheat-related words." } }],
+            enabled: true,
+            reason: "Block cheat-related words before messages are posted",
+        };
+        if (existing) {
+            await existing.edit(options);
+        } else {
+            await guild.autoModerationRules.create({ ...options, triggerType: 1 });
+        }
+        console.log("Cheat-word AutoMod rule enabled.");
+    } catch (err) {
+        console.error("Failed to configure cheat-word AutoMod; check Manage Server permission and available keyword-rule slots:", err);
+    }
+});
+
 // Merged-word detection (e.g. "fuckyou"). Only "distinctive" words are matched as a
 // substring inside another word. Short/ambiguous words (ass, sex, hell, cock, cum...) are
 // left as whole-word-only so we don't flag innocent words like "class" or "Uranus".
