@@ -1383,6 +1383,75 @@ function modlogEmbed(embed) {
 }
 
 
+// Supportive check-ins: keyword signals require human review, never a diagnosis.
+const safetyCheckCooldowns = new Set();
+client.on("messageCreate", async (message) => {
+    if (message.guildId !== "1333194010201952367" || message.author.bot || message.webhookId) return;
+    const text = (message.content || "").normalize("NFKC").replace(/[’‘]/g, "'");
+    const signal = /\bi\s+(?:(?:want|plan|intend|need)\s+to|am\s+going\s+to|'?m\s+going\s+to|will)\s+(?:(?:kill|hurt|cut)\s+myself|end\s+my\s+life|die)\b|\bi(?:'m|\s+am)\s+(?:suicidal|self[- ]harming)\b/i;
+    if (!signal.test(text)) return;
+    const key = `${message.guildId}:${message.author.id}`;
+    if (safetyCheckCooldowns.has(key)) return;
+    safetyCheckCooldowns.add(key);
+    setTimeout(() => safetyCheckCooldowns.delete(key), 10 * 60 * 1000);
+    const caseLabel = `Safety check ${message.id}; user ${message.author.id}`;
+    const log = async (status, embedded = false) => {
+        try {
+            const response = embedded
+                ? await modlogEmbed(new (require("discord.js").EmbedBuilder)()
+                    .setTitle("Safety check: human review needed")
+                    .setDescription(`${caseLabel}\n${status}\nOriginal message: ${message.url}?utm_source=bismuth-assistant\nKeyword match only; context may be misunderstood. No medical or safety determination. Timers are not persistent across restarts.`)
+                    .setColor(0xE5A539).setTimestamp())
+                : await modlog(`${caseLabel}: ${status}`);
+            if (response && !response.ok) console.warn("Safety check log delivery failed:", response.status);
+        } catch (err) {
+            console.warn("Safety check log delivery failed:", err.message);
+        }
+    };
+    void log("Please review promptly and reach out privately. Do not wait for a button response.", true);
+    let dm;
+    try {
+        dm = await message.author.send({
+            content: "An automated check noticed wording that may mean you are struggling; it can misunderstand context. You deserve support. If you might hurt yourself now, call your local emergency number or go to the nearest emergency department. If possible, move away from anything you could use to hurt yourself and ask someone you trust to stay with you. In the US or Canada, call or text 988. Elsewhere: https://findahelpline.com/?utm_source=bismuth-assistant\n\nModerators have been alerted to review your message. This bot is not an emergency service and cannot guarantee a response. These optional buttons work for 5 minutes and share your response with moderators. No reply does not mean you have been harmed.",
+            components: [{ type: 1, components: [
+                { type: 2, style: 2, custom_id: `safety_safe_${message.id}`, label: "I'm safe right now" },
+                { type: 2, style: 1, custom_id: `safety_help_${message.id}`, label: "I need support" }
+            ] }]
+        });
+    } catch (err) {
+        await log("DM could not be delivered. No check-in timer started; safety is unknown. Please follow up privately.");
+        return;
+    }
+    const collector = dm.createMessageComponentCollector({
+        filter: interaction => interaction.user.id === message.author.id &&
+            [`safety_safe_${message.id}`, `safety_help_${message.id}`].includes(interaction.customId),
+        time: 5 * 60 * 1000,
+        max: 1
+    });
+    collector.on("collect", async interaction => {
+        const safe = interaction.customId === `safety_safe_${message.id}`;
+        void log(safe
+            ? "User selected 'I'm safe right now' (self-report, not independently verified)."
+            : "User requested support. Please reach out promptly; safety remains unknown.", true);
+        try {
+            await interaction.update({
+                content: dm.content + (safe
+                    ? "\n\nThank you for checking in. Your response is being shared with moderators. You can still ask someone you trust or staff for support."
+                    : "\n\nYour request is being shared with moderators, but do not wait for Discord if you are in danger. Contact emergency services or someone you trust now."),
+                components: []
+            });
+        } catch (err) {
+            console.warn("Safety check button acknowledgement failed:", err.message);
+        }
+    });
+    collector.on("end", (collected) => {
+        if (collected.size) return;
+        void log("No response to the automated check-in after 5 minutes; safety is unknown. Human follow-up is needed.");
+        void dm.edit({ content: dm.content + "\n\nThe automated check-in has ended. You can still contact staff or use the support resources above.", components: [] })
+            .catch(err => console.warn("Safety check expiry update failed:", err.message));
+    });
+});
+
 // On ready, scan all members in the server and remove anyone with the disallowed role "a bot"
 client.on(Events.ClientReady, async () => {
     const GUILD_ID = "1333194010201952367";
