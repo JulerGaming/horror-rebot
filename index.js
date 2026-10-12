@@ -347,7 +347,9 @@ if (!process.env.OPENAI_API_KEY && cff.chatgptintegration.enabled) {
 
 function run(cmd) {
     return new Promise((resolve, reject) => {
-        exec(cmd, (err, stdout, stderr) => {
+        exec(cmd, {
+            windowsHide: true
+        }, (err, stdout, stderr) => {
             if (err) { return reject(stderr); }
             resolve(stdout.trim());
         });
