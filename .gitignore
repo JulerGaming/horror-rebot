@@ -12,6 +12,24 @@ lerna-debug.log*
 
 # Keys
 *.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+
+# Environment variants and backups (keep sanitized templates trackable)
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Local user data and diagnostic attachments
+/birthdays.json
+/bot_saved_data.json
+/attached_assets/
 
 # Cache
 /cache
