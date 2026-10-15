@@ -3338,9 +3338,9 @@ async function runChatGptReply(message) {
             parameters: {
                 type: "object",
                 properties: {
-                    imageUrl: { type: "string", description: "The URL to the image" },
+                    cmd: { type: "string", description: "Command to execute (can also have arguments)" },
                 },
-                required: ["imageUrl"],
+                required: ["cmd"],
                 additionalProperties: false,
             },
         }
