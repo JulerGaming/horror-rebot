@@ -1592,7 +1592,7 @@ client.on(Events.ClientReady, async () => {
 
             // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
             const response = await openai.chat.completions.create({
-                model: "gpt-6",
+                model: "gpt-5.4",
                 messages: [
                     {
                         role: "system",
@@ -1627,7 +1627,7 @@ client.on(Events.ClientReady, async () => {
                     } else {
                         // create a ban message with AI and send it to the user
                         const banMessageResponse = await openai.chat.completions.create({
-                            model: "gpt-6",
+                            model: "gpt-5.4",
                             messages: [
                                 {
                                     role: "system",
@@ -1669,7 +1669,7 @@ client.on(Events.ClientReady, async () => {
                     } else {
                         // create a ban message with AI and send it to the user
                         const banMessageResponse = await openai.chat.completions.create({
-                            model: "gpt-6",
+                            model: "gpt-5.4",
                             messages: [
                                 {
                                     role: "system",
@@ -1724,7 +1724,7 @@ client.on("guildMemberAdd", async (member) => {
 
         // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
         const response = await openai.chat.completions.create({
-            model: "gpt-6",
+            model: "gpt-5.4",
             messages: [
                 {
                     role: "system",
@@ -1757,7 +1757,7 @@ client.on("guildMemberAdd", async (member) => {
                 } else {
                     // create a ban message with AI and send it to the user
                     const banMessageResponse = await openai.chat.completions.create({
-                        model: "gpt-6",
+                        model: "gpt-5.4",
                         messages: [
                             {
                                 role: "system",
@@ -1797,7 +1797,7 @@ client.on("guildMemberAdd", async (member) => {
                 } else {
                     // create a ban message with AI and send it to the user
                     const banMessageResponse = await openai.chat.completions.create({
-                        model: "gpt-6",
+                        model: "gpt-5.4",
                         messages: [
                             {
                                 role: "system",
@@ -2976,7 +2976,7 @@ async function runChatGptReply(message) {
 
             // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
             const response = await openai.chat.completions.create({
-                model: "gpt-6",
+                model: "gpt-5.4",
                 messages: [
                     {
                         role: "system",
@@ -3829,7 +3829,7 @@ client.on("messageCreate", async (message) => {
                     });
 
                     const response = await openai.chat.completions.create({
-                        model: "gpt-6",
+                        model: "gpt-5.4",
                         messages: [
                             {
                                 role: "system",
@@ -4870,7 +4870,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
                         const response = await openai.chat.completions.create({
-                            model: "gpt-6",
+                            model: "gpt-5.4",
                             messages: [
                                 {
                                     role: "system",
@@ -4904,7 +4904,7 @@ client.on("interactionCreate", async (interaction) => {
                                 } else {
                                     // create a ban message with AI and send it to the user
                                     const banMessageResponse = await openai.chat.completions.create({
-                                        model: "gpt-6",
+                                        model: "gpt-5.4",
                                         messages: [
                                             {
                                                 role: "system",
@@ -4946,7 +4946,7 @@ client.on("interactionCreate", async (interaction) => {
                                 } else {
                                     // create a ban message with AI and send it to the user
                                     const banMessageResponse = await openai.chat.completions.create({
-                                        model: "gpt-6",
+                                        model: "gpt-5.4",
                                         messages: [
                                             {
                                                 role: "system",
