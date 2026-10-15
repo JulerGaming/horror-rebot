@@ -3041,24 +3041,34 @@ async function runChatGptReply(message) {
 
             if (aiReply === "YES") {
                 try {
-                    const inst = exec(cmd, { windowsHide: true });
-                    let d = [];
+                    const result = await new Promise((resolve, reject) => {
+                        const inst = exec(cmd, { windowsHide: true });
+                        let d = [];
 
-                    inst.stdout.on('data', (data) => {
-                        d.push(data.toString());
-                    })
+                        inst.stdout.on("data", (data) => {
+                            d.push(data.toString());
+                        });
 
-                    inst.on("close", (code) => {
-                        return {
-                            exitCode: code,
-                            lines: d
-                        }
+                        inst.stderr.on("data", (data) => {
+                            d.push(data.toString());
+                        });
+
+                        inst.on("error", reject);
+
+                        inst.on("close", (code) => {
+                            resolve({
+                                exitCode: code,
+                                lines: d
+                            });
+                        });
                     });
+
+                    return result;
                 } catch (err) {
                     return {
                         message: "Fuck, an error occurred",
-                        error: err
-                    }
+                        error: err.message
+                    };
                 }
             } else {
                 return "Command denied by moderation";
