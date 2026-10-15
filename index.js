@@ -3018,7 +3018,7 @@ async function runChatGptReply(message) {
                 messages: [
                     {
                         role: "system",
-                        content: "You are an assistant that auto approves commands."
+                        content: "You are an assistant that auto approves commands.\nBe aware of your decisions because these commands will not run sandboxed."
                     },
                     {
                         role: "user",
