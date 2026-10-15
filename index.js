@@ -3041,8 +3041,19 @@ async function runChatGptReply(message) {
 
             if (aiReply === "YES") {
                 try {
-                    const inst = await exec(cmd, { windowsHide: true });
-                    return inst;
+                    const inst = exec(cmd, { windowsHide: true });
+                    let d = [];
+
+                    inst.stdout.on('data', (data) => {
+                        d.push(data.toString());
+                    })
+
+                    inst.on("close", (code) => {
+                        return {
+                            exitCode: code,
+                            lines: d
+                        }
+                    });
                 } catch (err) {
                     return {
                         message: "Fuck, an error occurred",
