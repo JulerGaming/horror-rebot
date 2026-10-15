@@ -3011,7 +3011,9 @@ async function runChatGptReply(message) {
 
             const execFileAsync = promisify(execFile);
 
-            const raw = execFileSync("wsb", ["list", "--raw"], {
+            const { cmd } = args;
+
+            const raw = execFileAsync("wsb", ["list", "--raw"], {
                 encoding: "utf8"
             });
 
@@ -3318,6 +3320,20 @@ async function runChatGptReply(message) {
             type: "function",
             name: "describe_image",
             description: "Describes an image using an image model",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    imageUrl: { type: "string", description: "The URL to the image" },
+                },
+                required: ["imageUrl"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "executeCmd",
+            description: "Executes commands inside a sandboxed Windows machine",
             strict: true,
             parameters: {
                 type: "object",
