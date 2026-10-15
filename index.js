@@ -3014,7 +3014,7 @@ async function runChatGptReply(message) {
 
             // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
             const response = await openai.chat.completions.create({
-                model: "gpt-6",
+                model: "gpt-5.4",
                 messages: [
                     {
                         role: "system",
