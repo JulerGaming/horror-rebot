@@ -3049,6 +3049,8 @@ async function runChatGptReply(message) {
                         error: err
                     }
                 }
+            } else {
+                return "Command denied by moderation";
             }
         }
     };
