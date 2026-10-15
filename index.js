@@ -3006,7 +3006,8 @@ async function runChatGptReply(message) {
         executeCmd: async (args) => {
             const cmd = args.cmd;
 
-            
+            const json = await execSync("wsb list --raw");
+            const sbFolder = path.join(__dirname, "sandbox");
         }
     };
 
