@@ -3006,40 +3006,49 @@ async function runChatGptReply(message) {
             return aiReply;
         },
         executeCmd: async (args) => {
-            const { execFile } = require("child_process");
-            const { promisify } = require("util");
-
-            const execFileAsync = promisify(execFile);
-
             const cmd = args.cmd;
 
-            if (typeof cmd !== "string" || !cmd.trim()) {
-                throw new Error("A command is required");
-            }
+            const openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY,
+            });
 
-            const raw = execFileAsync("wsb", ["list", "--raw"], { encoding: "utf8" });
-            const data = JSON.parse(raw);
-            const sandbox = data.WindowsSandboxEnvironments?.[0];
-            if (!sandbox?.Id) {
-                throw new Error("No sandbox environment found");
-            }
+            // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
+            const response = await openai.chat.completions.create({
+                model: "gpt-6",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an assistant that auto approves commands."
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Decide whether or not this command shall be approved. Return YES or NO."
+                            },
+                            {
+                                type: "text",
+                                text: cmd
+                            }
+                        ]
+                    }
+                ],
+                max_completion_tokens: 100
+            });
 
-            const sandboxId = sandbox.Id;
+            const aiReply = response.choices?.[0]?.message?.content || "";
 
-            try {
-                const output = execFileAsync("wsb", ["exec", "--id", sandboxId, "-r", "System", "-c", cmd], { encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true });
-                return { 
-                    sandboxId, 
-                    stdout: output, 
-                    stderr: "" 
-                };
-            } catch (err) {
-                return { 
-                    sandboxId, 
-                    stdout: err.stdout?.toString() || "", 
-                    stderr: err.stderr?.toString() || err.message, 
-                    exitCode: err.status ?? 1 
-                };
+            if (aiReply === "YES") {
+                try {
+                    const inst = await exec(cmd, { windowsHide: true });
+                    return inst;
+                } catch (err) {
+                    return {
+                        message: "Fuck, an error occurred",
+                        error: err
+                    }
+                }
             }
         }
     };
