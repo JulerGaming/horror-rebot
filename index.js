@@ -1415,10 +1415,12 @@ client.on("messageCreate", async (message) => {
     try {
         dm = await message.author.send({
             content: "An automated check noticed wording that may mean you are struggling; it can misunderstand context. You deserve support. If you might hurt yourself now, call your local emergency number or go to the nearest emergency department. If possible, move away from anything you could use to hurt yourself and ask someone you trust to stay with you. In the US or Canada, call or text 988. Elsewhere: https://findahelpline.com/?utm_source=bismuth-assistant\n\nModerators have been alerted to review your message. This bot is not an emergency service and cannot guarantee a response. These optional buttons work for 5 minutes and share your response with moderators. No reply does not mean you have been harmed.",
-            components: [{ type: 1, components: [
-                { type: 2, style: 2, custom_id: `safety_safe_${message.id}`, label: "I'm safe right now" },
-                { type: 2, style: 1, custom_id: `safety_help_${message.id}`, label: "I need support" }
-            ] }]
+            components: [{
+                type: 1, components: [
+                    { type: 2, style: 2, custom_id: `safety_safe_${message.id}`, label: "I'm safe right now" },
+                    { type: 2, style: 1, custom_id: `safety_help_${message.id}`, label: "I need support" }
+                ]
+            }]
         });
     } catch (err) {
         await log("DM could not be delivered. No check-in timer started; safety is unknown. Please follow up privately.");
@@ -3004,10 +3006,32 @@ async function runChatGptReply(message) {
             return aiReply;
         },
         executeCmd: async (args) => {
-            const cmd = args.cmd;
+            const { execFile } = require("child_process");
+            const { promisify } = require("util");
 
-            const json = await execSync("wsb list --raw");
-            const sbFolder = path.join(__dirname, "sandbox");
+            const execFileAsync = promisify(execFile);
+
+            const raw = execFileSync("wsb", ["list", "--raw"], {
+                encoding: "utf8"
+            });
+
+            const data = JSON.parse(raw);
+            const sandbox = data.WindowsSandboxEnvironments?.[0];
+
+            if (!sandbox) {
+                throw new Error("No sandbox environment found");
+            }
+
+            const sandboxId = sandbox.Id;
+
+            // Execute the AI-generated command inside this sandbox
+            // We still need the execution command supported by your wsb tool
+
+            return {
+                sandboxId,
+                cmd,
+                error: "Sandbox execution command not configured yet"
+            };
         }
     };
 
