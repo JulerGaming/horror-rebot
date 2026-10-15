@@ -3334,7 +3334,7 @@ async function runChatGptReply(message) {
         {
             type: "function",
             name: "build_pdf",
-            description: "Attaches a PDF file in Letter format built with HTML into your message.\n\nSupports full CSS styling and custom fonts.\nIf the user does not specify margins, make it 1in (1 inch) margins.",
+            description: "Attaches a PDF file in Letter format built with HTML into your message.\n\nSupports full CSS styling and custom fonts.\nIf the user does not specify margins, make it 1in (1 inch) margins.\nMake the PDF look like a Word document unless if the user does not want to.",
             strict: true,
             parameters: {
                 type: "object",
