@@ -3047,10 +3047,12 @@ async function runChatGptReply(message) {
 
                         inst.stdout.on("data", (data) => {
                             d.push(data.toString());
+                            console.log('[Sandbox] ' + data.toString());
                         });
 
                         inst.stderr.on("data", (data) => {
                             d.push(data.toString());
+                            console.log('[Sandbox] ' + data.toString());
                         });
 
                         inst.on("error", reject);
