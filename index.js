@@ -3042,6 +3042,7 @@ async function runChatGptReply(message) {
             if (aiReply === "YES") {
                 try {
                     const result = await new Promise((resolve, reject) => {
+                        const sbFolder = path.join(__dirname, "sandbox");
                         const inst = exec(cmd, { windowsHide: true });
                         let d = [];
 
