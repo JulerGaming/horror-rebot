@@ -3043,7 +3043,9 @@ async function runChatGptReply(message) {
                 try {
                     const result = await new Promise((resolve, reject) => {
                         const sbFolder = path.join(__dirname, "sandbox");
-                        const inst = exec(cmd, { windowsHide: true });
+                        if (!fs.existsSync(sbFolder)) fs.mkdirSync(sbFolder);
+
+                        const inst = exec(cmd, { windowsHide: true, cwd: sbFolder });
                         let d = [];
 
                         inst.stdout.on("data", (data) => {
