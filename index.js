@@ -3017,7 +3017,7 @@ async function runChatGptReply(message) {
                 throw new Error("A command is required");
             }
 
-            const raw = execFileSync("wsb", ["list", "--raw"], { encoding: "utf8" });
+            const raw = execFileAsync("wsb", ["list", "--raw"], { encoding: "utf8" });
             const data = JSON.parse(raw);
             const sandbox = data.WindowsSandboxEnvironments?.[0];
             if (!sandbox?.Id) {
@@ -3027,7 +3027,7 @@ async function runChatGptReply(message) {
             const sandboxId = sandbox.Id;
 
             try {
-                const output = execFileSync("wsb", ["exec", "--id", sandboxId, "-r", "System", "-c", cmd], { encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true });
+                const output = execFileAsync("wsb", ["exec", "--id", sandboxId, "-r", "System", "-c", cmd], { encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true });
                 return { 
                     sandboxId, 
                     stdout: output, 
