@@ -3011,29 +3011,23 @@ async function runChatGptReply(message) {
 
             const execFileAsync = promisify(execFile);
 
-            const { cmd } = args;
-
-            const raw = execFileAsync("wsb", ["list", "--raw"], {
-                encoding: "utf8"
-            });
-
+            const cmd = args.cmd;
+            if (typeof cmd !== "string" || !cmd.trim()) {
+                throw new Error("A command is required");
+            }
+            const raw = execFileSync("wsb", ["list", "--raw"], { encoding: "utf8" });
             const data = JSON.parse(raw);
             const sandbox = data.WindowsSandboxEnvironments?.[0];
-
-            if (!sandbox) {
+            if (!sandbox?.Id) {
                 throw new Error("No sandbox environment found");
             }
-
             const sandboxId = sandbox.Id;
-
-            // Execute the AI-generated command inside this sandbox
-            // We still need the execution command supported by your wsb tool
-
-            return {
-                sandboxId,
-                cmd,
-                error: "Sandbox execution command not configured yet"
-            };
+            try {
+                const output = execFileSync("wsb", ["exec", "--id", sandboxId, "-r", "System", "-c", cmd], { encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true });
+                return { sandboxId, stdout: output, stderr: "" };
+            } catch (err) {
+                return { sandboxId, stdout: err.stdout?.toString() || "", stderr: err.stderr?.toString() || err.message, exitCode: err.status ?? 1 };
+            }
         }
     };
 
