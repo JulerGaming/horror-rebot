@@ -3096,7 +3096,9 @@ async function runChatGptReply(message) {
                     attachment: Buffer.from(result.data[0].b64_json, "base64"),
                     name: `Bismuth_Assistant_Image-${new Date().toDateString().replace(' ', "_")}.png`
                 }
-            )
+            );
+
+            return "Image successfully attached";
         }
     };
 
