@@ -2987,7 +2987,7 @@ async function runChatGptReply(message) {
                         content: [
                             {
                                 type: "text",
-                                text: "Describe the following image."
+                                text: "Describe the following image, with every detail and color that you see."
                             },
                             {
                                 type: "image_url",
