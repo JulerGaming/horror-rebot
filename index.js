@@ -3463,7 +3463,7 @@ async function runChatGptReply(message) {
                 type: "object",
                 properties: {
                     prompt: { type: "string", description: "A prompt to tell the Image AI" },
-                    referenceUrls: { type: "array", description: "An array [] of image url(s) to use as reference (optional)"}
+                    referenceUrls: { type: "array", items: { type: "string" }, description: "Image URLs to use as references. Use [] when none." }
                 },
                 required: ["prompt"],
                 additionalProperties: false,
