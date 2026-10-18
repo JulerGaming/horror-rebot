@@ -3078,6 +3078,25 @@ async function runChatGptReply(message) {
             } else {
                 return "Command denied by moderation";
             }
+        },
+        generateImage: async (args) => {
+            const { prompt } = args;
+
+            const openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY
+            })
+
+            const result = await openai.images.generate({
+                model: "gpt-image-2",
+                prompt
+            });
+
+            files.push(
+                {
+                    attachment: Buffer.from(result.data[0].b64_json, "base64"),
+                    name: `Bismuth_Assistant_Image-${new Date().toDateString().replace(' ', "_")}.png`
+                }
+            )
         }
     };
 
@@ -4037,6 +4056,7 @@ const { encode } = require("punycode");
 const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
 const e = require("express");
 const { json } = require("stream/consumers");
+const { attach } = require("pm2");
 
 
 
