@@ -3387,6 +3387,20 @@ async function runChatGptReply(message) {
                 required: ["cmd"],
                 additionalProperties: false,
             },
+        },
+        {
+            type: "function",
+            name: "generateImage",
+            description: "Generates an image using GPT Image v2",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    prompt: { type: "string", description: "A prompt to tell the Image AI" },
+                },
+                required: ["prompt"],
+                additionalProperties: false,
+            },
         }
     ];
 
