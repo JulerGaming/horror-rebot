@@ -3124,7 +3124,7 @@ async function runChatGptReply(message) {
             );
 
             const options = {
-                model: "gpt-image-2",
+                model: "gpt-image-2.5-flare",
                 prompt,
                 output_format: "png"
             };
@@ -3457,7 +3457,7 @@ async function runChatGptReply(message) {
         {
             type: "function",
             name: "generateImage",
-            description: "Generates an image using GPT Image v2",
+            description: "Generates an image using GPT Image v2.5 Flare",
             strict: true,
             parameters: {
                 type: "object",
