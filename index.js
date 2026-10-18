@@ -1415,10 +1415,12 @@ client.on("messageCreate", async (message) => {
     try {
         dm = await message.author.send({
             content: "An automated check noticed wording that may mean you are struggling; it can misunderstand context. You deserve support. If you might hurt yourself now, call your local emergency number or go to the nearest emergency department. If possible, move away from anything you could use to hurt yourself and ask someone you trust to stay with you. In the US or Canada, call or text 988. Elsewhere: https://findahelpline.com/?utm_source=bismuth-assistant\n\nModerators have been alerted to review your message. This bot is not an emergency service and cannot guarantee a response. These optional buttons work for 5 minutes and share your response with moderators. No reply does not mean you have been harmed.",
-            components: [{ type: 1, components: [
-                { type: 2, style: 2, custom_id: `safety_safe_${message.id}`, label: "I'm safe right now" },
-                { type: 2, style: 1, custom_id: `safety_help_${message.id}`, label: "I need support" }
-            ] }]
+            components: [{
+                type: 1, components: [
+                    { type: 2, style: 2, custom_id: `safety_safe_${message.id}`, label: "I'm safe right now" },
+                    { type: 2, style: 1, custom_id: `safety_help_${message.id}`, label: "I need support" }
+                ]
+            }]
         });
     } catch (err) {
         await log("DM could not be delivered. No check-in timer started; safety is unknown. Please follow up privately.");
@@ -3002,6 +3004,80 @@ async function runChatGptReply(message) {
             console.log(`AI read an image: ${aiReply}`);
 
             return aiReply;
+        },
+        executeCmd: async (args) => {
+            const cmd = args.cmd;
+
+            const openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY,
+            });
+
+            // create a response using a system prompt and a user prompt to ask the ai to describe the pfp
+            const response = await openai.chat.completions.create({
+                model: "gpt-5.4",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an assistant that auto approves commands.\nBe aware of your decisions because these commands will not run sandboxed."
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Decide whether or not this command shall be approved. Return YES or NO."
+                            },
+                            {
+                                type: "text",
+                                text: cmd
+                            }
+                        ]
+                    }
+                ],
+                max_completion_tokens: 100
+            });
+
+            const aiReply = response.choices?.[0]?.message?.content || "";
+
+            if (aiReply === "YES") {
+                try {
+                    const result = await new Promise((resolve, reject) => {
+                        const sbFolder = path.join(__dirname, "sandbox");
+                        if (!fs.existsSync(sbFolder)) fs.mkdirSync(sbFolder);
+
+                        const inst = exec(cmd, { windowsHide: true, cwd: sbFolder });
+                        let d = [];
+
+                        inst.stdout.on("data", (data) => {
+                            d.push(data.toString());
+                            console.log('[Sandbox] ' + data.toString());
+                        });
+
+                        inst.stderr.on("data", (data) => {
+                            d.push(data.toString());
+                            console.log('[Sandbox] ' + data.toString());
+                        });
+
+                        inst.on("error", reject);
+
+                        inst.on("close", (code) => {
+                            resolve({
+                                exitCode: code,
+                                lines: d
+                            });
+                        });
+                    });
+
+                    return result;
+                } catch (err) {
+                    return {
+                        message: "Fuck, an error occurred",
+                        error: err.message
+                    };
+                }
+            } else {
+                return "Command denied by moderation";
+            }
         }
     };
 
@@ -3258,7 +3334,7 @@ async function runChatGptReply(message) {
         {
             type: "function",
             name: "build_pdf",
-            description: "Attaches a PDF file in Letter format built with HTML into your message.\n\nSupports full CSS styling and custom fonts.\nIf the user does not specify margins, make it 1in (1 inch) margins.",
+            description: "Attaches a PDF file in Letter format built with HTML into your message.\n\nSupports full CSS styling and custom fonts.\nIf the user does not specify margins, make it 1in (1 inch) margins.\nMake the PDF look like a Word document unless if the user does not want to.",
             strict: true,
             parameters: {
                 type: "object",
@@ -3295,6 +3371,20 @@ async function runChatGptReply(message) {
                     imageUrl: { type: "string", description: "The URL to the image" },
                 },
                 required: ["imageUrl"],
+                additionalProperties: false,
+            },
+        },
+        {
+            type: "function",
+            name: "executeCmd",
+            description: "Executes commands inside a sandboxed Windows machine",
+            strict: true,
+            parameters: {
+                type: "object",
+                properties: {
+                    cmd: { type: "string", description: "Command to execute (can also have arguments)" },
+                },
+                required: ["cmd"],
                 additionalProperties: false,
             },
         }
