@@ -3080,23 +3080,68 @@ async function runChatGptReply(message) {
             }
         },
         generateImage: async (args) => {
-            const { prompt } = args;
+            const { prompt, referenceUrls = [] } = args;
+            const { toFile } = require("openai");
 
             const openai = new OpenAI({
                 apiKey: process.env.OPENAI_API_KEY
-            })
-
-            const result = await openai.images.generate({
-                model: "gpt-image-2",
-                prompt
             });
 
-            files.push(
-                {
-                    attachment: Buffer.from(result.data[0].b64_json, "base64"),
-                    name: `Bismuth_Assistant_Image-${new Date().toDateString().replace(' ', "_")}.png`
-                }
+            const images = await Promise.all(
+                referenceUrls.map(async (url, index) => {
+                    const parsed = new URL(url);
+                    if (parsed.protocol !== "https:") {
+                        throw new Error("Reference images must use HTTPS.");
+                    }
+
+                    const response = await fetch(parsed, {
+                        signal: AbortSignal.timeout(30_000)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Could not download reference image ${index + 1}.`);
+                    }
+
+                    const type = response.headers.get("content-type")
+                        ?.split(";")[0].trim();
+
+                    const extensions = {
+                        "image/png": "png",
+                        "image/jpeg": "jpg",
+                        "image/webp": "webp"
+                    };
+
+                    if (!extensions[type]) {
+                        throw new Error("References must be PNG, JPEG, or WebP images.");
+                    }
+
+                    return toFile(
+                        response,
+                        `reference-${index}.${extensions[type]}`,
+                        { type }
+                    );
+                })
             );
+
+            const options = {
+                model: "gpt-image-2",
+                prompt,
+                output_format: "png"
+            };
+
+            const result = images.length
+                ? await openai.images.edit({ ...options, image: images })
+                : await openai.images.generate(options);
+
+            const image = result.data?.[0]?.b64_json;
+            if (!image) {
+                throw new Error("No image was returned.");
+            }
+
+            files.push({
+                attachment: Buffer.from(image, "base64"),
+                name: `Bismuth_Assistant_Image-${Date.now()}.png`
+            });
 
             return "Image successfully attached";
         }
@@ -3418,6 +3463,7 @@ async function runChatGptReply(message) {
                 type: "object",
                 properties: {
                     prompt: { type: "string", description: "A prompt to tell the Image AI" },
+                    referenceUrls: { type: "array", description: "An array [] of image url(s) to use as reference (optional)"}
                 },
                 required: ["prompt"],
                 additionalProperties: false,
