@@ -3155,7 +3155,7 @@ async function runChatGptReply(message) {
                 );
 
                 const options = {
-                    model: "gpt-image-2.5-flare",
+                    model: "gpt-image-2.5-sunburst",
                     prompt,
                     n: 1,
                     output_format: "png"
