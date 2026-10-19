@@ -3082,68 +3082,114 @@ async function runChatGptReply(message) {
         generateImage: async (args) => {
             const { prompt, referenceUrls = [] } = args;
             const { toFile } = require("openai");
+            const userId = message.author.id;
+            const quotaDay = new Date().toISOString().slice(0, 10);
+            let quotaFile;
 
-            const openai = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY
-            });
-
-            const images = await Promise.all(
-                referenceUrls.map(async (url, index) => {
-                    const parsed = new URL(url);
-                    if (parsed.protocol !== "https:") {
-                        throw new Error("Reference images must use HTTPS.");
-                    }
-
-                    const response = await fetch(parsed, {
-                        signal: AbortSignal.timeout(30_000)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Could not download reference image ${index + 1}.`);
-                    }
-
-                    const type = response.headers.get("content-type")
-                        ?.split(";")[0].trim();
-
-                    const extensions = {
-                        "image/png": "png",
-                        "image/jpeg": "jpg",
-                        "image/webp": "webp"
-                    };
-
-                    if (!extensions[type]) {
-                        throw new Error("References must be PNG, JPEG, or WebP images.");
-                    }
-
-                    return toFile(
-                        response,
-                        `reference-${index}.${extensions[type]}`,
-                        { type }
-                    );
-                })
-            );
-
-            const options = {
-                model: "gpt-image-2.5-flare",
-                prompt,
-                output_format: "png"
+            const readQuota = () => {
+                if (!fs.existsSync(quotaFile)) return { day: quotaDay, count: 0 };
+                const quota = JSON.parse(fs.readFileSync(quotaFile, "utf8"));
+                if (!quota || typeof quota.day !== "string" ||
+                    !Number.isSafeInteger(quota.count) || quota.count < 0) {
+                    throw new Error("Invalid image quota data; please contact the owner.");
+                }
+                return quota;
+            };
+            const writeQuota = (quota) => {
+                fs.writeFileSync(`${quotaFile}.tmp`, JSON.stringify(quota), "utf8");
+                fs.renameSync(`${quotaFile}.tmp`, quotaFile);
             };
 
-            const result = images.length
-                ? await openai.images.edit({ ...options, image: images })
-                : await openai.images.generate(options);
-
-            const image = result.data?.[0]?.b64_json;
-            if (!image) {
-                throw new Error("No image was returned.");
+            if (userId !== "804839205309382676") {
+                const quotaDir = path.join(__dirname, "image-generation-usage");
+                fs.mkdirSync(quotaDir, { recursive: true });
+                quotaFile = path.join(quotaDir, `${userId}.json`);
+                const saved = readQuota();
+                const quota = saved.day === quotaDay ? saved : { day: quotaDay, count: 0 };
+                if (quota.count >= 5) {
+                    return "Daily image limit reached (5 images per user). Your limit resets at midnight UTC.";
+                }
+                // Reserve synchronously before awaiting, including across channels and DMs.
+                writeQuota({ day: quotaDay, count: quota.count + 1 });
             }
 
-            files.push({
-                attachment: Buffer.from(image, "base64"),
-                name: `Bismuth_Assistant_Image-${Date.now()}.png`
-            });
+            try {
+                const openai = new OpenAI({
+                    apiKey: process.env.OPENAI_API_KEY
+                });
 
-            return "Image successfully attached";
+                const images = await Promise.all(
+                    referenceUrls.map(async (url, index) => {
+                        const parsed = new URL(url);
+                        if (parsed.protocol !== "https:") {
+                            throw new Error("Reference images must use HTTPS.");
+                        }
+
+                        const response = await fetch(parsed, {
+                            signal: AbortSignal.timeout(30_000)
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Could not download reference image ${index + 1}.`);
+                        }
+
+                        const type = response.headers.get("content-type")
+                            ?.split(";")[0].trim();
+
+                        const extensions = {
+                            "image/png": "png",
+                            "image/jpeg": "jpg",
+                            "image/webp": "webp"
+                        };
+
+                        if (!extensions[type]) {
+                            throw new Error("References must be PNG, JPEG, or WebP images.");
+                        }
+
+                        return toFile(
+                            response,
+                            `reference-${index}.${extensions[type]}`,
+                            { type }
+                        );
+                    })
+                );
+
+                const options = {
+                    model: "gpt-image-2.5-flare",
+                    prompt,
+                    n: 1,
+                    output_format: "png"
+                };
+
+                const result = images.length
+                    ? await openai.images.edit({ ...options, image: images })
+                    : await openai.images.generate(options);
+
+                const image = result.data?.[0]?.b64_json;
+                if (!image) {
+                    throw new Error("No image was returned.");
+                }
+
+                files.push({
+                    attachment: Buffer.from(image, "base64"),
+                    name: `Bismuth_Assistant_Image-${Date.now()}.png`
+                });
+
+                return "Image successfully attached";
+            } catch (err) {
+                // Failed generations do not consume a slot. Don't refund a newer day's quota.
+                if (quotaFile) {
+                    try {
+                        const quota = readQuota();
+                        if (quota.day === quotaDay) {
+                            writeQuota({ day: quotaDay, count: Math.max(0, quota.count - 1) });
+                        }
+                    } catch (refundError) {
+                        console.error("Could not refund image quota:", refundError);
+                    }
+                }
+                throw err;
+            }
         }
     };
 
