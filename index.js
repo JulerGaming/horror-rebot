@@ -2652,14 +2652,6 @@ async function runChatGptReply(message) {
             console.log("[ServerFunction] send_image_message called by", message?.author?.tag || message?.author?.id || "unknown", "args:", { imageUrl: args?.imageUrl });
             const { imageUrl, content = "" } = args || {};
 
-            const executorMember = message.member;
-            if (!executorMember) {
-                return "(Error) Could not resolve executor member.";
-            }
-            if (!executorMember.permissions.has("Administrator")) {
-                return "(Error) Executor does not have permission to use this function";
-            }
-
             if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.trim()) {
                 return "(Error) Missing imageUrl";
             }
