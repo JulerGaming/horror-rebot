@@ -3110,6 +3110,28 @@ async function runChatGptReply(message) {
                     apiKey: process.env.OPENAI_API_KEY
                 });
 
+                if (userId !== "804839205309382676") {
+                    if (typeof prompt !== "string" || !prompt.trim()) {
+                        throw new Error("An image prompt is required.");
+                    }
+                    let moderation;
+                    try {
+                        moderation = await openai.moderations.create({
+                            model: "omni-moderation-latest",
+                            input: prompt
+                        }, { timeout: 15_000, maxRetries: 0 });
+                    } catch (moderationError) {
+                        throw new Error("Image prompt moderation is unavailable. Please try again later.");
+                    }
+                    const result = moderation.results?.[0];
+                    if (!result || typeof result.flagged !== "boolean") {
+                        throw new Error("Image prompt moderation could not be completed. Please try again later.");
+                    }
+                    if (result.flagged) {
+                        throw new Error("This image prompt was blocked by moderation. Please use a different prompt.");
+                    }
+                }
+
                 const images = await Promise.all(
                     referenceUrls.map(async (url, index) => {
                         const parsed = new URL(url);
