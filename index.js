@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const OpenAI = require("openai");
 const path = require("path");
+const { watermarkAIImage } = require("./src/ai-image-watermark");
 const { writeFile, link } = require("fs/promises");
 const puppeteer = require('puppeteer');
 const { PartialGroupDMChannel, OmitPartialGroupDMChannel, Message } = require('discord.js');
@@ -3185,7 +3186,7 @@ async function runChatGptReply(message) {
                 }
 
                 files.push({
-                    attachment: Buffer.from(image, "base64"),
+                    attachment: await watermarkAIImage(Buffer.from(image, "base64"), userId),
                     name: `Bismuth_Assistant_Image-${Date.now()}.png`
                 });
 
