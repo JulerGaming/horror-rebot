@@ -3092,6 +3092,8 @@ async function runChatGptReply(message) {
                 fs.renameSync(`${quotaFile}.tmp`, quotaFile);
             };
 
+            // daily limit
+
             if (userId !== "804839205309382676") {
                 const quotaDir = path.join(__dirname, "image-generation-usage");
                 fs.mkdirSync(quotaDir, { recursive: true });
@@ -3109,6 +3111,8 @@ async function runChatGptReply(message) {
                 const openai = new OpenAI({
                     apiKey: process.env.OPENAI_API_KEY
                 });
+
+                // image prompt moderation
 
                 if (userId !== "804839205309382676") {
                     if (typeof prompt !== "string" || !prompt.trim()) {
@@ -3131,6 +3135,8 @@ async function runChatGptReply(message) {
                         throw new Error("This image prompt was blocked by moderation. Please use a different prompt.");
                     }
                 }
+
+                // references
 
                 const images = await Promise.all(
                     referenceUrls.map(async (url, index) => {
@@ -3190,6 +3196,8 @@ async function runChatGptReply(message) {
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(generatedImage, 0, 0);
 
+                // watermark (except owner)
+
                 // Apply the visible sparkle to everyone except the owner.
                 if (userId !== "804839205309382676") {
                     const scale = Math.min(canvas.width, canvas.height) / 1024;
@@ -3209,6 +3217,8 @@ async function runChatGptReply(message) {
                     ctx.fill();
                     ctx.restore();
                 }
+
+                // attach image
 
                 files.push({
                     attachment: canvas.toBuffer("image/png"),
