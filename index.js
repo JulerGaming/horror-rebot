@@ -3190,23 +3190,23 @@ async function runChatGptReply(message) {
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(generatedImage, 0, 0);
 
-                // Disclose AI generation for new images and reference-based edits.
+                // Gemini-style visible sparkle for generated images and edits.
                 const scale = Math.min(canvas.width, canvas.height) / 1024;
-                const fontSize = 24 * scale;
-                const padding = 10 * scale;
-                const margin = 16 * scale;
-                const label = "AI-generated";
-                ctx.font = `bold ${fontSize}px sans-serif`;
-                ctx.textAlign = "left";
-                ctx.textBaseline = "middle";
-                const labelWidth = Math.ceil(ctx.measureText(label).width + padding * 2);
-                const labelHeight = fontSize * 1.4 + padding * 2;
-                const x = canvas.width - labelWidth - margin;
-                const y = canvas.height - labelHeight - margin;
-                ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-                ctx.fillRect(x, y, labelWidth, labelHeight);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillText(label, x + padding, y + labelHeight / 2);
+                ctx.save();
+                ctx.translate(canvas.width - 40 * scale, canvas.height - 40 * scale);
+                ctx.scale(scale, scale);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+                ctx.shadowBlur = 2 * scale;
+                ctx.beginPath();
+                ctx.moveTo(0, -16);
+                ctx.quadraticCurveTo(3, -3, 16, 0);
+                ctx.quadraticCurveTo(3, 3, 0, 16);
+                ctx.quadraticCurveTo(-3, 3, -16, 0);
+                ctx.quadraticCurveTo(-3, -3, 0, -16);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
 
                 files.push({
                     attachment: canvas.toBuffer("image/png"),
