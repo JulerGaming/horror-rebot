@@ -3184,8 +3184,32 @@ async function runChatGptReply(message) {
                     throw new Error("No image was returned.");
                 }
 
+                const { createCanvas, loadImage } = require("canvas");
+                const generatedImage = await loadImage(Buffer.from(image, "base64"));
+                const canvas = createCanvas(generatedImage.width, generatedImage.height);
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(generatedImage, 0, 0);
+
+                // Disclose AI generation for new images and reference-based edits.
+                const scale = Math.min(canvas.width, canvas.height) / 1024;
+                const fontSize = 24 * scale;
+                const padding = 10 * scale;
+                const margin = 16 * scale;
+                const label = "AI-generated";
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                const labelWidth = Math.ceil(ctx.measureText(label).width + padding * 2);
+                const labelHeight = fontSize * 1.4 + padding * 2;
+                const x = canvas.width - labelWidth - margin;
+                const y = canvas.height - labelHeight - margin;
+                ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+                ctx.fillRect(x, y, labelWidth, labelHeight);
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(label, x + padding, y + labelHeight / 2);
+
                 files.push({
-                    attachment: Buffer.from(image, "base64"),
+                    attachment: canvas.toBuffer("image/png"),
                     name: `Bismuth_Assistant_Image-${Date.now()}.png`
                 });
 
