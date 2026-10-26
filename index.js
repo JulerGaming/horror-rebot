@@ -3195,7 +3195,7 @@ async function runChatGptReply(message) {
                 ctx.save();
                 ctx.translate(canvas.width - 40 * scale, canvas.height - 40 * scale);
                 ctx.scale(scale, scale);
-                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
                 ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
                 ctx.shadowBlur = 2 * scale;
                 ctx.beginPath();
