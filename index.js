@@ -3222,7 +3222,7 @@ async function runChatGptReply(message) {
 
                 files.push({
                     attachment: canvas.toBuffer("image/png"),
-                    name: `Bismuth_Assistant_Image-${Date.now()}.png`
+                    name: `Bismuth_Assistant_Image_${randomUUID()}.png`
                 });
 
                 return "Image successfully attached";
@@ -4201,6 +4201,7 @@ const { Stream } = require("@elevenlabs/elevenlabs-js/core/index.js");
 const e = require("express");
 const { json } = require("stream/consumers");
 const { attach } = require("pm2");
+const { randomUUID } = require("crypto");
 
 
 
