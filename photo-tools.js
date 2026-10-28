@@ -1,6 +1,6 @@
 /**
  * Watermarks an image to disclose generative AI
- * @param {string} image Base64 encoded string, when decoded it must contain image data
+ * @param {any} image Base64 encoded string, when decoded it must contain image data
  */
 const watermarkAIImage = async (image) => {
     const { createCanvas, loadImage } = require("canvas");
