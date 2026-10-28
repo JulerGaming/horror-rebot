@@ -3,6 +3,7 @@
  * @param {any} image Base64 encoded string, when decoded it must contain image data
  * @returns {Buffer} Watermarked image in PNG format
  * @requires Canvas
+ * @throws Throws an error if watermark generation failed, and throws a ReferenceError if `canvas` cannot be resolved
  */
 const watermarkAIImage = async (image) => {
     try {
