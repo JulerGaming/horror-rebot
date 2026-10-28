@@ -2,8 +2,15 @@
  * Watermarks an image to disclose generative AI
  * @param {any} image Base64 encoded string, when decoded it must contain image data
  * @returns {Buffer} Watermarked image in PNG format
+ * @requires Canvas
  */
 const watermarkAIImage = async (image) => {
+    try {
+        require.resolve('canvas');
+    } catch (err) {
+        throw new ReferenceError("Canvas not found");
+    }
+    
     const { createCanvas, loadImage } = require("canvas");
     const generatedImage = await loadImage(Buffer.from(image, "base64"));
     const canvas = createCanvas(generatedImage.width, generatedImage.height);
