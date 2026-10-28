@@ -3196,7 +3196,7 @@ async function runChatGptReply(message) {
                 let buffer;
 
                 // Apply the visible sparkle to everyone except the owner.
-                if (userId == "804839205309382676") {
+                if (userId !== "804839205309382676") {
                     buffer = await watermarkAIImage(image);
                 } else {
                     buffer = image;
