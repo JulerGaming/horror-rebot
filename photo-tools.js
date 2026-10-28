@@ -50,7 +50,7 @@ const watermarkAIVideo = async (video) => {
     const fs = require('fs/promises');
     const os = require('os');
     const path = require('path');
-    const { spawn } = require('child_process');
+    const { execFile } = require('child_process');
 
     try {
         require.resolve('canvas');
@@ -96,7 +96,7 @@ const watermarkAIVideo = async (video) => {
         const filter = `[1:v]format=rgba[watermark];[0:v][watermark]overlay=x='if(lt(${phase},3),40,if(lt(${phase},6),main_w-overlay_w-40,40))':y='if(lt(${phase},3),40,if(lt(${phase},6),(main_h-overlay_h)/2,main_h-overlay_h-40))'[output]`;
 
         await new Promise((resolve, reject) => {
-            const ffmpeg = spawn(ffmpegPath, [
+            execFile(ffmpegPath, [
                 '-hide_banner',
                 '-loglevel', 'error',
                 '-i', inputPath,
@@ -114,16 +114,9 @@ const watermarkAIVideo = async (video) => {
                 '-movflags', '+faststart',
                 '-shortest',
                 outputPath
-            ]);
-
-            let stderr = '';
-            ffmpeg.stderr.on('data', chunk => {
-                stderr += chunk;
-            });
-            ffmpeg.on('error', reject);
-            ffmpeg.on('close', code => {
-                if (code === 0) resolve();
-                else reject(new Error(`FFmpeg failed with exit code ${code}: ${stderr}`));
+            ], { maxBuffer: 1024 * 1024 }, (error, _stdout, stderr) => {
+                if (!error) resolve();
+                else reject(new Error(`FFmpeg failed: ${stderr || error.message}`));
             });
         });
 
