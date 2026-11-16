@@ -3803,6 +3803,7 @@ async function runChatGptReply(message) {
 
             if (item?.type !== "function_call") { continue; }
             executedAnyTool = true;
+            if (workStartedAt === null) { await updateWorkingMessage(); }
 
             // IMPORTANT: include the function_call item itself in the next request,
             // otherwise the API will reject the corresponding function_call_output.
