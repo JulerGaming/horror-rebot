@@ -3844,6 +3844,16 @@ async function runChatGptReply(message) {
                 }
             }
 
+            let resultStatus = output;
+            if (typeof resultStatus === "string") {
+                try { resultStatus = JSON.parse(resultStatus); } catch { /* plain text result */ }
+            }
+            const failed = !handler || (resultStatus && typeof resultStatus === "object" &&
+                (resultStatus.ok === false || resultStatus.success === false || resultStatus.error ||
+                    resultStatus.denied === true || resultStatus.approved === false)) ||
+                (typeof resultStatus === "string" && /^(error\b|failed\b|denied\b|permission denied\b|unauthorized\b)/i.test(resultStatus.trim()));
+            if (!failed) { await updateWorkingMessage(true); }
+
             conversation.push({
                 type: "function_call_output",
                 call_id: item.call_id,
