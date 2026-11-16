@@ -2020,6 +2020,44 @@ async function runChatGptReply(message) {
         }
     }
 
+    // Recover missing/short DM context from this same private channel only.
+    // Retrieved messages remain conversation data, not system instructions.
+    if (!message.guild && chatMemory.get(memoryKey).length < 4) {
+        try {
+            const recent = await message.channel.messages.fetch({ limit: 30, before: message.id });
+            const recovered = [...recent.values()]
+                .filter((item) => item.content && !item.content.startsWith("!") &&
+                    (item.author.id === message.author.id ||
+                        (item.author.id === client.user.id && item.reference?.messageId &&
+                            !item.content.startsWith("-# Working"))))
+                .sort((a, b) => a.id === b.id ? 0 : BigInt(a.id) < BigInt(b.id) ? -1 : 1)
+                .slice(-20)
+                .map((item) => item.author.id === client.user.id
+                    ? { role: "assistant", content: item.content }
+                    : {
+                        role: "user",
+                        content: JSON.stringify({
+                            message: {
+                                id: item.id,
+                                channelId: item.channelId,
+                                authorId: item.author.id,
+                                content: item.content
+                            },
+                            author: {
+                                id: item.author.id,
+                                globalName: item.author.globalName,
+                                username: item.author.username
+                            }
+                        })
+                    });
+            if (recovered.length > chatMemory.get(memoryKey).length) {
+                chatMemory.set(memoryKey, recovered);
+            }
+        } catch (err) {
+            console.warn("Could not recover DM context:", err.code || "unknown error");
+        }
+    }
+
     const history = chatMemory.get(memoryKey);
 
     // ====== OPENAI ======
