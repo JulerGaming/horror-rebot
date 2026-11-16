@@ -3756,6 +3756,30 @@ async function runChatGptReply(message) {
         include: ["web_search_call.action.sources"]
     };
 
+    let workingMessage = null;
+    let workStartedAt = null;
+    let finishedSteps = 0;
+    const progressLines = [];
+    const updateWorkingMessage = async (finished = false) => {
+        if (workStartedAt === null) { workStartedAt = Date.now(); }
+        if (finished) {
+            finishedSteps++;
+            if (progressLines.length < 80) {
+                progressLines.push(`Step ${finishedSteps} finished.`);
+            }
+        }
+        const overflow = finishedSteps > 80 ? `\n${finishedSteps - 80} additional steps finished.` : "";
+        const content = ["-# Working", ...progressLines].join("\n") + overflow;
+        try {
+            if (workingMessage) {
+                await workingMessage.edit({ content, allowedMentions: { parse: [] } });
+            } else {
+                workingMessage = await message.reply({ content, allowedMentions: { parse: [] } });
+            }
+        } catch (err) {
+            console.warn("Could not update work progress:", err?.message || err);
+        }
+    };
     const conversation = [systemMessage, ...history];
     let response = await openai.responses.create({ ...baseRequest, input: conversation });
 
