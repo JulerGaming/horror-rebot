@@ -3765,11 +3765,11 @@ async function runChatGptReply(message) {
         if (finished) {
             finishedSteps++;
             if (progressLines.length < 80) {
-                progressLines.push(`Step ${finishedSteps} finished.`);
+                progressLines.push(typeof finished === "string" ? finished : "Completed an action");
             }
         }
         const overflow = finishedSteps > 80 ? `\n${finishedSteps - 80} additional steps finished.` : "";
-        const content = ["-# Working", ...progressLines].join("\n") + overflow;
+        const content = (["Working", ...progressLines].join("\n") + overflow).slice(0, 2000);
         try {
             if (workingMessage) {
                 await workingMessage.edit({ content, allowedMentions: { parse: [] } });
