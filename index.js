@@ -19,7 +19,7 @@ const BOT_DISPLAY_NAME = "Bismuth Assistant";
 // `relPathLower` is a lowercased, forward-slash project-relative path.
 function isProtectedSecretFile(relPathLower) {
     const base = (relPathLower || "").split("/").pop() || "";
-    return base === ".env" || base.startsWith(".env.");
+    return base === ".env" || base.startsWith(".env.") || base === "memory.json" || base === "memory.json.tmp";
 }
 
 // Build a readable diff-style preview of a proposed edit for the approval DM. Rendered
