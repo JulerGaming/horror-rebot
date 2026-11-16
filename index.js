@@ -50,6 +50,45 @@ process.on("warning", (warning) => {
 
 const fs = require("fs");
 
+// Persist channel/DM context locally; never commit this file.
+const chatMemoryPath = path.join(__dirname, "memory.json");
+let chatMemoryWritable = true;
+try {
+    const saved = JSON.parse(fs.readFileSync(chatMemoryPath, "utf8"));
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
+        throw new Error("Invalid chat memory format");
+    }
+    const entries = Object.entries(saved);
+    for (const [key, messages] of entries) {
+        if (!/^(channel|dm):\d+$/.test(key) || !Array.isArray(messages) ||
+            !messages.every((item) => item &&
+                ["user", "assistant", "system"].includes(item.role) &&
+                typeof item.content === "string")) {
+            throw new Error("Invalid chat memory entry");
+        }
+    }
+    for (const [key, messages] of entries) {
+        chatMemory.set(key, messages.length > 22
+            ? [messages[0], ...messages.slice(-21)] : messages);
+    }
+} catch (err) {
+    if (err.code !== "ENOENT") {
+        chatMemoryWritable = false;
+        console.error("Chat memory could not be loaded; disk saving disabled to preserve the existing file.");
+    }
+}
+
+function saveChatMemory() {
+    if (!chatMemoryWritable) return;
+    try {
+        fs.writeFileSync(chatMemoryPath + ".tmp",
+            JSON.stringify(Object.fromEntries(chatMemory)), { mode: 0o600 });
+        fs.renameSync(chatMemoryPath + ".tmp", chatMemoryPath);
+    } catch (err) {
+        console.error("Failed to save chat memory:", err.code || "unknown error");
+    }
+}
+
 const USER = process.env.USER;
 const PASS = process.env.PASS;
 
