@@ -3939,6 +3939,8 @@ async function runChatGptReply(message) {
         content: replyText
     });
 
+    saveChatMemory();
+
     const memberVoiceChannel = member?.voice?.channel;
     const shouldUseVoiceTts = Boolean(memberVoiceChannel && configl.basics.vc.enabled);
     let audioBuffer = null;
