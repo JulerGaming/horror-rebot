@@ -3199,7 +3199,7 @@ async function runChatGptReply(message) {
                 if (userId !== "804839205309382676") {
                     buffer = await watermarkAIImage(image);
                 } else {
-                    buffer = image;
+                    buffer = Buffer.from(image, "base64");
                 }
 
                 // attach image
