@@ -3964,11 +3964,25 @@ async function runChatGptReply(message) {
     }
 
     // ====== SEND TEXT ======
-    if (replyText.length <= 2000) {
-        await message.reply({ content: replyText, files, allowedMentions: { parse: [] } });
+    const sendFinalText = async (content) => {
+        const payload = { content, files, allowedMentions: { parse: [] } };
+        if (workingMessage) {
+            try {
+                await workingMessage.edit(payload);
+                return;
+            } catch (err) {
+                console.warn("Could not finalize work progress:", err?.message || err);
+            }
+        }
+        await message.reply(payload);
+    };
+    const finalText = workStartedAt === null ? replyText :
+        `-# Worked for ${Math.round((Date.now() - workStartedAt) / 1000)} seconds\n${replyText}`;
+    if (finalText.length <= 2000) {
+        await sendFinalText(finalText);
     } else {
         const chunks = [];
-        let remaining = replyText;
+        let remaining = finalText;
 
         while (remaining.length > 0) {
             let chunk = remaining.slice(0, 2000);
