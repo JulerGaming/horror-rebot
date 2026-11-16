@@ -2117,6 +2117,9 @@ async function runChatGptReply(message) {
         history.splice(1, history.length - 21);
     }
 
+    // Preserve the incoming message even if a restart interrupts the reply.
+    saveChatMemory();
+
     // ====== SERVER-SIDE FUNCTIONS (OPENAI TOOL CALLING) ======
     const serverFunctionHandlers = {
         do_nothing: async () => {
