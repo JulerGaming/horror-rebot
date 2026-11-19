@@ -3893,7 +3893,7 @@ async function runChatGptReply(message) {
                 (resultStatus.ok === false || resultStatus.success === false || resultStatus.error ||
                     resultStatus.denied === true || resultStatus.approved === false)) ||
                 (typeof resultStatus === "string" && /^(error\b|failed\b|denied\b|permission denied\b|unauthorized\b)/i.test(resultStatus.trim()));
-            if (!failed) { await updateWorkingMessage(true); }
+            if (!failed) { await updateWorkingMessage(`Ran ${item.name}`); }
 
             conversation.push({
                 type: "function_call_output",
