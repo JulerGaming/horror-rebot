@@ -3956,19 +3956,6 @@ async function runChatGptReply(message) {
         .replace(/\s{2,}/g, " ")
         .trim();
 
-    replyText = `${actionsMade}${replyText}`;
-    if (actionsMade === "") {
-        replyText = replyText
-            .replace(`<@!${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
-            .replace(`<@${client.user.id}>`, `@${BOT_DISPLAY_NAME}`)
-            .replace(/<@!?\d+>/g, "@...")
-            .replace(/<@&\d+>/g, "@...")
-            .replace(/<#\d+>/g, "@...")
-            .replace(/@everyone/g, "everyone")
-            .replace(/@here/g, "here")
-            .replace(/\s{2,}/g, " ")
-            .trim();
-    }
 
     if (!replyText) {
         return message.reply("Sorry, I couldn't get a response.");
