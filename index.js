@@ -3801,7 +3801,7 @@ async function runChatGptReply(message) {
     let workStartedAt = null;
     let finishedSteps = 0;
     const progressLines = [];
-    const updateWorkingMessage = async (finished = false) => {
+    const updateWorkingMessage = async (finished = false, running = "") => {
         if (workStartedAt === null) { workStartedAt = Date.now(); }
         if (finished) {
             finishedSteps++;
@@ -3810,7 +3810,8 @@ async function runChatGptReply(message) {
             }
         }
         const overflow = finishedSteps > 80 ? `\n-# ${finishedSteps - 80} additional steps finished.` : "";
-        const content = (["Working", ...progressLines].map(line => `-# ${line}`).join("\n") + overflow).slice(0, 2000);
+        const runningLine = running ? `\n-# Running ${running}` : "";
+        const content = (["Working", ...progressLines].map(line => `-# ${line}`).join("\n") + overflow).slice(0, 2000 - runningLine.length) + runningLine;
         try {
             if (workingMessage) {
                 await workingMessage.edit({ content, allowedMentions: { parse: [] } });
